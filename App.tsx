@@ -140,6 +140,8 @@ const App: React.FC = () => {
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [serverInfo, setServerInfo] = useState<{ localIP: string; port: number } | null>(null);
+  const [isLocalConnected, setIsLocalConnected] = useState(false);
   const [hasPendingWrites, setHasPendingWrites] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
 
@@ -247,12 +249,21 @@ const App: React.FC = () => {
     // Periodic sync check (every 30 seconds)
     const syncInterval = setInterval(handleSyncToLocalServer, 30000);
 
+    const checkLocalStatus = async () => {
+      const info = await api.getInfo();
+      setServerInfo(info);
+      setIsLocalConnected(!!info);
+    };
+    const statusInterval = setInterval(checkLocalStatus, 10000);
+
     handleSyncToLocalServer(); // Run immediately
+    checkLocalStatus();
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
       clearInterval(syncInterval);
+      clearInterval(statusInterval);
     };
   }, [isOnline, settings.notificationSoundUrl]);
 
@@ -393,6 +404,8 @@ const App: React.FC = () => {
           const info = await res.json();
           if (info && info.localIP) {
             console.log("Master Server Detected:", info.localIP);
+            setServerInfo(info);
+            setIsLocalConnected(true);
             // If we are online, sync this Master IP to cloud so other devices find us
             if (navigator.onLine) {
               const settingsRef = doc(db, "settings", "app_settings");
@@ -966,15 +979,29 @@ const WELCOME_MESSAGES = [
       )}
 
       {/* Offline/Sync Banner */}
-      {(!isOnline || hasPendingWrites || pendingCount > 0) && (
-        <div className={`fixed top-0 left-0 right-0 z-[1000] px-4 py-2 text-center text-[10px] font-black uppercase tracking-tighter shadow-lg transition-all flex items-center justify-center gap-2 ${
-          !isOnline ? 'bg-rose-600 text-white' : 'bg-orange-600 text-white animate-pulse'
+      {(!isOnline || hasPendingWrites || pendingCount > 0 || isLocalConnected) && (
+        <div className={`fixed top-0 left-0 right-0 z-[1000] px-4 py-1.5 text-center text-[9px] font-black uppercase tracking-widest shadow-lg transition-all flex items-center justify-between gap-2 ${
+          !isOnline ? 'bg-rose-600 text-white' : isLocalConnected ? 'bg-blue-600/90 backdrop-blur-md text-white' : 'bg-orange-600 text-white animate-pulse'
         }`}>
-          {!isOnline ? (
-            <><span>⚠️ Connection Lost - Saving Locally</span> {pendingCount > 0 && <span className="bg-white/20 px-2 py-0.5 rounded-full">{pendingCount} Pending</span>}</>
-          ) : (
-            <><span>🔄 Syncing {pendingCount || ''} changes...</span></>
-          )}
+          <div className="flex items-center gap-2">
+            <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-white/40'} ${isOnline ? 'animate-pulse' : ''}`} />
+            <span>{isOnline ? 'Cloud: Online' : 'Cloud: Offline'}</span>
+          </div>
+
+          <div className="flex-1 text-center">
+            {!isOnline ? (
+              <span>⚠️ Local Mode Active</span>
+            ) : pendingCount > 0 ? (
+              <span>🔄 Syncing {pendingCount} changes...</span>
+            ) : (
+              <span>{settings.businessName}</span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span>{isLocalConnected ? `LAN: ${serverInfo?.localIP}` : 'LAN: Disconnected'}</span>
+            <div className={`w-1.5 h-1.5 rounded-full ${isLocalConnected ? 'bg-emerald-400' : 'bg-white/40'} ${isLocalConnected ? 'animate-pulse' : ''}`} />
+          </div>
         </div>
       )}
 

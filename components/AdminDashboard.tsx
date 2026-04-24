@@ -6,6 +6,7 @@ import { compressImage } from '../utils/imageCompression';
 import { getBusinessDate } from '../utils/dateUtils';
 import { db } from '../firebase';
 import { doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { QRCodeCanvas } from 'qrcode.react';
 
 interface AdminProps {
   orders: Order[];
@@ -1624,68 +1625,111 @@ const AdminDashboard: React.FC<AdminProps> = ({
           </div>
 
           {/* Local Router Sync Section */}
-          <div className="bg-[var(--bg-card)] p-6 rounded-[32px] border border-blue-600/30 shadow-xl space-y-6 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-10">
-              <span className="text-6xl text-blue-500">{ICONS.Zap}</span>
+          <div className="bg-[var(--bg-card)] p-6 rounded-[40px] border border-blue-600/30 shadow-2xl space-y-6 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-6 opacity-5">
+              <span className="text-8xl text-blue-500">{ICONS.Wifi}</span>
             </div>
             
             <div className="flex items-center gap-2 ml-2">
-              <span className="text-blue-500">{ICONS.Wifi}</span>
-              <p className="text-[10px] font-black uppercase text-blue-500 tracking-[0.2em]">Local Router Sync (Offline Mode)</p>
+              <div className="w-8 h-8 bg-blue-600/20 rounded-xl flex items-center justify-center text-blue-500 shadow-lg">
+                {ICONS.Wifi}
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase text-blue-500 tracking-[0.2em]">Offline Network Sync</p>
+                <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Connect devices via Router</p>
+              </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="p-5 bg-blue-600/10 rounded-[28px] border border-blue-600/20 text-center">
-                <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-2">Master Device IP Address</p>
-                <p className="text-3xl font-black text-white italic tracking-tighter">
-                  {serverInfo ? `${serverInfo.localIP}:${serverInfo.port}` : 'Detecting...'}
-                </p>
-                <p className="text-[8px] font-bold text-blue-500/60 uppercase mt-2 tracking-widest">Connect to this via Router</p>
-              </div>
-
-              <div className="space-y-3 bg-black/30 p-5 rounded-[28px] border border-white/5">
-                <p className="text-[10px] font-black text-white uppercase italic">Internet Band Ho Jaye To?</p>
-                <div className="space-y-2">
-                  <p className="text-[9px] font-bold text-[var(--text-muted)] leading-relaxed">
-                    1. Tamam devices (Tablets/Phones) ko isi Router se connect karein.<br/>
-                    2. Dusri devices ke browser mein yeh IP address likhein.<br/>
-                    3. Data automatic share hona shuru ho jayega!
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+              <div className="space-y-4">
+                <div className="p-6 bg-blue-600/10 rounded-[32px] border border-blue-600/20 text-center relative overflow-hidden group">
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-2">Master Server IP</p>
+                  <p className="text-4xl font-black text-white italic tracking-tighter">
+                    {serverInfo ? `${serverInfo.localIP}` : '---.---.---.---'}
                   </p>
+                  <p className="text-[10px] font-black text-blue-500/60 uppercase mt-1">Port: {serverInfo?.port || '3000'}</p>
+                </div>
+
+                <div className="space-y-3 bg-black/40 p-6 rounded-[32px] border border-white/5">
+                  <h5 className="text-[10px] font-black text-white uppercase italic flex items-center gap-2">
+                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                    How to connect?
+                  </h5>
+                  <div className="space-y-3">
+                    <div className="flex gap-3">
+                      <div className="w-5 h-5 bg-blue-600/20 rounded-lg flex items-center justify-center text-[10px] font-black text-blue-500 shrink-0">1</div>
+                      <p className="text-[9px] font-bold text-[var(--text-muted)] leading-relaxed uppercase">Connect Mobiles/Tablets to the <b>SAME ROUTER</b>.</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <div className="w-5 h-5 bg-blue-600/20 rounded-lg flex items-center justify-center text-[10px] font-black text-blue-500 shrink-0">2</div>
+                      <p className="text-[9px] font-bold text-[var(--text-muted)] leading-relaxed uppercase">Scan the <b>QR CODE</b> or type the URL in browser.</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <div className="w-5 h-5 bg-blue-600/20 rounded-lg flex items-center justify-center text-[10px] font-black text-blue-500 shrink-0">3</div>
+                      <p className="text-[9px] font-bold text-[var(--text-muted)] leading-relaxed uppercase">Go to <b>CONFIG</b> on mobile & set this IP as Master.</p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {serverInfo && (
-                <div className="flex justify-center p-4 bg-white rounded-3xl">
-                   <div className="text-center">
-                      <p className="text-[10px] font-black text-black uppercase tracking-widest mb-1">Local URL</p>
-                      <div className="bg-black text-white p-2 rounded-lg text-[8px] font-mono break-all select-all cursor-pointer">
-                        http://{serverInfo.localIP}:{serverInfo.port}
-                      </div>
-                   </div>
-                </div>
-              )}
-
-              <div className="pt-4 border-t border-white/5 space-y-2">
-                <p className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest ml-4">Manual Master IP (Slave Devices Only)</p>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="e.g. 192.168.1.10"
-                    className="flex-1 p-3 bg-black/50 border border-white/10 rounded-xl text-white text-xs font-bold outline-none focus:border-blue-500"
-                    value={settings.masterIP || ''}
-                    onChange={(e) => setSettings({ ...settings, masterIP: e.target.value })}
-                  />
-                  <button 
-                    onClick={() => {
-                      if (serverInfo) setSettings({ ...settings, masterIP: serverInfo.localIP });
-                    }}
-                    className="px-4 bg-blue-600/10 text-blue-500 border border-blue-600/20 rounded-xl text-[8px] font-black uppercase"
-                  >
-                    Set Me As Master
-                  </button>
-                </div>
-                <p className="text-[7px] font-bold text-blue-500/50 uppercase ml-4">Agay dusri devices ko master se connect karna hai to unka IP yahan dalein.</p>
+              <div className="flex flex-col items-center justify-center space-y-4">
+                {serverInfo ? (
+                  <div className="p-4 bg-white rounded-[40px] shadow-2xl border-4 border-blue-600/20 relative group">
+                    <QRCodeCanvas 
+                      value={`http://${serverInfo.localIP}:${serverInfo.port}`}
+                      size={180}
+                      level="H"
+                      includeMargin={true}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 rounded-[36px]">
+                       <button 
+                         onClick={() => {
+                           navigator.clipboard.writeText(`http://${serverInfo.localIP}:${serverInfo.port}`);
+                           alert("URL Copied!");
+                         }}
+                         className="px-6 py-3 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
+                       >
+                         Copy URL
+                       </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-[200px] h-[200px] bg-black/20 rounded-[40px] border border-dashed border-white/10 flex items-center justify-center text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest text-center px-6">
+                    Searching for local network...
+                  </div>
+                )}
+                <p className="text-[8px] font-black text-blue-500/40 uppercase tracking-[0.3em] italic">Scan to connect</p>
               </div>
+            </div>
+
+            <div className="pt-6 border-t border-white/5 space-y-4">
+               <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1 space-y-2">
+                    <p className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest ml-4 italic">Manual Configuration</p>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Master IP (e.g. 192.168.1.10)"
+                        className="flex-1 p-4 bg-black/60 border border-white/10 rounded-[24px] text-white text-xs font-bold outline-none focus:border-blue-500 shadow-inner"
+                        value={settings.masterIP || ''}
+                        onChange={(e) => setSettings({ ...settings, masterIP: e.target.value })}
+                      />
+                      <button 
+                        onClick={() => {
+                          if (serverInfo) {
+                            setSettings({ ...settings, masterIP: serverInfo.localIP });
+                            alert("This device is now the Master Server!");
+                          }
+                        }}
+                        className="px-6 bg-blue-600 text-white rounded-[24px] text-[9px] font-black uppercase tracking-widest shadow-lg shadow-blue-600/20 active:scale-95 transition-all"
+                      >
+                        Set Me As Master
+                      </button>
+                    </div>
+                  </div>
+               </div>
+               <p className="text-[7px] font-bold text-blue-500/40 uppercase text-center tracking-widest">Note: Static IP on Router is recommended for stable connection.</p>
             </div>
           </div>
 
