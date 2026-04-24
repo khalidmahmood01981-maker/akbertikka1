@@ -1,0 +1,7 @@
+{
+  "name": "final  billin app",
+  "description": "A comprehensive CRM for BBQ and Fast Food businesses featuring Order Taking, inventory tracking, hidden admin panel, and WhatsApp invoice integration.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

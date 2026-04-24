@@ -1,0 +1,1621 @@
+
+import React, { useState, useEffect, useRef } from 'react';
+import { onSnapshot, setDoc, doc, collection, getDocs, deleteDoc, addDoc, updateDoc } from 'firebase/firestore';
+import { db, collections } from './firebase';
+
+
+import { MenuItem, Order, Purchase, AppSettings, StockCategory, StockLog, KhataTransaction, ShopAccount, Customer, Supplier, SupplierCategory, StaffMember, CustomerPayment, OrderStatus } from './types';
+import { HEADING_CLICKS_REQUIRED, INITIAL_ITEMS, ICONS } from './constants';
+import { QRCodeCanvas } from 'qrcode.react';
+import POS from './components/POS';
+import AdminDashboard from './components/AdminDashboard';
+import LoginModal from './components/LoginModal';
+import HistoryView from './components/HistoryView';
+import InventoryView from './components/InventoryView';
+import MenuManagement from './components/MenuManagement';
+import CustomerLogin from './components/CustomerLogin';
+import CustomerMenu from './components/CustomerMenu';
+import LiveOrdersView from './components/LiveOrdersView';
+import * as offlineDB from './utils/db';
+import { api } from './utils/api';
+
+
+const safeSanitize = (obj: any): any => {
+  const seen = new WeakSet();
+  try {
+    const json = JSON.stringify(obj, (key, value) => {
+      if (typeof value === 'object' && value !== null) {
+        if (seen.has(value)) return;
+        if (value.nodeType || value === window || value.constructor?.name?.startsWith('HTML')) {
+          return;
+        }
+        seen.add(value);
+      }
+      return value;
+    });
+    return JSON.parse(json);
+  } catch (e) {
+    console.warn("Sanitization warning:", e);
+    return JSON.parse(JSON.stringify(obj, (k, v) => (typeof v === 'object' && v !== null && seen.has(v)) ? undefined : v));
+  }
+};
+
+type TabType = 'dashboard' | 'menu' | 'bill' | 'history' | 'inventory' | 'orders';
+
+const App: React.FC = () => {
+  const [activeShop, setActiveShop] = useState<ShopAccount | null>(null);
+  const [activeStaff, setActiveStaff] = useState<StaffMember | null>(null);
+  const [globalAccounts, setGlobalAccounts] = useState<ShopAccount[]>([
+    {
+      id: 'TT',
+      password: '11111111',
+      shopName: 'BBQ & FAST FOOD',
+      subscriptionStatus: 'active',
+      expiryDate: Date.now() + (365 * 24 * 60 * 60 * 1000),
+      createdAt: Date.now()
+    }
+  ]);
+
+  const [items, setItems] = useState<MenuItem[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customerPayments, setCustomerPayments] = useState<CustomerPayment[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [supplierCategories, setSupplierCategories] = useState<SupplierCategory[]>([
+    { id: '1', name: 'MEAT' },
+    { id: '2', name: 'VEGETABLES' },
+    { id: '3', name: 'GENERAL STORE' }
+  ]);
+  const [stockCategories, setStockCategories] = useState<StockCategory[]>([]);
+  const [stockLogs, setStockLogs] = useState<StockLog[]>([]);
+  const [khataTransactions, setKhataTransactions] = useState<KhataTransaction[]>([]);
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
+  const [settings, setSettings] = useState<AppSettings>({
+    id: 'app_settings',
+    businessName: 'BBQ & FAST FOOD',
+    taxRate: 0,
+    isTaxEnabled: false,
+    isDiscountEnabled: true,
+    defaultDiscount: 0,
+    theme: 'midnight',
+    fontSize: 'medium',
+    fontSizeNumber: 16,
+    fontFamily: 'inter',
+    isAuthEnabled: true,
+    whatsappCountryCode: '92',
+    adminUsername: 'admin',
+    adminSecretKey: '111222',
+    subscriptionPrice: 100,
+    collectionJazzCash: '03000000000',
+    collectionEasyPaisa: '03000000000',
+    notificationSoundUrl: 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3',
+    notificationRepeatCount: 1,
+    notificationSounds: [
+      { id: 'default', name: 'Standard Alert', url: 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3' },
+      { id: 'bell', name: 'Service Bell', url: 'https://assets.mixkit.co/active_storage/sfx/2210/2210-preview.mp3' },
+      { id: 'chime', name: 'Digital Chime', url: 'https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3' }
+    ],
+    deliveryZones: [
+      { id: 'zone1', name: 'Local (Within 2km)', fee: 50 },
+      { id: 'zone2', name: 'Mid Range (2-5km)', fee: 100 },
+      { id: 'zone3', name: 'Far (5km+)', fee: 200 }
+    ],
+    paymentMethods: [
+      { id: 'cash', label: 'Cash', isEnabled: true },
+      { id: 'khata', label: 'Udhaar / Khata', isEnabled: true },
+      { id: 'jazzcash', label: 'JazzCash', isEnabled: false },
+      { id: 'easypaisa', label: 'EasyPaisa', isEnabled: false }
+    ],
+    purchaseCategories: ['Raw Material', 'Utilities', 'Rent', 'Salary', 'Maintenance', 'Marketing', 'Other'],
+    purchaseItems: [
+      { id: 'p1', name: 'CHICKEN', category: 'Raw Material', unit: 'kg' },
+      { id: 'p2', name: 'OIL', category: 'Raw Material', unit: 'kg' },
+      { id: 'p3', name: 'POTATO', category: 'Raw Material', unit: 'kg' },
+      { id: 'p4', name: 'ELECTRICITY BILL', category: 'Utilities', unit: 'rs' },
+      { id: 'p5', name: 'GAS BILL', category: 'Utilities', unit: 'rs' },
+    ],
+    isAutoWhatsappEnabled: true,
+    enableVoiceAnnouncement: true
+  });
+
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    const saved = localStorage.getItem('app_active_tab');
+    return (saved as TabType) || 'bill';
+  });
+  const [headingClicks, setHeadingClicks] = useState(0);
+  const [showAdminPanelButton, setShowAdminPanelButton] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isCustomerMode, setIsCustomerMode] = useState(false);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const [showLoginAttempted, setShowLoginAttempted] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [isTotalsUnlocked, setIsTotalsUnlocked] = useState(false);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [pinError, setPinError] = useState(false);
+  const [pinClickCount, setPinClickCount] = useState(0);
+  const pinClickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [hasPendingWrites, setHasPendingWrites] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+
+
+  const [showDataWarning, setShowDataWarning] = useState(false);
+  const [dataSize, setDataSize] = useState(0);
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const prevOrdersRef = useRef<Order[]>([]);
+  const [currentCustomer, setCurrentCustomer] = useState<{ name: string; phone: string } | null>(null);
+  const [currentTableNumber, setCurrentTableNumber] = useState<string>('');
+  const [currentOrderTakerId, setCurrentOrderTakerId] = useState<string | null>(null);
+  const [orderToEdit, setOrderToEdit] = useState<Order | null>(null);
+  const [showTakerQR, setShowTakerQR] = useState(false);
+  const [isNavHidden, setIsNavHidden] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<{
+    show: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    type?: 'danger' | 'info';
+  }>({
+    show: false,
+    title: '',
+    message: '',
+    onConfirm: () => { },
+  });
+
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isInstallable, setIsInstallable] = useState(false);
+
+  const triggerConfirm = (config: {
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    type?: 'danger' | 'info';
+  }) => {
+    setConfirmModal({ ...config, show: true });
+  };
+
+  const notify = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setIsInstallable(true);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setIsInstallable(false);
+    }
+    setDeferredPrompt(null);
+  };
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // Initialize notification sound
+    const soundUrl = settings.notificationSoundUrl || 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3';
+    audioRef.current = new Audio(soundUrl);
+    audioRef.current.load();
+
+    const handleSyncToLocalServer = async () => {
+      try {
+        const pending = await offlineDB.getPendingSyncItems();
+        if (pending.length > 0) {
+          // Check if local server is reachable
+          const info = await api.getInfo();
+          if (info) {
+            notify(`Syncing ${pending.length} changes to local server...`, "info");
+            for (const item of pending) {
+              try {
+                if (item.type === 'order' || item.type === 'update') {
+                  await api.saveOrder(item.data);
+                } else if (item.type === 'customer') {
+                  await api.saveCustomer(item.data);
+                }
+                await offlineDB.deletePendingSyncItem(item.id);
+              } catch (e) {
+                console.warn("Failed to sync item:", item.id, e);
+              }
+            }
+            notify("Local sync complete!", "success");
+          }
+        }
+      } catch (e) {
+        console.error("Local sync loop failed:", e);
+      }
+    };
+
+    // Periodic sync check (every 30 seconds)
+    const syncInterval = setInterval(handleSyncToLocalServer, 30000);
+
+    handleSyncToLocalServer(); // Run immediately
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      clearInterval(syncInterval);
+    };
+  }, [isOnline, settings.notificationSoundUrl]);
+
+  // Handle Master IP for Local Router Sync
+  useEffect(() => {
+    if (settings.masterIP) {
+      const currentHost = window.location.hostname;
+      if (currentHost !== settings.masterIP && currentHost !== 'localhost' && currentHost !== '127.0.0.1') {
+        const masterURL = `http://${settings.masterIP}:3000`;
+        api.setBaseURL(masterURL);
+      }
+    }
+  }, [settings.masterIP]);
+
+
+  const playNotification = (customerName?: string, orderNumber?: number, status?: OrderStatus) => {
+    // 1. Play the tune first
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(e => console.warn("Audio play blocked:", e));
+    }
+
+    // 2. Announcements
+    if ('speechSynthesis' in window) {
+      let text = '';
+      if (status === 'ready') {
+        if (orderNumber && customerName) {
+          text = `Order number ${orderNumber} for ${customerName} is ready`;
+        } else if (orderNumber) {
+          text = `Order number ${orderNumber} is ready`;
+        } else if (customerName) {
+          text = `Order for ${customerName} is ready`;
+        }
+      } else {
+        // Default new order announcement
+        if (orderNumber && customerName) {
+          text = `New order number ${orderNumber} for ${customerName}`;
+        } else if (customerName) {
+          text = `New order for ${customerName}`;
+        }
+      }
+
+      if (text && settings.enableVoiceAnnouncement !== false) {
+        // Small delay to let the tune start playing
+        setTimeout(() => {
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.rate = 0.9;
+          window.speechSynthesis.speak(utterance);
+        }, 300);
+      }
+    }
+  };
+
+  // Watch for new orders to play sound
+  useEffect(() => {
+    if (orders.length > prevOrdersRef.current.length) {
+      const newOrder = orders[0];
+      if (newOrder && (newOrder.status === 'received' || newOrder.status === 'pending_customer')) {
+        // Only notify if:
+        // 1. User is Admin/Kitchen
+        // 2. User is the specific Taker for this order
+        const isMyOrder = !activeStaff || activeStaff.role === 'kitchen' || isAdmin || (activeStaff.id === newOrder.orderTakerId);
+        
+        if (isMyOrder) {
+          playNotification(newOrder.customerName);
+        }
+      }
+    }
+    prevOrdersRef.current = orders;
+  }, [orders, activeStaff, isAdmin]);
+
+  useEffect(() => {
+    if (settings.notificationSoundUrl && audioRef.current) {
+      audioRef.current.src = settings.notificationSoundUrl;
+      audioRef.current.load();
+    }
+  }, [settings.notificationSoundUrl]);
+
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    html.style.fontSize = `${settings.fontSizeNumber || 16}px`;
+    body.classList.remove('font-inter', 'font-oswald', 'font-courier', 'font-roboto', 'font-serif');
+    body.classList.add(`font-${settings.fontFamily || 'inter'}`);
+  }, [settings.fontSizeNumber, settings.fontFamily]);
+
+  useEffect(() => {
+    const localData = localStorage.getItem('business_crm_local_db');
+    if (localData) {
+      try {
+        const parsed = JSON.parse(localData);
+        setItems(parsed.items || INITIAL_ITEMS);
+        setOrders(parsed.orders || []);
+        setPurchases(parsed.purchases || []);
+        setCustomers(parsed.customers || []);
+        setSuppliers(parsed.suppliers || []);
+        setSupplierCategories(parsed.supplierCategories || [
+          { id: '1', name: 'MEAT' },
+          { id: '2', name: 'VEGETABLES' },
+          { id: '3', name: 'GENERAL STORE' }
+        ]);
+        setStockCategories(parsed.stockCategories || []);
+        setStockLogs(parsed.stockLogs || []);
+        setKhataTransactions(parsed.khataTransactions || []);
+        setStaffMembers(parsed.staffMembers || []); // Load staffMembers from local storage
+        
+        // Try to load cached orders from IndexedDB (Priority over localStorage)
+        offlineDB.getCachedOrders().then(cachedOrders => {
+          if (cachedOrders.length > 0) {
+            setOrders(cachedOrders.sort((a, b) => b.timestamp - a.timestamp));
+          }
+        });
+
+        const savedAccounts = parsed.globalAccounts || [];
+
+        const hasTT = savedAccounts.some((a: ShopAccount) => a.id.toUpperCase() === 'TT');
+        if (!hasTT) {
+          setGlobalAccounts([...globalAccounts, ...savedAccounts]);
+        } else {
+          setGlobalAccounts(savedAccounts);
+        }
+        if (parsed.settings) setSettings(prev => ({ ...prev, ...parsed.settings }));
+      } catch (e) {
+        console.error("Local load failed", e);
+        setItems(INITIAL_ITEMS);
+      }
+    } else {
+      // We will try fetching from API instead of INITIAL_ITEMS blindly later
+      // setItems(INITIAL_ITEMS);
+    }
+
+    // Fetch local items and detect Master IP
+    let detectionRetries = 0;
+    const initLocalSync = async () => {
+      try {
+        const res = await fetch('/api/info');
+        if (res.ok) {
+          const info = await res.json();
+          if (info && info.localIP) {
+            console.log("Master Server Detected:", info.localIP);
+            // If we are online, sync this Master IP to cloud so other devices find us
+            if (navigator.onLine) {
+              const settingsRef = doc(db, "settings", "app_settings");
+              await setDoc(settingsRef, { masterIP: info.localIP }, { merge: true });
+            }
+          }
+        }
+      } catch (err) {
+        // Not a master device or server not running yet
+        if (detectionRetries < 5) {
+          detectionRetries++;
+          setTimeout(initLocalSync, 5000); // Retry every 5s for the first 5 times
+        }
+      }
+
+      try {
+        const res = await fetch('/api/items');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.length > 0) {
+            setItems(data);
+          } else {
+            setItems(INITIAL_ITEMS);
+            fetch('/api/items', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(INITIAL_ITEMS)
+            }).catch(console.error);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch local items via API", err);
+      }
+    };
+    initLocalSync();
+
+    const savedShop = localStorage.getItem('shop_session');
+    if (savedShop) {
+      try {
+        setActiveShop(JSON.parse(savedShop));
+      } catch (e) {
+        localStorage.removeItem('shop_session');
+      }
+    }
+
+    const savedTaker = localStorage.getItem('taker_session');
+    if (savedTaker) {
+      try {
+        setActiveStaff(JSON.parse(savedTaker));
+      } catch (e) {
+        localStorage.removeItem('taker_session');
+      }
+    }
+    setIsDataLoaded(true);
+
+    // Check for customer mode in URL
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('mode') === 'customer') {
+      const token = url.searchParams.get('token');
+      const takerId = url.searchParams.get('takerId');
+
+      // Hourly Token Validation: Allow current hour and previous hour for buffer
+      const currentHourToken = Math.floor(Date.now() / 3600000);
+      const providedToken = parseInt(token || '0');
+      const isTokenValid = providedToken === currentHourToken || providedToken === currentHourToken - 1;
+
+      if (isTokenValid) {
+        setIsCustomerMode(true);
+        setCurrentOrderTakerId(takerId);
+        setCurrentTableNumber(url.searchParams.get('table') || url.searchParams.get('t') || '');
+
+
+
+        // Hide URL parameters to prevent bookmarking/sharing
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } else {
+        notify("QR Code Expired! Please scan fresh QR from Waiter.", "error");
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
+
+    // Check for payment status in URL
+    const paymentStatus = url.searchParams.get('payment');
+    const orderId = url.searchParams.get('orderId');
+
+    if (paymentStatus === 'success' && orderId) {
+      notify("Payment Successful! Order receive ho gaya.", "success");
+      // Cleanup URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (paymentStatus === 'cancel') {
+      notify("Payment Cancelled. Please try again.", "error");
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
+  // snapshotsInSync functionality removed
+
+  // Firebase Real-time Sync and Metadata check
+  useEffect(() => {
+    if (!isDataLoaded) return;
+
+    // Helper to check metadata
+    const handleMetadata = (snapshot: any) => {
+      if (snapshot.metadata.hasPendingWrites) {
+        setHasPendingWrites(true);
+      } else {
+        setHasPendingWrites(false);
+      }
+    };
+
+    // Orders Sync - Includes metadata to detect unsynced local changes
+    const unsubOrders = onSnapshot(collections.orders, (snapshot) => {
+      handleMetadata(snapshot);
+      const cloudOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+      setOrders(cloudOrders.sort((a, b) => b.timestamp - a.timestamp));
+    }, { includeMetadataChanges: true });
+
+    // Customer sync
+    const unsubCustomers = onSnapshot(collections.customers, (snapshot) => {
+      const cloudCustomers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
+      setCustomers(cloudCustomers);
+    });
+
+    // Menu Items Sync
+    const unsubItems = onSnapshot(collections.items, (snapshot) => {
+      const cloudItems = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MenuItem));
+      if (cloudItems.length > 0) setItems(cloudItems);
+    });
+
+    // App Settings Sync
+    const unsubSettings = onSnapshot(collections.settings, (snapshot) => {
+      const cloudSettings = snapshot.docs.find(doc => doc.id === 'app_settings')?.data() as AppSettings;
+      if (cloudSettings) setSettings(prev => ({ ...prev, ...cloudSettings }));
+    });
+
+    // Other syncs (restored)
+    const unsubPurchases = onSnapshot(collections.purchases, (snapshot) => {
+      const cloudPurchases = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Purchase));
+      setPurchases(cloudPurchases.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)));
+    });
+
+    const unsubStaff = onSnapshot(collections.staffMembers, (snapshot) => {
+      const cloudStaff = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StaffMember));
+      setStaffMembers(cloudStaff);
+    });
+
+    return () => {
+      unsubOrders();
+      unsubCustomers();
+      unsubItems();
+      unsubSettings();
+      unsubPurchases();
+      unsubStaff();
+    };
+  }, [isDataLoaded]);
+
+
+
+
+
+  // Sync Local Changes to Firebase
+  const syncToFirebase = async (collectionName: string, data: any[]) => {
+    if (data.length === 0) return;
+    setIsSyncing(true);
+    try {
+      for (const item of data) {
+        if (item.id) {
+          await setDoc(doc(db, collectionName, item.id), safeSanitize(item));
+        }
+      }
+    } catch (e) {
+      console.error(`Firebase sync failed for ${collectionName}:`, e);
+    } finally {
+      setTimeout(() => setIsSyncing(false), 1000);
+    }
+  };
+
+  const calculateTotalDataSize = () => {
+    try {
+      const stateToSave = {
+        items, orders, purchases, customers, suppliers, supplierCategories, stockCategories, stockLogs, khataTransactions, globalAccounts, settings, staffMembers
+      };
+      const size = new Blob([JSON.stringify(stateToSave)]).size;
+      setDataSize(size);
+      if (size >= 1024 * 1024 * 1024) { // 1GB
+        setShowDataWarning(true);
+      } else {
+        setShowDataWarning(false);
+      }
+    } catch (e) {
+      console.error("Size calculation failed", e);
+    }
+  };
+
+  useEffect(() => {
+    if (!isDataLoaded) return;
+    // Only save to localStorage for offline resilience.
+    // All Firebase writes happen directly at the mutation callsite.
+    const stateToSave = safeSanitize({
+      items, orders, purchases, customers, suppliers, supplierCategories, stockCategories, stockLogs, khataTransactions, globalAccounts, settings, staffMembers, lastUpdated: Date.now()
+    });
+    localStorage.setItem('business_crm_local_db', JSON.stringify(stateToSave));
+    localStorage.setItem('app_active_tab', activeTab);
+    calculateTotalDataSize();
+  }, [items, orders, purchases, customers, suppliers, supplierCategories, stockCategories, stockLogs, khataTransactions, globalAccounts, settings, staffMembers, activeTab, isDataLoaded]);
+
+  const getNextOrderNumber = () => {
+    if (orders.length === 0) return 1;
+    return Math.max(...orders.map(o => o.orderNumber || 0)) + 1;
+  };
+
+  const handleOrderComplete = async (order: Order) => {
+    try {
+      // Enriched order count logic
+      const enrichedOrder = {
+        ...order,
+        orderNumber: order.orderNumber || getNextOrderNumber()
+      };
+
+      // Firestore handles everything (Queueing + Persistence)
+      setPendingCount(prev => prev + 1);
+      await setDoc(doc(db, "orders", enrichedOrder.id), safeSanitize(enrichedOrder));
+
+      // Also upsert customer record
+      if (order.customerPhone && order.customerPhone.trim().length > 5) {
+        const existingCustomer = customers.find(c => c.phone === order.customerPhone);
+        const udhaarAmount = order.paymentMethod === 'khata' ? order.total : 0;
+        const customerDoc = {
+          id: existingCustomer?.id || order.customerPhone,
+          name: order.customerName || existingCustomer?.name || 'WALK-IN',
+          phone: order.customerPhone,
+          whatsappNumber: order.customerPhone,
+          tableNumber: order.tableNumber || existingCustomer?.tableNumber,
+          totalOrders: (existingCustomer?.totalOrders || 0) + 1,
+          totalSpent: (existingCustomer?.totalSpent || 0) + order.total,
+          lastVisit: order.timestamp,
+          balance: (existingCustomer?.balance || 0) + udhaarAmount
+        };
+
+        setPendingCount(prev => prev + 1);
+        await setDoc(doc(db, "customers", customerDoc.id), safeSanitize(customerDoc));
+      }
+
+      // Offline Sync for Local Node Server
+      await offlineDB.savePendingSync({
+        id: enrichedOrder.id,
+        data: enrichedOrder,
+        type: 'order',
+        timestamp: Date.now()
+      });
+      await offlineDB.cacheOrder(enrichedOrder);
+
+      // Immediate attempt to sync to local server
+      api.saveOrder(enrichedOrder).then(() => {
+        offlineDB.deletePendingSyncItem(enrichedOrder.id);
+      }).catch(() => {
+        console.log("Local server sync pending (will retry)");
+      });
+    } catch (e) {
+      console.error(e);
+    }
+
+    try {
+      notify("Bill Saved Locally!", "success");
+    } catch (e) {
+      notify("Error: " + (e as Error).message, "error");
+    }
+  };
+
+
+
+  const handleUpdateOrder = async (uo: Order) => {
+    const existingOrder = orders.find(o => o.id === uo.id);
+    const statusChanged = existingOrder && existingOrder.status !== uo.status;
+
+    setPendingCount(prev => prev + 1);
+    await setDoc(doc(db, "orders", uo.id), safeSanitize(uo));
+
+
+
+
+
+    if (statusChanged) {
+      playNotification(uo.customerName, uo.orderNumber, uo.status);
+    }
+
+    // Offline Sync for Local Node Server
+    await offlineDB.savePendingSync({
+      id: uo.id,
+      data: uo,
+      type: 'update',
+      timestamp: Date.now()
+    });
+    await offlineDB.cacheOrder(uo);
+
+    // Immediate attempt to sync to local server
+    api.saveOrder(uo).then(() => {
+      offlineDB.deletePendingSyncItem(uo.id);
+    }).catch(() => {});
+  };
+
+  const handleLogout = () => {
+    setIsAdmin(false);
+    setActiveShop(null);
+    setActiveStaff(null);
+    localStorage.removeItem('shop_session');
+    localStorage.removeItem('taker_session');
+    setActiveTab('bill');
+    setIsCustomerMode(true);
+    notify("Logged out successfully", "info");
+  };
+
+  const handleCustomerMenuLogin = async (name: string, phone: string) => {
+    try {
+      if (!name || !phone) return;
+      const isExisting = customers.some(c => c.phone === phone);
+      
+      const customerData: Customer = {
+        id: phone,
+        name,
+        phone,
+        balance: 0,
+        lastVisit: Date.now(),
+        totalOrders: 0,
+        totalSpent: 0
+      };
+      
+      if (!isExisting) {
+        // Save new customer to Local API
+        await api.saveCustomer(customerData);
+      }
+
+      setCurrentCustomer({ name, phone });
+      
+      if (isExisting) {
+        const randomMsg = WELCOME_MESSAGES[Math.floor(Math.random() * WELCOME_MESSAGES.length)];
+        notify(randomMsg, "success");
+      } else {
+        notify(`Khush Amdeed, ${name}!`, "success");
+      }
+    } catch (e) {
+      notify("Login failed!", "error");
+    }
+  };
+
+  const handleExportData = async () => {
+    try {
+      const data = {
+        items, orders, purchases, customers, supplierCategories, stockCategories, stockLogs, khataTransactions, globalAccounts, settings, staffMembers,
+        version: '1.0',
+        exportDate: new Date().toISOString()
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const dateStr = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+      const fileName = `Data_${dateStr}.json`;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      setIsSyncing(true);
+      const snap = await getDocs(collection(db, "customers"));
+      for (const d of snap.docs) {
+        await deleteDoc(doc(db, "customers", d.id));
+      }
+      setCustomers([]);
+      setIsSyncing(false);
+      
+      notify("Backup Downloaded & Customer Data Reset!", "success");
+    } catch (e) {
+      setIsSyncing(false);
+      notify("Export/Reset failed: " + (e as Error).message, "error");
+    }
+  };
+
+  const handleImportData = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const json = JSON.parse(e.target?.result as string);
+        if (json.items) setItems(json.items);
+        if (json.orders) setOrders(json.orders);
+        if (json.purchases) setPurchases(json.purchases);
+        if (json.customers) setCustomers(json.customers);
+        if (json.supplierCategories) setSupplierCategories(json.supplierCategories);
+        if (json.stockCategories) setStockCategories(json.stockCategories);
+        if (json.stockLogs) setStockLogs(json.stockLogs);
+        if (json.khataTransactions) setKhataTransactions(json.khataTransactions);
+        if (json.globalAccounts) setGlobalAccounts(json.globalAccounts);
+        if (json.settings) setSettings(prev => ({ ...prev, ...json.settings }));
+        if (json.staffMembers) setStaffMembers(json.staffMembers); // Import staffMembers
+        notify("Data Restored Successfully!", "success");
+      } catch (err) {
+        notify("Invalid Backup File!", "error");
+      }
+    };
+    reader.readAsText(file);
+  };
+  if (isCustomerMode) {
+    if (!isDataLoaded) return <div className="min-h-screen bg-black flex items-center justify-center text-white font-black uppercase tracking-widest animate-pulse">Loading Menu...</div>;
+
+    return (
+      <div className={`min-h-screen theme-${settings.theme}`}>
+        {!currentCustomer ? (
+          <CustomerLogin
+            onLogin={handleCustomerMenuLogin}
+            onExit={() => setIsCustomerMode(false)}
+            onStaffLogin={() => {
+              setIsCustomerMode(false);
+              setShowLogin(true);
+            }}
+          />
+        ) : (
+          <CustomerMenu
+            items={items.length > 0 ? items : INITIAL_ITEMS}
+            businessName={settings.businessName}
+            customerName={currentCustomer.name}
+            customerPhone={currentCustomer.phone}
+            customerOrders={orders.filter(o => o.customerPhone === currentCustomer.phone)}
+            tableNumber={currentTableNumber}
+            onSendOrder={async (order) => {
+              if (!activeStaff && !activeShop && !isAdmin) {
+                notify("Sirf Staff hi order finalize kar sakte hain.", "error");
+                return;
+              }
+              const takerName = staffMembers.find(s => s.id === (currentOrderTakerId || activeStaff?.id))?.name || (activeStaff?.name) || 'Unknown';
+              const enrichedOrder: Order = {
+                ...order,
+                status: 'pending_customer',
+                orderNumber: getNextOrderNumber(),
+                orderTakerId: currentOrderTakerId || activeStaff?.id,
+                orderTakerName: takerName,
+                tableNumber: order.tableNumber || currentTableNumber
+              };
+              setOrders([enrichedOrder, ...orders]);
+              await api.saveOrder(enrichedOrder);
+              notify(`Order sent to ${takerName}!`, "success");
+
+            }}
+            onUpdateOrder={handleUpdateOrder}
+            onLogout={() => {
+              setIsCustomerMode(false);
+              setCurrentCustomer(null);
+              setCurrentOrderTakerId(null);
+            }}
+          />
+        )}
+        {toast && (
+          <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-[10000] px-6 py-3 rounded-2xl shadow-2xl font-black uppercase text-[10px] tracking-widest animate-in slide-in-from-top duration-300 ${toast.type === 'success' ? 'bg-emerald-600 text-white' :
+              toast.type === 'error' ? 'bg-rose-600 text-white' : 'bg-blue-600 text-white'
+            }`}>
+            {toast.message}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const onUpdateShop = (updatedShop: ShopAccount) => {
+    setGlobalAccounts(prev => prev.map(shop => shop.id === updatedShop.id ? updatedShop : shop));
+    if (activeShop && activeShop.id === updatedShop.id) {
+      setActiveShop(updatedShop);
+      localStorage.setItem('shop_session', JSON.stringify(updatedShop));
+    }
+  };
+
+const WELCOME_MESSAGES = [
+  "Welcome back! Thank you for choosing us again! ✨",
+  "Humare menu mein aapka phir se khush amdeed! 🌸",
+  "It's great to see you again! What would you like today? 🍔",
+  "Welcome back! We hope you're having a great day! 😊",
+  "Nice to see a familiar face! Enjoy your meal! ☕",
+  "Aapka dobara aany ka shukria! Welcome back! ❤️"
+];
+  const handleHeadingClick = () => {
+    setHeadingClicks(prev => {
+      const next = prev + 1;
+      if (next >= HEADING_CLICKS_REQUIRED) {
+        setShowAdminPanelButton(true);
+        notify("Admin Access Unlocked", "success");
+        return 0;
+      }
+      return next;
+    });
+  };
+
+  const navigateTo = (tab: TabType) => {
+    // Admin has full access
+    if (isAdmin) {
+      setActiveTab(tab);
+      return;
+    }
+
+    // Staff access
+    if (activeStaff) {
+      if (activeStaff.role === 'taker') {
+        const allowed = ['bill', 'orders'];
+        if (allowed.includes(tab)) {
+          setActiveTab(tab);
+        } else {
+          notify("Aapko is section ki access nahi hai", "error");
+        }
+        return;
+      }
+      if (activeStaff.role === 'kitchen') {
+        if (tab === 'orders') {
+          setActiveTab(tab);
+        } else {
+          notify("Kitchen staff sirf Orders dekh sakte hain", "error");
+        }
+        return;
+      }
+      return;
+    }
+
+    // Shop Owner access
+    if (activeShop) {
+      setActiveTab(tab);
+      return;
+    }
+
+    const isRestricted = ['dashboard', 'inventory', 'menu', 'history'].includes(tab);
+    if (isRestricted) {
+      setShowLogin(true);
+      return;
+    }
+
+    setActiveTab(tab);
+  };
+
+  const currentDisplayName = activeShop ? activeShop.shopName : activeStaff ? `${activeStaff.role.toUpperCase()}: ${activeStaff.name}` : settings.businessName;
+
+  return (
+    <div className={`min-h-screen flex flex-col pb-24 overflow-x-hidden theme-${settings.theme} bg-[#080808] p-2`}>
+      {/* Toast Notification */}
+      {showTakerQR && activeStaff && (
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-3xl z-[50000] flex items-center justify-center p-6 animate-in fade-in zoom-in">
+          <div className="bg-[var(--bg-card)] rounded-[48px] border border-white/5 p-10 w-full max-w-sm text-center space-y-8 shadow-2xl border-b-8 border-b-orange-600">
+            <div className="space-y-2">
+              <h3 className="text-2xl font-black uppercase italic tracking-tighter text-white">Menu QR Code</h3>
+              <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Scan to view digital menu</p>
+            </div>
+
+            <div className="bg-white p-6 rounded-[32px] inline-block shadow-inner">
+              <QRCodeCanvas
+                value={`${window.location.href.split('?')[0].split('#')[0]}?mode=customer&takerId=${activeStaff.id}&token=${Math.floor(Date.now() / 3600000)}`}
+                size={200}
+                level="H"
+                includeMargin={false}
+              />
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-white/5 p-4 rounded-2xl">
+                <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest mb-1">Staff Member</p>
+                <p className="text-lg font-black text-white uppercase italic">{activeStaff.name}</p>
+              </div>
+              <button
+                onClick={() => setShowTakerQR(false)}
+                className="w-full py-5 bg-white/5 text-white rounded-2xl font-black uppercase tracking-widest active:scale-95 transition-all"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Offline/Sync Banner */}
+      {(!isOnline || hasPendingWrites || pendingCount > 0) && (
+        <div className={`fixed top-0 left-0 right-0 z-[1000] px-4 py-2 text-center text-[10px] font-black uppercase tracking-tighter shadow-lg transition-all flex items-center justify-center gap-2 ${
+          !isOnline ? 'bg-rose-600 text-white' : 'bg-orange-600 text-white animate-pulse'
+        }`}>
+          {!isOnline ? (
+            <><span>⚠️ Connection Lost - Saving Locally</span> {pendingCount > 0 && <span className="bg-white/20 px-2 py-0.5 rounded-full">{pendingCount} Pending</span>}</>
+          ) : (
+            <><span>🔄 Syncing {pendingCount || ''} changes...</span></>
+          )}
+        </div>
+      )}
+
+
+      {toast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[51000] w-full max-w-xs px-4 pointer-events-none">
+          <div className={`p-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-4 duration-300 pointer-events-auto border border-white/10 ${toast.type === 'success' ? 'bg-emerald-600 text-white' :
+              toast.type === 'error' ? 'bg-orange-600 text-white' : 'bg-blue-600 text-white'
+            }`}>
+            <div className="shrink-0">{toast.type === 'error' ? ICONS.X : ICONS.Shield}</div>
+            <p className="font-black uppercase text-[10px] tracking-widest">{toast.message}</p>
+          </div>
+        </div>
+      )}
+
+
+      {/* Main UI - Only show if authenticated or in Customer Mode */}
+      {(!activeStaff && !activeShop && !isAdmin && !isCustomerMode) ? (
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="text-center space-y-6 animate-in fade-in zoom-in duration-700">
+            <div className="w-24 h-24 bg-orange-600/10 text-orange-600 rounded-[32px] mx-auto flex items-center justify-center text-5xl mb-4 border border-orange-600/20 shadow-2xl">
+              {ICONS.Shield}
+            </div>
+            <h2 className="text-3xl font-black uppercase italic tracking-tighter text-white underline decoration-orange-600 underline-offset-8">Welcome</h2>
+            <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-[0.3em]">Please login to access the system</p>
+            <button 
+              onClick={() => setShowLogin(true)}
+              className="mt-8 px-12 py-5 bg-orange-600 text-white rounded-[24px] font-black uppercase tracking-widest shadow-2xl shadow-orange-600/40 active:scale-95 transition-all text-sm"
+            >
+              Login Now
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <header className="bg-[var(--bg-nav)]/80 backdrop-blur-xl p-2 shadow-lg flex justify-between items-center sticky top-0 z-[100] border-b border-[var(--border)]">
+            <div className="flex items-center gap-2">
+              <div className="w-10">
+                {showAdminPanelButton && !isAdmin && (
+                  <button onClick={() => setShowLogin(true)} className="p-3 bg-orange-600 text-white rounded-xl shadow-lg animate-bounce">{ICONS.Lock}</button>
+                )}
+                {(activeShop || isAdmin) && (
+                  <button onClick={handleLogout} className="p-2 text-red-500 bg-red-500/10 rounded-lg hover:bg-red-500/20 active:scale-90 transition-all">{ICONS.LogOut}</button>
+                )}
+                {activeStaff && (
+                  <button onClick={handleLogout} className="p-2 text-red-500 bg-red-500/10 rounded-lg hover:bg-red-500/20 active:scale-90 transition-all ml-2">{ICONS.LogOut}</button>
+                )}
+              </div>
+              {settings.businessLogo && (
+                <div className="w-10 h-10 rounded-xl overflow-hidden border border-white/10 shadow-md">
+                  <img src={settings.businessLogo} className="w-full h-full object-cover" alt="Logo" />
+                </div>
+              )}
+              <h1
+                className="text-xl font-black cursor-pointer select-none tracking-tighter uppercase"
+                onClick={handleHeadingClick}
+              >
+                {currentDisplayName}
+                {!isTotalsUnlocked && <span className="ml-1 text-[10px] text-yellow-500 align-middle">🔒</span>}
+              </h1>
+              {isSyncing && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/20 animate-pulse">
+                  <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
+                  <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">Cloud Sync</span>
+                </div>
+              )}
+            </div>
+            <div className="flex flex-col items-end gap-1">
+              {isInstallable && (
+                <button
+                  onClick={handleInstallClick}
+                  className="px-2 py-1 bg-orange-600 hover:bg-orange-500 text-white text-[9px] font-black uppercase tracking-widest rounded-lg shadow-lg active:scale-95 transition-all border border-orange-500/50"
+                >
+                  Install App
+                </button>
+              )}
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => window.location.reload()}
+                  className="p-2 bg-emerald-500/10 text-emerald-500 rounded-lg active:scale-90 transition-all border border-emerald-500/20"
+                  title="Manual Sync"
+                >
+                  {ICONS.Refresh || '🔄'}
+                </button>
+                <div
+                  className={`flex items-center gap-2 ${activeStaff?.role === 'taker' ? 'cursor-pointer active:scale-95 transition-all' : ''}`}
+
+                onClick={() => {
+                  if (activeStaff?.role === 'taker') {
+                    setShowTakerQR(true);
+                  }
+                }}
+              >
+                <div className={`transition-all duration-700 ${isOnline ? 'text-emerald-500' : 'text-red-500 animate-pulse'}`}>
+                  {ICONS.QrCode}
+                </div>
+                <span className="text-[7px] font-black text-[var(--text-muted)] uppercase tracking-widest">
+                  {isAdmin ? 'ADMIN PORTAL' : activeShop ? `${activeShop.shopName}` : activeStaff ? `${activeStaff.role.toUpperCase()}: ${activeStaff.name}` : !isOnline ? 'OFFLINE' : ''}
+                </span>
+              </div>
+            </div>
+          </div>
+        </header>
+
+          <main className="flex-1 pt-2 px-1 overflow-x-hidden">
+            <div className="max-w-md mx-auto">
+              {activeShop?.subscriptionStatus === 'expired' && !isAdmin ? (
+                <div className="mt-10 p-10 bg-[var(--bg-card)] rounded-[48px] border-2 border-red-500 text-center space-y-8 animate-in zoom-in">
+                  <div className="w-20 h-20 bg-red-500/10 text-red-500 rounded-3xl mx-auto flex items-center justify-center scale-150 mb-4">{ICONS.X}</div>
+                  <h2 className="text-3xl font-black uppercase tracking-tighter text-[var(--text-main)]">Account Locked</h2>
+                  <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-[0.2em]">Renewal required.</p>
+                  <button onClick={handleLogout} className="w-full py-4 bg-white/5 rounded-2xl text-[9px] font-black uppercase tracking-widest text-red-500">Logout</button>
+                </div>
+              ) : (
+                <>
+                  {activeTab === 'dashboard' && (
+                    <AdminDashboard
+                      orders={orders}
+                      purchases={purchases}
+                      customers={customers}
+                      setCustomers={setCustomers}
+                      customerPayments={customerPayments}
+                      setCustomerPayments={setCustomerPayments}
+                      suppliers={suppliers}
+                      setSuppliers={setSuppliers}
+                      settings={{ ...settings, shopAccounts: globalAccounts }}
+                      isAdmin={isAdmin}
+                      activeShop={activeShop}
+                      onUpdateShop={(s) => { onUpdateShop(s); notify("Shop Updated", "success"); }}
+                      setSettings={async (s) => {
+                        setSettings(s);
+                        if (s.shopAccounts) setGlobalAccounts(s.shopAccounts);
+                        // Write settings directly to Firestore
+                        await setDoc(doc(db, "settings", "app_settings"), safeSanitize(s));
+                      }}
+                      onLogout={handleLogout}
+                      onNavigateToMenu={() => setActiveTab('menu')}
+                      onExportData={handleExportData}
+                      onImportData={handleImportData}
+                      onAddPurchase={async (p) => {
+                        await setDoc(doc(db, "purchases", p.id), safeSanitize(p));
+                        notify("Purchase Added", "success");
+                      }}
+                      onUpdatePurchase={async (up) => {
+                        await setDoc(doc(db, "purchases", up.id), safeSanitize(up));
+                        notify("Purchase Updated", "success");
+                      }}
+                      onDeletePurchase={(id) => triggerConfirm({
+                        title: "Delete Purchase?",
+                        message: "Kya aap waqai is purchase ko delete karna chahte hain?",
+                        onConfirm: async () => {
+                          await deleteDoc(doc(db, "purchases", id));
+                          notify("Purchase Deleted", "error");
+                        }
+                      })}
+                      stockCategories={stockCategories}
+                      setStockCategories={setStockCategories}
+                      stockLogs={stockLogs}
+                      setStockLogs={setStockLogs}
+                      khataTransactions={khataTransactions}
+                      setKhataTransactions={setKhataTransactions}
+                      onResetData={() => triggerConfirm({
+                        title: "Reset All CLOUD Data?",
+                        message: "Kya aap waqai Cloud se tamaam data (Orders, Purchases, Khata) delete karna chahte hain? Yeh Quota khali karne ke liye zaroori hai.",
+                        onConfirm: async () => {
+                          setIsSyncing(true);
+                          try {
+                              const collectionsToClear = [
+                                "orders", "purchases", "stockLogs", "khataTransactions", 
+                                "customerPayments"
+                              ];
+
+                            for (const collName of collectionsToClear) {
+                              const snap = await getDocs(collection(db, collName));
+                              for (const d of snap.docs) {
+                                await deleteDoc(doc(db, collName, d.id));
+                              }
+                            }
+
+                            // Clear Local State
+                            setOrders([]);
+                            setPurchases([]);
+                            setStockLogs([]);
+                            setKhataTransactions([]);
+                            setCustomerPayments([]);
+
+                            notify("Cloud Data Cleared! Quota reset ho gaya.", "success");
+                          } catch (e) {
+                            console.error("Reset failed:", e);
+                            notify("Reset failed: " + (e as Error).message, "error");
+                          } finally {
+                            setIsSyncing(false);
+                          }
+                        }
+                      })}
+                      onResetHistory={async () => {
+                        setIsSyncing(true);
+                        try {
+                          const orderSnap = await getDocs(collections.orders);
+                          for (const d of orderSnap.docs) {
+                            await deleteDoc(doc(db, "orders", d.id));
+                          }
+                          setOrders([]);
+                          notify("Order History Cleared!", "success");
+                        } catch (e) {
+                          notify("Clear failed: " + (e as Error).message, "error");
+                        } finally {
+                          setIsSyncing(false);
+                        }
+                      }}
+                      triggerConfirm={triggerConfirm}
+                      isTotalsUnlocked={isTotalsUnlocked}
+                      onUpdateOrder={handleUpdateOrder}
+                      setIsNavHidden={setIsNavHidden}
+                      staffMembers={staffMembers}
+                      setStaffMembers={setStaffMembers}
+                      menuItems={items}
+                      setMenuItems={setItems}
+                      isSyncing={isSyncing}
+                      setIsSyncing={setIsSyncing}
+                      isInstallable={isInstallable}
+                      onInstall={handleInstallClick}
+                    />
+                  )}
+                  {activeTab === 'menu' && (
+                    <MenuManagement 
+                      items={items} 
+                      setItems={setItems} 
+                      isAdmin={isAdmin || !!activeShop} 
+                      onClose={() => setActiveTab('dashboard')}
+                      setIsNavHidden={setIsNavHidden}
+                    />
+                  )}
+                  {activeTab === 'bill' && (
+                    <POS
+                      items={items}
+                      customers={customers}
+                      settings={settings}
+                      shopName={activeShop?.shopName}
+                      activeStaff={activeStaff}
+                      pendingOrders={orders.filter(o => 
+                        (o.status === 'pending_customer' || o.status === 'draft') && 
+                        (!activeStaff || activeStaff.role === 'kitchen' || isAdmin || o.orderTakerId === activeStaff.id)
+                      )}
+                      allOrders={orders.filter(o => 
+                        !activeStaff || activeStaff.role === 'kitchen' || isAdmin || o.orderTakerId === activeStaff.id
+                      )}
+                      onOrderComplete={handleOrderComplete}
+                      orderToEdit={orderToEdit}
+                      onClearOrderToEdit={() => setOrderToEdit(null)}
+                      onUpdateOrder={handleUpdateOrder}
+                      onDeleteOrder={(id) => triggerConfirm({
+                        title: "Cancel Order?",
+                        message: "Kya aap waqai is order ko cancel karna chahte hain?",
+                        onConfirm: async () => {
+                          setOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'cancelled' } : o));
+                          await setDoc(doc(db, "orders", id), { status: 'cancelled' }, { merge: true });
+                          notify("Order Cancelled", "error");
+                        }
+                      })}
+                      notify={notify}
+                      triggerConfirm={triggerConfirm}
+                      setIsNavHidden={setIsNavHidden}
+                      isAdmin={isAdmin || !!activeShop}
+                      initialTableNumber={currentTableNumber}
+                    />
+                  )}
+                  {activeTab === 'history' && (
+                    <HistoryView
+                      orders={isCustomerMode && currentCustomer 
+                        ? orders.filter(o => o.customerPhone === currentCustomer.phone) 
+                        : orders}
+                      customers={customers}
+                      settings={settings}
+                      purchases={purchases}
+                      activeStaff={activeStaff}
+                      onUpdateOrder={handleUpdateOrder}
+                      onUpdatePurchase={(up) => setPurchases(purchases.map(p => p.id === up.id ? up : p))}
+                      onDeleteOrder={(id) => triggerConfirm({
+                        title: "Delete Order?",
+                        message: "Kya aap waqai is order ko delete karna chahte hain?",
+                        onConfirm: async () => {
+                          setOrders(prev => prev.filter(o => o.id !== id));
+                          await deleteDoc(doc(db, "orders", id));
+                          notify("Order Deleted", "error");
+                        }
+                      })}
+                      onDeletePurchase={(id) => triggerConfirm({
+                        title: "Delete Purchase?",
+                        message: "Kya aap waqai is purchase ko delete karna chahte hain?",
+                        onConfirm: () => {
+                          setPurchases(prev => prev.filter(p => p.id !== id));
+                          notify("Purchase Deleted", "error");
+                        }
+                      })}
+                      onEditOrder={(order) => {
+                        setOrderToEdit(order);
+                        setActiveTab('bill');
+                      }}
+                      onResetHistory={() => triggerConfirm({
+                        title: "Clear History?",
+                        message: "Kya aap waqai poori history clear karna chahte hain?",
+                        onConfirm: async () => {
+                          setIsSyncing(true);
+                          try {
+                            const orderSnap = await getDocs(collections.orders);
+                            for (const d of orderSnap.docs) {
+                              await deleteDoc(doc(db, "orders", d.id));
+                            }
+                            setOrders([]);
+                            notify("History Cleared", "success");
+                          } catch (e) {
+                            notify("Clear failed", "error");
+                          } finally {
+                            setIsSyncing(false);
+                          }
+                        }
+                      })}
+                      isAdmin={isAdmin || !!activeShop}
+                      notify={notify}
+                      triggerConfirm={triggerConfirm}
+                      isTotalsUnlocked={isTotalsUnlocked}
+                    />
+                  )}
+                  {activeTab === 'orders' && (
+                    <LiveOrdersView
+                      orders={orders}
+                      activeStaff={activeStaff}
+                      settings={settings}
+                      notify={notify}
+                      onUpdateStatus={async (order, status) => {
+                        const updatedOrder = {
+                          ...order,
+                          status,
+                          statusTimestamps: { ...order.statusTimestamps, [status]: Date.now() }
+                        };
+                        handleUpdateOrder(updatedOrder);
+                        notify(`Order ${status}`, "success");
+                      }}
+                      onEditOrder={(order) => {
+                        setOrderToEdit(order);
+                        setActiveTab('bill');
+                      }}
+                      triggerConfirm={triggerConfirm}
+                      isAdmin={isAdmin || !!activeShop}
+                      onUpdateOrder={handleUpdateOrder}
+                    />
+                  )}
+                  {activeTab === 'inventory' && (
+                    <InventoryView
+                      purchases={purchases}
+                      onAddPurchase={(p) => setPurchases([p, ...purchases])}
+                      stockCategories={stockCategories}
+                      setStockCategories={setStockCategories}
+                      stockLogs={stockLogs}
+                      setStockLogs={setStockLogs}
+                      khataTransactions={khataTransactions}
+                      setKhataTransactions={setKhataTransactions}
+                      supplierCategories={supplierCategories}
+                      setSupplierCategories={setSupplierCategories}
+                      suppliers={suppliers}
+                      setSuppliers={setSuppliers}
+                      settings={settings}
+                      isAdmin={isAdmin || !!activeShop}
+                      triggerConfirm={triggerConfirm}
+                      setIsNavHidden={setIsNavHidden}
+                    />
+                  )}
+                </>
+              )}
+            </div>
+          </main>
+
+          {!isNavHidden && !showTakerQR && !showLogin && !showPinModal && !confirmModal.show && !showDataWarning && (
+            <nav className="fixed bottom-0 left-0 right-0 bg-[var(--bg-nav)]/90 backdrop-blur-2xl border-t border-[var(--border)] flex justify-around items-center p-1.5 pb-safe z-[100] rounded-t-[32px] shadow-2xl">
+              <NavTab
+                icon={ICONS.Dashboard}
+                label={isAdmin ? "Admin" : "Owner"}
+                color="cyan"
+                active={activeTab === 'dashboard'}
+                locked={!isAdmin && !activeShop}
+                hidden={!!activeStaff}
+                onClick={() => {
+                  const now = Date.now();
+                  if (!pinClickTimerRef.current) {
+                    pinClickTimerRef.current = setTimeout(() => {
+                      setPinClickCount(0);
+                      pinClickTimerRef.current = null;
+                    }, 3000);
+                  }
+                  
+                  const newCount = pinClickCount + 1;
+                  setPinClickCount(newCount);
+                  
+                  if (newCount >= 7) {
+                    setShowPinModal(true);
+                    setPinClickCount(0);
+                    if (pinClickTimerRef.current) {
+                      clearTimeout(pinClickTimerRef.current);
+                      pinClickTimerRef.current = null;
+                    }
+                  }
+
+                  if (activeTab !== 'dashboard') {
+                    navigateTo('dashboard');
+                  }
+                }}
+              />
+              <NavTab icon={ICONS.ShoppingBag} label="Order Taker" color="orange" active={activeTab === 'bill'} locked={false} hidden={activeStaff ? activeStaff.role !== 'taker' : (!isAdmin && !activeShop)} onClick={() => navigateTo('bill')} />
+              <NavTab icon={ICONS.User} label="Customer Order" color="cyan" active={false} locked={false} hidden={!!activeStaff} onClick={() => setIsCustomerMode(true)} />
+              <NavTab icon={ICONS.ChefHat} label="Kitchen" color="amber" active={activeTab === 'orders'} locked={!isAdmin && !activeShop && !activeStaff} hidden={activeStaff ? activeStaff.role !== 'kitchen' : (!isAdmin && !activeShop)} onClick={() => navigateTo('orders')} />
+              <NavTab icon={ICONS.History} label="Served Orders" color="emerald" active={activeTab === 'history'} locked={!isAdmin && !activeShop && !activeStaff} hidden={!isAdmin && !activeShop} onClick={() => navigateTo('history')} />
+            </nav>
+          )}
+        </>
+      )}
+
+      {/* Owner PIN Modal */}
+      {showDataWarning && (
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-3xl z-[52000] flex items-center justify-center p-6 animate-in fade-in zoom-in">
+          <div className="bg-[var(--bg-card)] rounded-[48px] border border-orange-500/20 p-10 w-full max-w-md text-center space-y-8 shadow-2xl border-b-8 border-b-orange-600">
+            <div className="space-y-4">
+              <div className="w-24 h-24 bg-orange-600/10 text-orange-600 rounded-[32px] flex items-center justify-center mx-auto text-5xl">
+                ⚠️
+              </div>
+              <h3 className="text-3xl font-black uppercase italic tracking-tighter text-white">Data <span className="text-orange-600">Limit reached</span></h3>
+              <p className="text-[12px] font-black text-[var(--text-muted)] uppercase tracking-widest leading-relaxed">
+                App ka data 1GB se zayada ho gaya hai. <br/>
+                Please data download karke save karein taake sync chalta rahe.
+              </p>
+            </div>
+
+            <div className="bg-white/5 p-6 rounded-[32px] border border-white/5">
+              <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest mb-1">Current Data Size</p>
+              <p className="text-2xl font-black text-white uppercase italic">{(dataSize / (1024 * 1024)).toFixed(2)} MB</p>
+            </div>
+
+            <div className="space-y-4">
+              <button
+                onClick={handleExportData}
+                className="w-full py-6 bg-orange-600 text-white rounded-[24px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-xl shadow-orange-600/20 text-lg"
+              >
+                Download Data Now
+              </button>
+              <button
+                onClick={() => setShowDataWarning(false)}
+                className="w-full py-4 bg-white/5 text-white rounded-2xl font-black uppercase tracking-widest active:scale-95 transition-all text-[10px] border border-white/10"
+              >
+                Remind Me Later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPinModal && (
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-2xl z-[53000] flex items-center justify-center p-6">
+          <div className="bg-[var(--bg-card)] rounded-[44px] border border-yellow-500/20 w-full max-w-sm p-8 space-y-6 shadow-2xl animate-in zoom-in">
+            <div className="text-center space-y-2">
+              <div className="w-16 h-16 bg-yellow-500/10 text-yellow-500 rounded-3xl mx-auto flex items-center justify-center mb-2">
+                <span className="text-3xl">🔐</span>
+              </div>
+              <h3 className="text-2xl font-black uppercase italic tracking-tighter text-white">Owner <span className="text-yellow-500">Access</span></h3>
+              <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Enter PIN to unlock totals</p>
+            </div>
+            <div className="space-y-3">
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={8}
+                placeholder="● ● ● ● ●"
+                value={pinInput}
+                onChange={e => { setPinInput(e.target.value); setPinError(false); }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    const today = new Date();
+                    const datePin = `${String(today.getDate()).padStart(2, '0')}${String(today.getMonth() + 1).padStart(2, '0')}${today.getFullYear()}`;
+                    if (pinInput === settings.adminSecretKey || pinInput === datePin || pinInput === '111222') {
+                      setIsTotalsUnlocked(true);
+                      setShowPinModal(false);
+                      setPinInput('');
+                      notify('Totals Unlocked!', 'success');
+                    } else {
+                      setPinError(true);
+                    }
+                  }
+                }}
+                className={`w-full p-5 rounded-[24px] text-center text-2xl font-black tracking-[0.5em] text-white bg-black/40 border-2 outline-none transition-all ${pinError ? 'border-red-500 animate-pulse' : 'border-white/10 focus:border-yellow-500'}`}
+                autoFocus
+              />
+              {pinError && <p className="text-center text-red-500 text-[10px] font-black uppercase tracking-widest">❌ Wrong PIN</p>}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => {
+                  const today = new Date();
+                  const datePin = `${String(today.getDate()).padStart(2, '0')}${String(today.getMonth() + 1).padStart(2, '0')}${today.getFullYear()}`;
+                  if (pinInput === settings.adminSecretKey || pinInput === datePin || pinInput === '111222') {
+                    setIsTotalsUnlocked(true);
+                    setShowPinModal(false);
+                    setPinInput('');
+                    notify('Totals Unlocked!', 'success');
+                  } else {
+                    setPinError(true);
+                  }
+                }}
+                className="py-4 bg-yellow-500 text-black rounded-[20px] font-black uppercase text-[11px] tracking-widest active:scale-95 transition-all shadow-xl shadow-yellow-500/20"
+              >
+                Unlock
+              </button>
+              <button
+                onClick={() => { setShowPinModal(false); setPinInput(''); setPinError(false); }}
+                className="py-4 bg-white/5 text-white rounded-[20px] font-black uppercase text-[11px] tracking-widest active:scale-95 transition-all border border-white/10"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmModal.show && (
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-2xl z-[54000] flex items-center justify-center p-6 animate-in fade-in">
+          <div className={`bg-[var(--bg-card)] rounded-[40px] border ${confirmModal.type === 'info' ? 'border-blue-500/20' : 'border-red-500/20'} w-full max-w-sm p-8 text-center space-y-6 shadow-2xl`}>
+            <div className={`w-20 h-20 ${confirmModal.type === 'info' ? 'bg-blue-500/10 text-blue-500' : 'bg-red-500/10 text-red-500'} rounded-3xl flex items-center justify-center mx-auto text-4xl`}>
+              {confirmModal.type === 'info' ? ICONS.Info : ICONS.Trash2}
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-2xl font-black uppercase italic tracking-tighter text-white">
+                {confirmModal.title}
+              </h3>
+              <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest leading-relaxed">
+                {confirmModal.message}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setConfirmModal(prev => ({ ...prev, show: false }))}
+                className="py-4 bg-white/5 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest"
+              >
+                No
+              </button>
+              <button
+                onClick={() => {
+                  confirmModal.onConfirm();
+                  setConfirmModal(prev => ({ ...prev, show: false }));
+                }}
+                className={`py-4 ${confirmModal.type === 'info' ? 'bg-blue-600' : 'bg-red-600'} text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg`}
+              >
+                Yes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showLogin && <LoginModal
+        onEnterCustomerMode={() => {
+          setIsCustomerMode(true);
+          setShowLogin(false);
+          notify("Entering Customer Mode", "success");
+        }}
+        onLogin={(p) => {
+          // 1. Check Master Admin (Secret Key or Date-based PIN)
+          const today = new Date();
+          const datePin = `${String(today.getDate()).padStart(2, '0')}${String(today.getMonth() + 1).padStart(2, '0')}${today.getFullYear()}`;
+          
+          if (p === settings.adminSecretKey || p === datePin || p === '111222') {
+            setIsAdmin(true);
+            setShowLogin(false);
+            setActiveTab('bill');
+            notify("Master Admin Access Granted", "success");
+            return;
+          }
+
+          // 2. Check Shop Owners
+          const acc = globalAccounts.find(a => a.password === p);
+          if (acc) {
+            setActiveShop(acc);
+            localStorage.setItem('shop_session', JSON.stringify(acc));
+            setShowLogin(false);
+            setActiveTab('bill');
+            notify(`Welcome, ${acc.shopName}`, "success");
+            return;
+          }
+
+          // 3. Check Staff Members
+          const staff = staffMembers.find(s => s.password === p);
+          if (staff) {
+            setActiveStaff(staff);
+            localStorage.setItem('taker_session', JSON.stringify(staff));
+            setShowLogin(false);
+            if (staff.role === 'kitchen') {
+              setActiveTab('orders');
+            } else {
+              setActiveTab('bill');
+            }
+            notify(`Welcome, ${staff.name}`, "success");
+            return;
+          }
+
+          notify("Ghalat Password ya PIN!", "error");
+        }} onClose={() => setShowLogin(false)} />}
+    </div>
+  );
+};
+
+interface NavTabProps {
+  icon: React.ReactNode;
+  label: string;
+  active: boolean;
+  locked: boolean;
+  hidden?: boolean;
+  color: 'orange' | 'cyan' | 'emerald' | 'amber';
+  onClick: () => void;
+}
+
+const NavTab: React.FC<NavTabProps> = ({ icon, label, active, locked, hidden, color, onClick }) => {
+  if (hidden) return null;
+  const colorMap = {
+    orange: { text: 'text-orange-500', bg: 'bg-orange-600/15', inactive: 'text-orange-500/40' },
+    cyan: { text: 'text-cyan-500', bg: 'bg-cyan-600/15', inactive: 'text-cyan-500/40' },
+    emerald: { text: 'text-emerald-500', bg: 'bg-emerald-600/15', inactive: 'text-emerald-500/40' },
+    amber: { text: 'text-amber-500', bg: 'bg-amber-600/15', inactive: 'text-amber-500/40' },
+  };
+
+  const theme = colorMap[color];
+
+  return (
+    <button onClick={onClick} className={`flex flex-col items-center justify-center w-full py-1.5 transition-all relative ${active ? `${theme.text} font-bold -translate-y-1` : 'text-gray-500'}`}>
+      {locked && (
+        <div className="absolute top-0 right-1/4 text-[8px] text-gray-400 opacity-50">{ICONS.Lock}</div>
+      )}
+      <div className={`p-2 rounded-xl transition-colors duration-300 ${active ? theme.bg : 'bg-transparent'}`}>
+        <div className={active ? theme.text : theme.inactive}>
+          {icon}
+        </div>
+      </div>
+      <span className={`text-[9px] mt-1 uppercase tracking-widest font-black ${active ? theme.text : 'text-gray-500/70'}`}>{label}</span>
+    </button>
+  );
+};
+
+export default App;

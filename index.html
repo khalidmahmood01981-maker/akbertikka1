@@ -1,0 +1,134 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-512.png">
+    <meta name="theme-color" content="#ea580c">
+    <meta name="description" content="Flavor Dash - Professional Restaurant Management & POS">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Oswald:wght@400;700&family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
+    <title>Business CRM & Billing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      :root {
+        --bg-main: #000000;
+        --bg-nav: #080808;
+        --bg-card: #111111;
+        --border: rgba(255,255,255,0.08);
+        --text-main: #ffffff;
+        --text-muted: #a0a0a0;
+        --accent: #ea580c;
+        --accent-glow: rgba(234, 88, 12, 0.3);
+      }
+      
+      .theme-light {
+        --bg-main: #f8fafc;
+        --bg-nav: #ffffff;
+        --bg-card: #ffffff;
+        --border: rgba(0,0,0,0.06);
+        --text-main: #0f172a;
+        --text-muted: #64748b;
+        --accent: #ea580c;
+        --accent-glow: rgba(234, 88, 12, 0.1);
+      }
+      
+      .theme-midnight {
+        --bg-main: #020617;
+        --bg-nav: #0f172a;
+        --bg-card: #1e293b;
+        --border: rgba(255,255,255,0.05);
+        --text-main: #f8fafc;
+        --text-muted: #94a3b8;
+        --accent: #f97316;
+        --accent-glow: rgba(249, 115, 22, 0.25);
+      }
+
+      /* Global Root Font Scaling */
+      html {
+        transition: font-size 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      /* Font Family Classes */
+      .font-inter { font-family: 'Inter', sans-serif; }
+      .font-oswald { font-family: 'Oswald', sans-serif; }
+      .font-courier { font-family: 'Courier New', Courier, monospace; }
+      .font-roboto { font-family: 'Roboto', sans-serif; }
+      .font-serif { font-family: 'Georgia', serif; }
+
+      body {
+        background-color: var(--bg-main);
+        color: var(--text-main);
+        transition: background-color 0.3s, color 0.3s;
+        -webkit-tap-highlight-color: transparent;
+        overscroll-behavior-y: contain;
+      }
+      
+      .glass {
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid var(--border);
+      }
+
+      .glow-accent {
+        box-shadow: 0 0 20px var(--accent-glow);
+      }
+
+      .pb-safe {
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+
+      /* Advanced Animations */
+      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+      @keyframes zoomIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+      @keyframes zoomOut { from { transform: scale(1); opacity: 1; } to { transform: scale(0.95); opacity: 0; } }
+      @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+      
+      .animate-in.fade-in { animation: fadeIn 0.3s ease-out forwards; }
+      .animate-out.fade-out { animation: fadeOut 0.2s ease-in forwards; }
+      .animate-in.zoom-in { animation: zoomIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+      .animate-out.zoom-out { animation: zoomOut 0.2s ease-in forwards; }
+      .animate-slide-up { animation: slideUp 0.4s ease-out forwards; }
+
+      ::-webkit-scrollbar {
+        width: 0px;
+        background: transparent;
+      }
+
+      /* Printing logic */
+      @media print {
+        body * {
+          visibility: hidden;
+        }
+        #print-section, #print-section * {
+          visibility: visible;
+        }
+        #print-section {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 80mm; /* Standard thermal printer width */
+          background: white !important;
+          color: black !important;
+          padding: 5mm;
+        }
+        .no-print {
+          display: none !important;
+        }
+      }
+    </style>
+</head>
+  <body>
+    <div id="root"></div>
+    <!-- Hidden print container -->
+    <div id="print-section" style="display: none;"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
