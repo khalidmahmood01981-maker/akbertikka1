@@ -51,13 +51,16 @@ interface AdminProps {
   onUpdateMenuRequest?: (id: string, status: 'approved' | 'denied') => void;
   isInstallable?: boolean;
   onInstall?: () => void;
+  showSecretSlider: boolean;
+  setShowSecretSlider: (val: boolean) => void;
+  isCashier?: boolean;
 }
 
 const AdminDashboard: React.FC<AdminProps> = ({
   orders = [], purchases = [], customers = [], setCustomers, customerPayments = [], setCustomerPayments, suppliers = [], setSuppliers, settings, setSettings, onLogout, isAdmin, activeShop, onUpdateShop, onNavigateToMenu, onExportData, onImportData, onResetData, onAddPurchase, onUpdatePurchase, onDeletePurchase,
   stockCategories, setStockCategories, stockLogs, setStockLogs, khataTransactions, setKhataTransactions, onUpdateOrder, triggerConfirm, onResetHistory, isTotalsUnlocked = false, onUnlockRequest,
   setIsNavHidden, staffMembers = [], setStaffMembers, menuItems = [], setMenuItems, isSyncing, setIsSyncing, menuRequests = [], onUpdateMenuRequest,
-  isInstallable, onInstall
+  isInstallable, onInstall, showSecretSlider, setShowSecretSlider, isCashier
 }) => {
   // Tab protection helper
   const handleTabChange = (tab: typeof adminTab) => {
@@ -66,8 +69,8 @@ const AdminDashboard: React.FC<AdminProps> = ({
   };
   // Helper: mask amounts if locked
   // Helper: mask amounts if locked
-  const amt = (val: number | string, suffix = '') => {
-    if (!isTotalsUnlocked) return '****';
+  const amt = (val: number | string, suffix = '', forceShow = false) => {
+    if (!isTotalsUnlocked && !forceShow) return '****';
     let displayVal = val;
     if (typeof val === 'number' && settings.statsAdjustmentPercentage && settings.statsAdjustmentPercentage !== 100) {
       displayVal = val * (settings.statsAdjustmentPercentage / 100);
@@ -75,6 +78,7 @@ const AdminDashboard: React.FC<AdminProps> = ({
     return typeof displayVal === 'number' ? `Rs.${displayVal.toFixed(0)}${suffix}` : `${displayVal}${suffix}`;
   };
   const [adminTab, setAdminTab] = useState<'monitor' | 'crm' | 'identity' | 'registry' | 'takers' | 'config' | 'suppliers' | 'purchases' | 'settlement'>(() => {
+    if (isCashier) return 'crm';
     const saved = localStorage.getItem('admin_active_tab');
     if (saved) return saved as any;
     return isAdmin ? 'registry' : 'monitor';
@@ -89,6 +93,23 @@ const AdminDashboard: React.FC<AdminProps> = ({
   const [settlementOrder, setSettlementOrder] = useState<Order | null>(null);
   const [receivedAmount, setReceivedAmount] = useState('');
   const [viewOrder, setViewOrder] = useState<Order | null>(null);
+
+  const [ownerClickCount, setOwnerClickCount] = useState(0);
+
+  const handleOwnerClick = () => {
+    const newCount = ownerClickCount + 1;
+    setOwnerClickCount(newCount);
+    
+    if (!showSecretSlider && newCount >= 7) {
+      setShowSecretSlider(true);
+      setOwnerClickCount(0);
+      alert("Sales Adjustment Slider Unlocked!");
+    } else if (showSecretSlider && newCount >= 3) {
+      setShowSecretSlider(false);
+      setOwnerClickCount(0);
+      alert("Sales Adjustment Slider Hidden!");
+    }
+  };
 
 
   const handlePrintReceipt = (order: Order) => {
@@ -123,7 +144,7 @@ const AdminDashboard: React.FC<AdminProps> = ({
           ${itemHtml}
           <div class="hr"></div>
           <div class="total">Total: Rs.${order.total.toLocaleString()}</div>
-          <p style="text-align:center; margin-top:30px; font-weight:bold;">Shukria!</p>
+          <p style="text-align:center; margin-top:30px; font-weight:bold;">${settings.receiptFooterText || 'Shukria!'}</p>
         </body>
       </html>
     `);
@@ -315,7 +336,7 @@ const AdminDashboard: React.FC<AdminProps> = ({
     if (file) {
       setIsCompressing(true);
       try {
-        const base64 = await compressImage(file, 200, 0.6);
+        const base64 = await compressImage(file, 100, 0.4);
         setSettings({ ...settings, businessLogo: base64 });
       } catch (err) {
         console.error("Logo compression failed", err);
@@ -427,7 +448,7 @@ const AdminDashboard: React.FC<AdminProps> = ({
     if (file) {
       setIsCompressingPromo(true);
       try {
-        const base64 = await compressImage(file, 400, 0.6);
+        const base64 = await compressImage(file, 100, 0.4);
         setPromoImage(base64);
       } catch (err) {
         console.error("Promo compression failed", err);
@@ -536,7 +557,7 @@ const AdminDashboard: React.FC<AdminProps> = ({
       for (const item of menuItems) {
         if (item.image && item.image.startsWith('data:image')) {
           try {
-            const compressed = await compressImage(item.image, 150, 0.5);
+            const compressed = await compressImage(item.image, 80, 0.3);
             if (compressed.length < item.image.length) {
               await setDoc(doc(db, "items", item.id), { ...item, image: compressed });
               optimizedCount++;
@@ -719,16 +740,16 @@ const AdminDashboard: React.FC<AdminProps> = ({
 
 
       <div className="grid grid-cols-4 gap-1.5 px-1">
-        {activeShop && (
+        {(activeShop || isCashier) && (
           <>
             <button
-              onClick={() => handleTabChange('monitor')}
-              className={`bg-[var(--bg-card)] p-2 rounded-[24px] border border-[var(--border)] flex flex-col items-center justify-center shadow-xl active:scale-95 transition-all gap-2 group ${adminTab === 'monitor' ? 'border-orange-600' : ''}`}
+              onClick={() => handleTabChange('crm')}
+              className={`bg-[var(--bg-card)] p-2 rounded-[24px] border border-[var(--border)] flex flex-col items-center justify-center shadow-xl active:scale-95 transition-all gap-2 group ${adminTab === 'crm' ? 'border-blue-600' : ''}`}
             >
-              <div className={`p-2 rounded-xl transition-all ${adminTab === 'monitor' ? 'bg-orange-600 text-white' : 'bg-orange-600/10 text-orange-600'}`}>
-                {ICONS.Dashboard}
+              <div className={`p-2 rounded-xl transition-all ${adminTab === 'crm' ? 'bg-blue-600 text-white' : 'bg-blue-600/10 text-blue-500'}`}>
+                {ICONS.User}
               </div>
-              <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-main)]">Home</span>
+              <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-main)]">Khata</span>
             </button>
 
             <button
@@ -741,25 +762,29 @@ const AdminDashboard: React.FC<AdminProps> = ({
               <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-main)]">Purchase</span>
             </button>
 
-            <button
-              onClick={() => handleTabChange('crm')}
-              className={`bg-[var(--bg-card)] p-2 rounded-[24px] border border-[var(--border)] flex flex-col items-center justify-center shadow-xl active:scale-95 transition-all gap-2 group ${adminTab === 'crm' ? 'border-blue-600' : ''}`}
-            >
-              <div className={`p-2 rounded-xl transition-all ${adminTab === 'crm' ? 'bg-blue-600 text-white' : 'bg-blue-600/10 text-blue-500'}`}>
-                {ICONS.User}
-              </div>
-              <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-main)]">Customer</span>
-            </button>
+            {!isCashier && (
+              <>
+                <button
+                  onClick={() => handleTabChange('monitor')}
+                  className={`bg-[var(--bg-card)] p-2 rounded-[24px] border border-[var(--border)] flex flex-col items-center justify-center shadow-xl active:scale-95 transition-all gap-2 group ${adminTab === 'monitor' ? 'border-orange-600' : ''}`}
+                >
+                  <div className={`p-2 rounded-xl transition-all ${adminTab === 'monitor' ? 'bg-orange-600 text-white' : 'bg-orange-600/10 text-orange-600'}`}>
+                    {ICONS.Dashboard}
+                  </div>
+                  <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-main)]">Home</span>
+                </button>
 
-            <button
-              onClick={() => handleTabChange('takers')}
-              className={`bg-[var(--bg-card)] p-2 rounded-[24px] border border-[var(--border)] flex flex-col items-center justify-center shadow-xl active:scale-95 transition-all gap-2 group ${adminTab === 'takers' ? 'border-purple-600' : ''}`}
-            >
-              <div className={`p-2 rounded-xl transition-all ${adminTab === 'takers' ? 'bg-purple-600 text-white' : 'bg-purple-600/10 text-purple-500'}`}>
-                {ICONS.Users}
-              </div>
-              <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-main)]">Staff</span>
-            </button>
+                <button
+                  onClick={() => handleTabChange('takers')}
+                  className={`bg-[var(--bg-card)] p-2 rounded-[24px] border border-[var(--border)] flex flex-col items-center justify-center shadow-xl active:scale-95 transition-all gap-2 group ${adminTab === 'takers' ? 'border-purple-600' : ''}`}
+                >
+                  <div className={`p-2 rounded-xl transition-all ${adminTab === 'takers' ? 'bg-purple-600 text-white' : 'bg-purple-600/10 text-purple-500'}`}>
+                    {ICONS.Users}
+                  </div>
+                  <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-main)]">Staff</span>
+                </button>
+              </>
+            )}
 
             <button
               onClick={() => handleTabChange('suppliers')}
@@ -771,15 +796,19 @@ const AdminDashboard: React.FC<AdminProps> = ({
               <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-main)]">Vendor</span>
             </button>
 
-            <button
-              onClick={() => handleTabChange('config')}
-              className={`bg-[var(--bg-card)] p-2 rounded-[24px] border border-[var(--border)] flex flex-col items-center justify-center shadow-xl active:scale-95 transition-all gap-2 group ${adminTab === 'config' ? 'border-cyan-600' : ''}`}
-            >
-              <div className={`p-2 rounded-xl transition-all ${adminTab === 'config' ? 'bg-cyan-600 text-white' : 'bg-cyan-600/10 text-cyan-500'}`}>
-                {ICONS.Settings}
-              </div>
-              <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-main)]">Config</span>
-            </button>
+            {!isCashier && (
+              <>
+                <button
+                  onClick={() => handleTabChange('config')}
+                  className={`bg-[var(--bg-card)] p-2 rounded-[24px] border border-[var(--border)] flex flex-col items-center justify-center shadow-xl active:scale-95 transition-all gap-2 group ${adminTab === 'config' ? 'border-cyan-600' : ''}`}
+                >
+                  <div className={`p-2 rounded-xl transition-all ${adminTab === 'config' ? 'bg-cyan-600 text-white' : 'bg-cyan-600/10 text-cyan-500'}`}>
+                    {ICONS.Settings}
+                  </div>
+                  <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-main)]">Config</span>
+                </button>
+              </>
+            )}
 
             <button
               onClick={() => handleTabChange('settlement')}
@@ -791,22 +820,29 @@ const AdminDashboard: React.FC<AdminProps> = ({
               <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-main)]">Payments</span>
             </button>
 
-            <button
-              onClick={onNavigateToMenu}
-              className="bg-[var(--bg-card)] p-2 rounded-[24px] border border-[var(--border)] flex flex-col items-center justify-center shadow-xl active:scale-95 transition-all gap-2 group"
-            >
-              <div className="p-2 rounded-xl transition-all bg-amber-600/10 text-amber-600 group-hover:bg-amber-600 group-hover:text-white">
-                {ICONS.Utensils}
-              </div>
-              <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-main)]">Menu</span>
-            </button>
+            {!isCashier && (
+              <>
+                <button
+                  onClick={onNavigateToMenu}
+                  className="bg-[var(--bg-card)] p-2 rounded-[24px] border border-[var(--border)] flex flex-col items-center justify-center shadow-xl active:scale-95 transition-all gap-2 group"
+                >
+                  <div className="p-2 rounded-xl transition-all bg-amber-600/10 text-amber-600 group-hover:bg-amber-600 group-hover:text-white">
+                    {ICONS.Utensils}
+                  </div>
+                  <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-main)]">Menu</span>
+                </button>
+              </>
+            )}
           </>
         )}
 
         {isAdmin && (
           <>
             <button
-              onClick={() => handleTabChange('registry')}
+              onClick={() => {
+                handleTabChange('registry');
+                handleOwnerClick();
+              }}
               className={`bg-[var(--bg-card)] p-2 rounded-[24px] border border-[var(--border)] flex flex-col items-center justify-center shadow-xl active:scale-95 transition-all gap-2 group ${adminTab === 'registry' ? 'border-pink-600' : ''}`}
             >
               <div className={`p-2 rounded-xl transition-all ${adminTab === 'registry' ? 'bg-pink-600 text-white' : 'bg-pink-600/10 text-pink-500'}`}>
@@ -1041,7 +1077,7 @@ const AdminDashboard: React.FC<AdminProps> = ({
             >
               <p className="text-[8px] font-black uppercase text-[var(--text-muted)] tracking-widest">Today Sales</p>
               <p className="text-lg font-black text-emerald-500 tracking-tight">
-                {amt(stats.todaySales)}
+                {amt(stats.todaySales, '', true)}
               </p>
             </motion.div>
             <motion.div
@@ -1050,7 +1086,7 @@ const AdminDashboard: React.FC<AdminProps> = ({
             >
               <p className="text-[8px] font-black uppercase text-[var(--text-muted)] tracking-widest">Total Sales</p>
               <p className="text-lg font-black text-white tracking-tight">
-                {amt(stats.sales)}
+                {amt(stats.sales, '', true)}
               </p>
             </motion.div>
           </div>
@@ -1058,15 +1094,15 @@ const AdminDashboard: React.FC<AdminProps> = ({
           <div className="grid grid-cols-3 gap-2 px-1">
             <div className="bg-[var(--bg-card)] p-3 rounded-[24px] border border-[var(--border)] shadow-lg text-center">
               <p className="text-[7px] font-black uppercase text-[var(--text-muted)] tracking-widest">Today Exp</p>
-              <p className="text-xs font-black text-white mt-1">{amt(stats.todayExpense)}</p>
+              <p className="text-xs font-black text-white mt-1">{amt(stats.todayExpense, '', true)}</p>
             </div>
             <div className="bg-[var(--bg-card)] p-3 rounded-[24px] border border-[var(--border)] shadow-lg text-center">
               <p className="text-[7px] font-black uppercase text-[var(--text-muted)] tracking-widest">Today Discount</p>
-              <p className="text-xs font-black text-orange-500 mt-1">{amt(stats.todayDiscount)}</p>
+              <p className="text-xs font-black text-orange-500 mt-1">{amt(stats.todayDiscount, '', true)}</p>
             </div>
             <div className="bg-[var(--bg-card)] p-3 rounded-[24px] border border-[var(--border)] shadow-lg text-center">
               <p className="text-[7px] font-black uppercase text-[var(--text-muted)] tracking-widest">Total Discount</p>
-              <p className="text-xs font-black text-orange-600 mt-1">{amt(stats.totalDiscount)}</p>
+              <p className="text-xs font-black text-orange-600 mt-1">{amt(stats.totalDiscount, '', true)}</p>
             </div>
           </div>
 
@@ -1280,8 +1316,9 @@ const AdminDashboard: React.FC<AdminProps> = ({
                 <input type="password" placeholder="PASSWORD" className="w-full p-4 bg-[var(--bg-main)] rounded-xl border border-[var(--border)] font-black text-xs outline-none focus:border-orange-600" value={newStaffPassword} onChange={e => setNewStaffPassword(e.target.value)} />
               </div>
               <div className="flex gap-2 p-1 bg-black/20 rounded-xl">
-                <button type="button" onClick={() => setNewStaffRole('taker')} className={`flex-1 py-2 text-[8px] font-black rounded-lg transition-all ${newStaffRole === 'taker' ? 'bg-orange-600 text-white' : 'text-gray-500'}`}>TAKER</button>
-                <button type="button" onClick={() => setNewStaffRole('kitchen')} className={`flex-1 py-2 text-[8px] font-black rounded-lg transition-all ${newStaffRole === 'kitchen' ? 'bg-orange-600 text-white' : 'text-gray-500'}`}>KITCHEN</button>
+                <button type="button" onClick={() => setNewStaffRole('taker')} className={`flex-1 py-2 text-[8px] font-black rounded-lg transition-all ${newStaffRole === 'taker' ? 'bg-orange-600 text-white shadow-lg' : 'text-gray-500'}`}>TAKER</button>
+                <button type="button" onClick={() => setNewStaffRole('kitchen')} className={`flex-1 py-2 text-[8px] font-black rounded-lg transition-all ${newStaffRole === 'kitchen' ? 'bg-orange-600 text-white shadow-lg' : 'text-gray-500'}`}>KITCHEN</button>
+                <button type="button" onClick={() => setNewStaffRole('cashier')} className={`flex-1 py-2 text-[8px] font-black rounded-lg transition-all ${newStaffRole === 'cashier' ? 'bg-orange-600 text-white shadow-lg' : 'text-gray-500'}`}>CASHIER</button>
               </div>
               <button type="submit" className="w-full py-4 bg-orange-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl">ADD STAFF MEMBER</button>
             </form>
@@ -1319,7 +1356,7 @@ const AdminDashboard: React.FC<AdminProps> = ({
                     <div className="min-w-0 flex-1 mr-3">
                       <div className="flex items-center gap-2">
                         <p className="font-black text-sm uppercase text-[var(--text-main)] truncate italic">{staff.name}</p>
-                        <span className={`px-2 py-0.5 rounded-full text-[7px] font-black text-white uppercase tracking-widest ${staff.role === 'kitchen' ? 'bg-amber-600' : 'bg-blue-600'}`}>{staff.role}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[7px] font-black text-white uppercase tracking-widest ${staff.role === 'kitchen' ? 'bg-amber-600' : staff.role === 'cashier' ? 'bg-emerald-600' : 'bg-blue-600'}`}>{staff.role}</span>
                       </div>
                       <p className="text-[9px] text-[var(--text-muted)] font-black uppercase">ID: <span className="text-orange-600">{staff.id}</span> • PASS: <span className="text-white">{staff.password}</span></p>
                     </div>
@@ -1359,6 +1396,19 @@ const AdminDashboard: React.FC<AdminProps> = ({
                       <div className="bg-black/20 p-3 rounded-2xl text-center">
                         <p className="text-[7px] font-black text-[var(--text-muted)] uppercase tracking-widest">Total Sales</p>
                         <p className="text-sm font-black text-emerald-500">{amt(staffSales)}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {staff.role === 'cashier' && (
+                    <div className="grid grid-cols-2 gap-2 pt-3 border-t border-white/5">
+                      <div className="bg-black/20 p-3 rounded-2xl text-center">
+                        <p className="text-[7px] font-black text-[var(--text-muted)] uppercase tracking-widest">Settled Bills</p>
+                        <p className="text-sm font-black text-white">{orders.filter(o => o.cashierId === staff.id).length}</p>
+                      </div>
+                      <div className="bg-black/20 p-3 rounded-2xl text-center">
+                        <p className="text-[7px] font-black text-[var(--text-muted)] uppercase tracking-widest">Amount Collected</p>
+                        <p className="text-sm font-black text-emerald-500">{amt(orders.filter(o => o.cashierId === staff.id).reduce((sum, o) => sum + o.total, 0))}</p>
                       </div>
                     </div>
                   )}
@@ -1504,6 +1554,39 @@ const AdminDashboard: React.FC<AdminProps> = ({
             ))}
           </div>
 
+          {/* ── Admin-Only Reset / Danger Zone ── */}
+          {isAdmin && (
+            <div className="bg-rose-950/30 p-6 rounded-[32px] border border-rose-600/20 shadow-xl space-y-4 mt-4">
+              <div className="flex items-center gap-2 ml-2 mb-2">
+                <span className="text-rose-500">{ICONS.Trash2}</span>
+                <p className="text-[10px] font-black uppercase text-rose-500 tracking-[0.2em]">Danger Zone (Admin Only)</p>
+              </div>
+
+              <button
+                onClick={() => triggerConfirm({
+                  title: "Reset All Orders?",
+                  message: "Kya aap waqai tamam orders ko permanently delete karna chahte hain? Yeh amal wapasi ke qabil nahi hai.",
+                  type: 'danger',
+                  onConfirm: onResetHistory
+                })}
+                className="w-full p-4 bg-orange-600/10 text-orange-500 border border-orange-600/20 rounded-[32px] text-[10px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all flex items-center justify-center gap-2"
+              >
+                {ICONS.Trash2} RESET ALL ORDERS
+              </button>
+
+              <button
+                onClick={() => setShowResetConfirm(true)}
+                className="w-full p-4 bg-rose-600 text-white border border-rose-600/20 rounded-[32px] text-[10px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all flex items-center justify-center gap-2 shadow-lg shadow-rose-600/20"
+              >
+                {ICONS.Trash2} FORCE CLOUD RESET (QUOTA FIX)
+              </button>
+
+              <p className="text-[7px] font-black text-rose-400 uppercase text-center px-4 tracking-widest">
+                Yeh buttons sirf Admin ke liye hain. Cloud ka quota khali karne ke liye FORCE RESET use karein.
+              </p>
+            </div>
+          )}
+
           {editingShop && (
             <div className="fixed inset-0 bg-black/95 backdrop-blur-3xl z-[3000] flex items-center justify-center p-6 animate-in zoom-in">
               <div className="bg-[var(--bg-card)] rounded-[48px] border border-white/10 w-full max-w-sm p-10 space-y-8 shadow-2xl">
@@ -1543,13 +1626,34 @@ const AdminDashboard: React.FC<AdminProps> = ({
 
             <div className="space-y-3">
               <p className="text-[9px] font-black uppercase text-[var(--text-muted)] ml-4 tracking-widest">Restaurant Name</p>
-              <input
-                type="text"
-                placeholder="ENTER RESTAURANT NAME"
-                className="w-full p-4 bg-black/50 border border-white/10 rounded-2xl text-white text-center font-black tracking-widest outline-none focus:border-orange-600 text-xs uppercase"
-                value={settings.businessName || ''}
-                onChange={(e) => setSettings({ ...settings, businessName: e.target.value })}
+              {isAdmin ? (
+                <input
+                  type="text"
+                  placeholder="ENTER RESTAURANT NAME"
+                  className="w-full p-4 bg-black/50 border border-white/10 rounded-2xl text-white text-center font-black tracking-widest outline-none focus:border-orange-600 text-xs uppercase"
+                  value={settings.businessName || ''}
+                  onChange={(e) => setSettings({ ...settings, businessName: e.target.value })}
+                />
+              ) : (
+                <div className="w-full p-4 bg-black/30 border border-white/5 rounded-2xl text-white text-center font-black tracking-widest text-xs uppercase opacity-80">
+                  {settings.businessName}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-[9px] font-black uppercase text-[var(--text-muted)] ml-4 tracking-widest flex items-center justify-between">
+                <span>Custom Bill / Receipt Text</span>
+                <span className="text-orange-500/50 italic normal-case font-medium">Footer on bills</span>
+              </p>
+              <textarea
+                placeholder="e.g. Shukriya! Dobara tashreef layen."
+                rows={3}
+                className="w-full p-4 bg-black/50 border border-white/10 rounded-2xl text-white font-black tracking-widest outline-none focus:border-orange-600 text-xs resize-none"
+                value={settings.receiptFooterText || ''}
+                onChange={(e) => setSettings({ ...settings, receiptFooterText: e.target.value })}
               />
+              <p className="text-[7px] font-black text-orange-600/50 uppercase ml-4">Yeh text bill aur receipt ke neeche print hoga.</p>
             </div>
             
             <div className="space-y-3">
@@ -1565,24 +1669,26 @@ const AdminDashboard: React.FC<AdminProps> = ({
               />
             </div>
 
-            <div className="space-y-3 pt-2">
-              <p className="text-[9px] font-black uppercase text-blue-500 ml-4 tracking-widest flex items-center justify-between">
-                <span>Sales Display Adjustment (%)</span>
-                <span className="text-blue-500/50 italic normal-case font-medium">100% = Real</span>
-              </p>
-              <div className="flex items-center gap-3">
-                <input
-                  type="range" min="1" max="200" step="1"
-                  className="flex-1 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                  value={settings.statsAdjustmentPercentage || 100}
-                  onChange={(e) => setSettings({ ...settings, statsAdjustmentPercentage: parseInt(e.target.value) })}
-                />
-                <div className="w-16 p-2 bg-black/50 border border-white/10 rounded-xl text-white text-center font-black text-xs">
-                  {settings.statsAdjustmentPercentage || 100}%
+            {showSecretSlider && (
+              <div className="space-y-3 pt-2 animate-in slide-in-from-top">
+                <p className="text-[9px] font-black uppercase text-blue-500 ml-4 tracking-widest flex items-center justify-between">
+                  <span>Sales Display Adjustment (%)</span>
+                  <span className="text-blue-500/50 italic normal-case font-medium">100% = Real</span>
+                </p>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range" min="1" max="200" step="1"
+                    className="flex-1 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                    value={settings.statsAdjustmentPercentage || 100}
+                    onChange={(e) => setSettings({ ...settings, statsAdjustmentPercentage: parseInt(e.target.value) })}
+                  />
+                  <div className="w-16 p-2 bg-black/50 border border-white/10 rounded-xl text-white text-center font-black text-xs">
+                    {settings.statsAdjustmentPercentage || 100}%
+                  </div>
                 </div>
+                <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase ml-4">Yeh percentage sirf sales dashboard par dikhayi dene waly totals ko tabdeel karegi.</p>
               </div>
-              <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase ml-4">Yeh percentage sirf sales dashboard par dikhayi dene waly totals ko tabdeel karegi.</p>
-            </div>
+            )}
           </div>
 
           {/* PWA Installation Section */}
@@ -1802,30 +1908,6 @@ const AdminDashboard: React.FC<AdminProps> = ({
             >
               {ICONS.Check} OPTIMIZE MENU IMAGES (150x)
             </button>
-            <div className="pt-4 border-t border-white/5 space-y-3">
-              <button 
-                onClick={() => triggerConfirm({
-                  title: "Reset All Orders?",
-                  message: "Kya aap waqai tamam orders ko permanently delete karna chahte hain? Yeh amal wapasi ke qabil nahi hai.",
-                  type: 'danger',
-                  onConfirm: onResetHistory
-                })}
-                className="w-full p-4 bg-orange-600/10 text-orange-500 border border-orange-600/20 rounded-[32px] text-[10px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all flex items-center justify-center gap-2"
-              >
-                {ICONS.Trash2} RESET ALL ORDERS
-              </button>
-              
-              <button 
-                onClick={() => setShowResetConfirm(true)} 
-                className="w-full p-4 bg-rose-600 text-white border border-rose-600/20 rounded-[32px] text-[10px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all flex items-center justify-center gap-2 shadow-lg shadow-rose-600/20"
-              >
-                {ICONS.Trash2} FORCE CLOUD RESET (QUOTA FIX)
-              </button>
-
-              <p className="text-[7px] font-black text-rose-500 uppercase text-center px-4 tracking-widest">
-                Upar wala button cloud ka quota khali karne ke liye hai. Is se Cloud se orders aur khata saaf ho jayega.
-              </p>
-            </div>
           </div>
 
           <div className="bg-[var(--bg-card)] p-6 rounded-[32px] border border-[var(--border)] shadow-xl space-y-6">
@@ -2025,33 +2107,7 @@ const AdminDashboard: React.FC<AdminProps> = ({
             </div>
           </div>
 
-          <div className="bg-red-500/5 p-6 rounded-[32px] border border-red-500/10 shadow-xl space-y-4">
-            <div className="flex items-center gap-2 ml-2 mb-2">
-              <span className="text-red-500">{ICONS.Trash2}</span>
-              <p className="text-[10px] font-black uppercase text-red-500 tracking-[0.2em]">Destructive Actions</p>
-            </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-red-500">{ICONS.Trash2}</span>
-                <div>
-                  <h4 className="text-xs font-black text-white uppercase italic">Delete All History</h4>
-                  <p className="text-[8px] font-bold text-[var(--text-muted)] uppercase tracking-widest mt-1">Permanently remove all order logs</p>
-                </div>
-              </div>
-              <button
-                onClick={() => triggerConfirm({
-                  title: "Clear All History?",
-                  message: "Kya aap waqai tamam purani order history ko permanently khatam karna chahte hain? Yeh amal wapasi ke qabil nahi hai.",
-                  type: 'danger',
-                  onConfirm: onResetHistory
-                })}
-                className="px-4 py-2 bg-red-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all shadow-lg"
-              >
-                Clear Now
-              </button>
-            </div>
-          </div>
 
           <div className="bg-[var(--bg-card)] p-6 rounded-[32px] border border-[var(--border)] shadow-xl space-y-6">
             <div className="flex items-center gap-2 ml-2">

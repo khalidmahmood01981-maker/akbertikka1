@@ -132,7 +132,7 @@ const HistoryView: React.FC<HistoryProps> = ({
     const message = `*${headerName} - INVOICE*\n` +
                     `--------------------------\n` +
                     `Order No: #${order.orderNumber || '??'}\n` +
-                    `Order ID: ${order.id.slice(-8)}\n` +
+                    `Bill No: #${order.id.slice(-6).toUpperCase()}\n` +
                     `Date: ${dateStr}\n` +
                     `Customer: ${order.customerName}\n` +
                     `--------------------------\n` +
@@ -198,12 +198,12 @@ const HistoryView: React.FC<HistoryProps> = ({
           </div>
           
           <div style="border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 8px 0; margin-bottom: 10px; font-size: 11px; line-height: 1.5;">
-            <div style="display: flex; justify-content: space-between;">
-              <span><b>ORDER NO:</b> #${order.orderNumber || '??'}</span>
-              <span><b>DATE:</b> ${new Date(order.timestamp).toLocaleDateString()}</span>
+            <div style="display: flex; justify-content: space-between; font-size: 16px; font-weight: 900; background: #eee; padding: 4px; margin-bottom: 5px;">
+              <span>ORDER NO: #${order.orderNumber || '??'}</span>
+              <span>BILL NO: #${order.id.slice(-6).toUpperCase()}</span>
             </div>
             <div style="display: flex; justify-content: space-between; margin-top: 4px;">
-              <span><b>BILL ID:</b> ${order.id.slice(-8).toUpperCase()}</span>
+              <span><b>DATE:</b> ${new Date(order.timestamp).toLocaleDateString()}</span>
               <span></span>
             </div>
             <div style="margin-top: 4px;">
@@ -223,6 +223,13 @@ const HistoryView: React.FC<HistoryProps> = ({
               <span>AMOUNT</span>
             </div>
             ${itemsHtml}
+          </div>
+          
+            ${order.kitchenNotes ? `
+              <div style="margin-top: 10px; padding: 5px; border: 1px dashed #000; font-size: 10px; font-style: italic;">
+                <b>NOTES:</b> ${order.kitchenNotes.toUpperCase()}
+              </div>
+            ` : ''}
           </div>
           
           <div style="border-top: 1px solid #000; padding-top: 8px; space-y: 4px;">
@@ -400,7 +407,8 @@ const HistoryView: React.FC<HistoryProps> = ({
                     <p className="text-[9px] font-black text-[var(--text-muted)] uppercase">{new Date(order.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
                     <div className="flex flex-col items-end gap-0.5 mt-0.5">
                       {order.tableNumber && <p className="text-[8px] font-black text-emerald-500 uppercase">Table: {order.tableNumber}</p>}
-                      {order.orderTakerName && <p className="text-[7px] font-black text-blue-500 uppercase">{order.orderTakerName}</p>}
+                      {order.orderTakerName && <p className="text-[7px] font-black text-blue-500 uppercase">TAKER: {order.orderTakerName}</p>}
+                      {order.cashierName && <p className="text-[7px] font-black text-emerald-600 uppercase">CASHIER: {order.cashierName}</p>}
                     </div>
                     <p className="text-2xl font-black text-orange-600 uppercase tracking-widest bg-orange-600/10 px-3 py-1 rounded-lg border border-orange-600/20 mt-1">NO: #{order.orderNumber || '??'}</p>
                     <p className="text-[7px] font-black text-orange-600 uppercase mt-0.5">ID: {order.id.slice(-4)}</p>

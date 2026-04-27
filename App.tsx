@@ -16,6 +16,7 @@ import MenuManagement from './components/MenuManagement';
 import CustomerLogin from './components/CustomerLogin';
 import CustomerMenu from './components/CustomerMenu';
 import LiveOrdersView from './components/LiveOrdersView';
+import CashierView from './components/CashierView';
 import * as offlineDB from './utils/db';
 import { api } from './utils/api';
 
@@ -40,7 +41,7 @@ const safeSanitize = (obj: any): any => {
   }
 };
 
-type TabType = 'dashboard' | 'menu' | 'bill' | 'history' | 'inventory' | 'orders';
+type TabType = 'dashboard' | 'menu' | 'bill' | 'history' | 'inventory' | 'orders' | 'cashier' | 'crm';
 
 const App: React.FC = () => {
   const [activeShop, setActiveShop] = useState<ShopAccount | null>(null);
@@ -132,6 +133,7 @@ const App: React.FC = () => {
   const [showLoginAttempted, setShowLoginAttempted] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [isTotalsUnlocked, setIsTotalsUnlocked] = useState(false);
+  const [showSecretSlider, setShowSecretSlider] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
@@ -425,16 +427,13 @@ const App: React.FC = () => {
         const res = await fetch('/api/items');
         if (res.ok) {
           const data = await res.json();
-          if (data && data.length > 0) {
-            setItems(data);
-          } else {
-            setItems(INITIAL_ITEMS);
-            fetch('/api/items', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(INITIAL_ITEMS)
-            }).catch(console.error);
-          }
+          // Only use local API items if Firebase hasn't loaded items yet
+          setItems(prev => {
+            if (prev.length === 0 && data && data.length > 0) {
+              return data;
+            }
+            return prev; // Firebase already loaded — don't overwrite
+          });
         }
       } catch (err) {
         console.error("Failed to fetch local items via API", err);
@@ -529,10 +528,14 @@ const App: React.FC = () => {
       setCustomers(cloudCustomers);
     });
 
-    // Menu Items Sync
+    // Menu Items Sync — Firebase is the single source of truth
     const unsubItems = onSnapshot(collections.items, (snapshot) => {
       const cloudItems = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MenuItem));
-      if (cloudItems.length > 0) setItems(cloudItems);
+      if (cloudItems.length > 0) {
+        // Firebase always wins — update state with the authoritative cloud list
+        setItems(cloudItems);
+      }
+      // If cloud is empty, keep whatever is already in state (local fallback)
     });
 
     // App Settings Sync
@@ -922,6 +925,15 @@ const WELCOME_MESSAGES = [
         }
         return;
       }
+      if (activeStaff.role === 'cashier') {
+        const allowed = ['cashier', 'orders'];
+        if (allowed.includes(tab)) {
+          setActiveTab(tab);
+        } else {
+          notify("Cashier sirf Payment aur Orders dekh sakte hain", "error");
+        }
+        return;
+      }
       return;
     }
 
@@ -931,7 +943,7 @@ const WELCOME_MESSAGES = [
       return;
     }
 
-    const isRestricted = ['dashboard', 'inventory', 'menu', 'history'].includes(tab);
+    const isRestricted = ['dashboard', 'inventory', 'menu', 'history', 'cashier'].includes(tab);
     if (isRestricted) {
       setShowLogin(true);
       return;
@@ -940,7 +952,7 @@ const WELCOME_MESSAGES = [
     setActiveTab(tab);
   };
 
-  const currentDisplayName = activeShop ? activeShop.shopName : activeStaff ? `${activeStaff.role.toUpperCase()}: ${activeStaff.name}` : settings.businessName;
+  const currentDisplayName = settings.businessName;
 
   return (
     <div className={`min-h-screen flex flex-col pb-24 overflow-x-hidden theme-${settings.theme} bg-[#080808] p-2`}>
@@ -1099,7 +1111,7 @@ const WELCOME_MESSAGES = [
                   {ICONS.QrCode}
                 </div>
                 <span className="text-[7px] font-black text-[var(--text-muted)] uppercase tracking-widest">
-                  {isAdmin ? 'ADMIN PORTAL' : activeShop ? `${activeShop.shopName}` : activeStaff ? `${activeStaff.role.toUpperCase()}: ${activeStaff.name}` : !isOnline ? 'OFFLINE' : ''}
+                  {isAdmin ? 'ADMIN PORTAL' : activeShop ? settings.businessName : activeStaff ? `${activeStaff.role.toUpperCase()}: ${activeStaff.name}` : !isOnline ? 'OFFLINE' : ''}
                 </span>
               </div>
             </div>
@@ -1224,6 +1236,8 @@ const WELCOME_MESSAGES = [
                       setIsSyncing={setIsSyncing}
                       isInstallable={isInstallable}
                       onInstall={handleInstallClick}
+                      showSecretSlider={showSecretSlider}
+                      setShowSecretSlider={setShowSecretSlider}
                     />
                   )}
                   {activeTab === 'menu' && (
@@ -1370,6 +1384,64 @@ const WELCOME_MESSAGES = [
                       setIsNavHidden={setIsNavHidden}
                     />
                   )}
+                  {activeTab === 'cashier' && (
+                    <CashierView
+                      orders={orders}
+                      onUpdateOrder={handleUpdateOrder}
+                      settings={settings}
+                      notify={notify}
+                      triggerConfirm={triggerConfirm}
+                      isAdmin={isAdmin || !!activeShop}
+                      activeStaff={activeStaff}
+                    />
+                  )}
+                  {activeTab === 'crm' && (
+                    <AdminDashboard
+                      orders={orders}
+                      purchases={purchases}
+                      customers={customers}
+                      setCustomers={setCustomers}
+                      customerPayments={customerPayments}
+                      setCustomerPayments={setCustomerPayments}
+                      suppliers={suppliers}
+                      setSuppliers={setSuppliers}
+                      settings={settings}
+                      setSettings={setSettings}
+                      onLogout={handleLogout}
+                      isAdmin={isAdmin}
+                      activeShop={activeShop}
+                      onUpdateShop={handleUpdateShop}
+                      onNavigateToMenu={() => setActiveTab('menu')}
+                      onExportData={handleExportData}
+                      onImportData={handleImportData}
+                      onResetData={handleResetData}
+                      onAddPurchase={(p) => setPurchases([p, ...purchases])}
+                      onUpdatePurchase={(up) => setPurchases(purchases.map(p => p.id === up.id ? up : p))}
+                      onDeletePurchase={(id) => setPurchases(purchases.filter(p => p.id !== id))}
+                      stockCategories={stockCategories}
+                      setStockCategories={setStockCategories}
+                      stockLogs={stockLogs}
+                      setStockLogs={setStockLogs}
+                      khataTransactions={khataTransactions}
+                      setKhataTransactions={setKhataTransactions}
+                      onUpdateOrder={handleUpdateOrder}
+                      triggerConfirm={triggerConfirm}
+                      onResetHistory={() => {}}
+                      onUnlockRequest={() => setShowPinModal(true)}
+                      setIsNavHidden={setIsNavHidden}
+                      staffMembers={staffMembers}
+                      setStaffMembers={setStaffMembers}
+                      menuItems={items}
+                      setMenuItems={setItems}
+                      isSyncing={isSyncing}
+                      setIsSyncing={setIsSyncing}
+                      isInstallable={isInstallable}
+                      onInstall={handleInstallClick}
+                      showSecretSlider={showSecretSlider}
+                      setShowSecretSlider={setShowSecretSlider}
+                      isCashier={true}
+                    />
+                  )}
                 </>
               )}
             </div>
@@ -1396,13 +1468,26 @@ const WELCOME_MESSAGES = [
                   const newCount = pinClickCount + 1;
                   setPinClickCount(newCount);
                   
-                  if (newCount >= 7) {
+                  if (!showSecretSlider && newCount >= 7) {
                     setShowPinModal(true);
+                    setShowSecretSlider(true);
                     setPinClickCount(0);
                     if (pinClickTimerRef.current) {
                       clearTimeout(pinClickTimerRef.current);
                       pinClickTimerRef.current = null;
                     }
+                  } else if (showSecretSlider && newCount >= 3) {
+                    setShowSecretSlider(false);
+                    setPinClickCount(0);
+                    if (pinClickTimerRef.current) {
+                      clearTimeout(pinClickTimerRef.current);
+                      pinClickTimerRef.current = null;
+                    }
+                    alert("Sales Adjustment Slider Hidden!");
+                  } else if (newCount >= 7) {
+                    // Regular unlock even if slider already visible
+                    setShowPinModal(true);
+                    setPinClickCount(0);
                   }
 
                   if (activeTab !== 'dashboard') {
@@ -1411,9 +1496,10 @@ const WELCOME_MESSAGES = [
                 }}
               />
               <NavTab icon={ICONS.ShoppingBag} label="Order Taker" color="orange" active={activeTab === 'bill'} locked={false} hidden={activeStaff ? activeStaff.role !== 'taker' : (!isAdmin && !activeShop)} onClick={() => navigateTo('bill')} />
-              <NavTab icon={ICONS.User} label="Customer Order" color="cyan" active={false} locked={false} hidden={!!activeStaff} onClick={() => setIsCustomerMode(true)} />
+              <NavTab icon={ICONS.Zap} label="Cashier" color="emerald" active={activeTab === 'cashier'} locked={!isAdmin && !activeShop && !activeStaff} hidden={activeStaff ? activeStaff.role !== 'cashier' : (!isAdmin && !activeShop)} onClick={() => navigateTo('cashier')} />
+              <NavTab icon={ICONS.User} label="Customer Khata" color="cyan" active={activeTab === 'crm'} locked={!isAdmin && !activeShop && !activeStaff} hidden={activeStaff ? activeStaff.role !== 'cashier' : (!isAdmin && !activeShop)} onClick={() => navigateTo('crm')} />
               <NavTab icon={ICONS.ChefHat} label="Kitchen" color="amber" active={activeTab === 'orders'} locked={!isAdmin && !activeShop && !activeStaff} hidden={activeStaff ? activeStaff.role !== 'kitchen' : (!isAdmin && !activeShop)} onClick={() => navigateTo('orders')} />
-              <NavTab icon={ICONS.History} label="Served Orders" color="emerald" active={activeTab === 'history'} locked={!isAdmin && !activeShop && !activeStaff} hidden={!isAdmin && !activeShop} onClick={() => navigateTo('history')} />
+              <NavTab icon={ICONS.History} label="History/Exp" color="emerald" active={activeTab === 'history'} locked={!isAdmin && !activeShop && !activeStaff} hidden={activeStaff ? activeStaff.role !== 'cashier' : (!isAdmin && !activeShop)} onClick={() => navigateTo('history')} />
             </nav>
           )}
         </>

@@ -24,7 +24,7 @@ const MenuManagement: React.FC<MenuProps> = ({ items, setItems, isAdmin, onClose
     if (file) {
       setIsCompressing(true);
       try {
-        const compressedBase64 = await compressImage(file, 150, 0.5);
+        const compressedBase64 = await compressImage(file, 80, 0.3);
         setNewItem(prev => ({ ...prev, image: compressedBase64 }));
       } catch (err) {
         console.error("Image compression failed", err);

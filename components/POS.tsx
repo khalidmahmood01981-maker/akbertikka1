@@ -408,9 +408,9 @@ const POS: React.FC<POSProps> = ({
           </div>
           
           <div style="border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 8px 0; margin-bottom: 10px; font-size: 11px; line-height: 1.5;">
-            <div style="display: flex; justify-content: space-between;">
-              ${settings.includeBillNoOnPrint ? `<span><b>BILL NO:</b> #${order.orderNumber || '00'}</span>` : '<span></span>'}
-              <span><b>BILL ID:</b> ${order.id.slice(-8).toUpperCase()}</span>
+            <div style="display: flex; justify-content: space-between; font-size: 16px; font-weight: 900; background: #eee; padding: 4px; margin-bottom: 5px;">
+              <span>ORDER NO: #${order.orderNumber || '00'}</span>
+              <span>BILL NO: #${order.id.slice(-6).toUpperCase()}</span>
             </div>
             <div style="display: flex; justify-content: space-between; margin-top: 4px;">
               <span><b>DATE:</b> ${new Date(order.timestamp).toLocaleDateString()}</span>
@@ -432,6 +432,13 @@ const POS: React.FC<POSProps> = ({
               <span>AMOUNT</span>
             </div>
             ${itemsHtml}
+          </div>
+          
+            ${order.kitchenNotes ? `
+              <div style="margin-top: 10px; padding: 5px; border: 1px dashed #000; font-size: 10px; font-style: italic;">
+                <b>NOTES:</b> ${order.kitchenNotes.toUpperCase()}
+              </div>
+            ` : ''}
           </div>
           
           <div style="border-top: 1px solid #000; padding-top: 8px; space-y: 4px;">
@@ -486,8 +493,6 @@ const POS: React.FC<POSProps> = ({
       const printSection = document.getElementById('print-section');
       if (!printSection) throw new Error("Print section not found");
 
-      const headerName = shopName || settings.businessName;
-      
       // Get items from the latest kitchen ticket if available, otherwise use full order items
       const latestTicket = order.kitchenTickets && order.kitchenTickets.length > 0 
         ? order.kitchenTickets[order.kitchenTickets.length - 1] 
@@ -496,61 +501,70 @@ const POS: React.FC<POSProps> = ({
       const printItems = latestTicket ? latestTicket.items : order.items;
 
       const itemsHtml = printItems.map(item => `
-        <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #ccc; padding: 6px 0; font-size: 14px; font-family: 'Courier New', Courier, monospace;">
-          <div style="flex: 1; text-align: left; padding-right: 10px;">
-            <div style="font-weight: bold;">${item.name.toUpperCase()} ${latestTicket ? `(NEW)` : ''}</div>
-          </div>
-          <div style="width: 50px; text-align: right; font-weight: bold; align-self: center;">
-            x${item.quantity}
-          </div>
+        <div style="display: flex; justify-content: space-between; border-bottom: 2px dashed #ccc; padding: 10px 0;">
+          <div style="flex: 1; font-weight: 900; font-size: 22px;">${item.name.toUpperCase()}</div>
+          <div style="min-width: 60px; text-align: right; font-weight: 900; font-size: 26px;">x${item.quantity}</div>
         </div>
       `).join('');
 
+      const dateStr = new Date(order.timestamp).toLocaleDateString('en-GB');
+      const timeStr = new Date(order.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const takerName = order.orderTakerName || latestTicket?.senderName || 'N/A';
+
       printSection.innerHTML = `
-        <div style="font-family: 'Courier New', Courier, monospace; color: black; background: white; width: 100%; box-sizing: border-box; padding: 0;">
-          <div style="text-align: center; margin-bottom: 15px;">
-            <h1 style="margin: 0; font-size: 22px; text-transform: uppercase; font-weight: 900;">${headerName}</h1>
-            <p style="margin: 2px 0; font-size: 10px; letter-spacing: 3px; font-weight: bold;">*** KITCHEN ORDER ***</p>
-          </div>
+        <div style="font-family: 'Courier New', Courier, monospace; color: black; background: white; width: 100%; box-sizing: border-box; padding: 10px;">
           
-          <div style="border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 8px 0; margin-bottom: 10px; font-size: 12px; line-height: 1.5;">
-            <div style="display: flex; justify-content: space-between;">
-              <span><b>ORDER ID:</b> ${order.id.slice(-8).toUpperCase()}</span>
-              <span><b>DATE:</b> ${new Date().toLocaleString()}</span>
-            </div>
-            <div style="margin-top: 4px;">
-              <b>CUSTOMER:</b> ${order.customerName.toUpperCase()}
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-top: 4px;">
-              ${order.tableNumber ? `<span><b>TABLE:</b> ${order.tableNumber.toUpperCase()}</span>` : '<span></span>'}
-              ${settings.includeBillNoOnPrint ? `<span><b>BILL NO:</b> #${order.orderNumber || '00'}</span>` : ''}
-            </div>
-            ${settings.includeTakerNameOnPrint ? `
-              <div style="margin-top: 4px; border-top: 1px dashed #000; padding-top: 4px; display: flex; justify-content: space-between; font-size: 10px;">
-                <span><b>TAKER:</b> ${order.orderTakerName?.toUpperCase() || 'N/A'}</span>
-                ${latestTicket?.senderName ? `<span><b>SENT BY:</b> ${latestTicket.senderName.toUpperCase()}</span>` : ''}
-              </div>
-            ` : ''}
-            ${latestTicket ? `<div style="margin-top: 4px; font-size: 10px;"><b>ROUND:</b> #${latestTicket.round}</div>` : ''}
+          <div style="text-align: center; border-bottom: 4px solid #000; padding-bottom: 10px; margin-bottom: 15px;">
+            <p style="margin: 0; font-size: 16px; letter-spacing: 2px; font-weight: 900;">KITCHEN ORDER</p>
           </div>
-          
-          <div style="margin-bottom: 15px;">
-            <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 11px; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 4px;">
-              <span>ITEM DESCRIPTION</span>
-              <span>QTY</span>
+
+          <div style="margin-bottom: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div style="background: #000; color: #fff; padding: 10px; border-radius: 8px;">
+              <div style="font-size: 14px; font-weight: bold;">ORDER NO:</div>
+              <div style="font-size: 52px; font-weight: 900; line-height: 1;">#${order.orderNumber || '??'}</div>
+            </div>
+            <div>
+              <div style="font-size: 12px; font-weight: bold;">BILL NO:</div>
+              <div style="font-size: 36px; font-weight: 900;">#${order.id.slice(-6).toUpperCase()}</div>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div>
+              <div style="font-size: 12px; font-weight: bold;">TABLE NO:</div>
+              <div style="font-size: 32px; font-weight: 900;">${order.tableNumber?.toUpperCase() || '---'}</div>
+            </div>
+            <div>
+              <div style="font-size: 12px; font-weight: bold;">DATE:</div>
+              <div style="font-size: 20px; font-weight: 900;">${dateStr}</div>
+              <div style="font-size: 16px; font-weight: 900;">${timeStr}</div>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 15px; border: 2px solid #000; padding: 10px;">
+            <div style="font-size: 12px; font-weight: bold;">CUSTOMER:</div>
+            <div style="font-size: 24px; font-weight: 900; text-transform: uppercase;">${order.customerName}</div>
+          </div>
+
+          <div style="margin-bottom: 20px;">
+            <div style="font-size: 14px; font-weight: 900; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 5px; display: flex; justify-content: space-between;">
+              <span>ITEM</span><span>QTY</span>
             </div>
             ${itemsHtml}
           </div>
 
           ${order.kitchenNotes ? `
-            <div style="border: 1px solid #000; padding: 10px; margin-top: 10px; font-size: 14px;">
-              <b>NOTES:</b> ${order.kitchenNotes.toUpperCase()}
-            </div>
-          ` : ''}
-          
-          <div style="text-align: center; margin-top: 25px; border-top: 1px dashed #000; padding-top: 15px;">
-            <p style="margin: 0; font-size: 10px; color: #666;">Generated by: Smart Order Taker</p>
+          <div style="margin-bottom: 15px; border: 3px solid #000; padding: 10px; background: #fffbe6; border-radius: 6px;">
+            <div style="font-size: 11px; font-weight: 900; letter-spacing: 2px; margin-bottom: 4px;">KITCHEN NOTICE / NOTES:</div>
+            <div style="font-size: 22px; font-weight: 900; text-transform: uppercase;">${order.kitchenNotes}</div>
           </div>
+          ` : ''}
+
+          <div style="border-top: 4px solid #000; padding-top: 15px; text-align: center;">
+            <div style="font-size: 14px; font-weight: bold;">ORDER TAKER:</div>
+            <div style="font-size: 36px; font-weight: 900; text-transform: uppercase;">${takerName}</div>
+          </div>
+
         </div>
       `;
       printSection.style.display = 'block';

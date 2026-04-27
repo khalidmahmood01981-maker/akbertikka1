@@ -61,7 +61,7 @@ export interface StaffMember {
   id: string;
   name: string;
   password: string;
-  role: 'taker' | 'kitchen';
+  role: 'taker' | 'kitchen' | 'cashier';
   createdAt: number;
 }
 
@@ -113,6 +113,7 @@ export interface AppSettings {
   businessDayStartTime?: string; // Format "HH:mm"
   masterIP?: string; // Local IP of the server device
   statsAdjustmentPercentage?: number; // Adjustment for displayed sales/orders
+  receiptFooterText?: string; // Custom text shown on bills/receipts
 }
 
 export interface MenuItem {
@@ -185,6 +186,8 @@ export interface Order {
   orderTakerId?: string;
   orderTakerName?: string;
   tableNumber?: string;
+  cashierId?: string;
+  cashierName?: string;
   kitchenNotes?: string;
   deliveryFee?: number;
   deliveryZoneId?: string;
