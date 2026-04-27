@@ -54,13 +54,16 @@ interface AdminProps {
   showSecretSlider: boolean;
   setShowSecretSlider: (val: boolean) => void;
   isCashier?: boolean;
+  isPrinterDevice?: boolean;
+  setIsPrinterDevice?: (val: boolean) => void;
 }
 
 const AdminDashboard: React.FC<AdminProps> = ({
   orders = [], purchases = [], customers = [], setCustomers, customerPayments = [], setCustomerPayments, suppliers = [], setSuppliers, settings, setSettings, onLogout, isAdmin, activeShop, onUpdateShop, onNavigateToMenu, onExportData, onImportData, onResetData, onAddPurchase, onUpdatePurchase, onDeletePurchase,
   stockCategories, setStockCategories, stockLogs, setStockLogs, khataTransactions, setKhataTransactions, onUpdateOrder, triggerConfirm, onResetHistory, isTotalsUnlocked = false, onUnlockRequest,
   setIsNavHidden, staffMembers = [], setStaffMembers, menuItems = [], setMenuItems, isSyncing, setIsSyncing, menuRequests = [], onUpdateMenuRequest,
-  isInstallable, onInstall, showSecretSlider, setShowSecretSlider, isCashier
+  isInstallable, onInstall, showSecretSlider, setShowSecretSlider, isCashier,
+  isPrinterDevice, setIsPrinterDevice
 }) => {
   // Tab protection helper
   const handleTabChange = (tab: typeof adminTab) => {
@@ -1998,6 +2001,26 @@ const AdminDashboard: React.FC<AdminProps> = ({
             <div className="flex items-center gap-2 ml-2 mb-2">
               <span className="text-blue-500">{ICONS.Printer}</span>
               <p className="text-[10px] font-black uppercase text-blue-500 tracking-[0.2em]">Print & Receipt Settings</p>
+            </div>
+
+            <div className="flex items-center justify-between mb-4 pb-4 border-b border-white/5">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">🖥️</span>
+                <div>
+                  <h4 className="text-xs font-black text-white uppercase italic">Printer Mode (This Device)</h4>
+                  <p className="text-[8px] font-bold text-[var(--text-muted)] uppercase tracking-widest mt-1">Enable auto-print on this PC</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  const newVal = !isPrinterDevice;
+                  setIsPrinterDevice?.(newVal);
+                  localStorage.setItem('is_printer_device', newVal ? 'true' : 'false');
+                }}
+                className={`w-14 h-8 rounded-full p-1 transition-all duration-300 ${isPrinterDevice ? 'bg-blue-600' : 'bg-white/10'}`}
+              >
+                <div className={`w-6 h-6 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${isPrinterDevice ? 'translate-x-6' : 'translate-x-0'}`} />
+              </button>
             </div>
 
             <div className="flex items-center justify-between">

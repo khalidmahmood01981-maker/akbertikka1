@@ -147,6 +147,8 @@ const App: React.FC = () => {
   const [hasPendingWrites, setHasPendingWrites] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [qrTableNumber, setQrTableNumber] = useState('');
+  const [isPrinterDevice, setIsPrinterDevice] = useState(() => localStorage.getItem('is_printer_device') === 'true');
+  const lastPrintedOrderIdRef = useRef<string | null>(null);
 
 
   const [showDataWarning, setShowDataWarning] = useState(false);
@@ -320,23 +322,74 @@ const App: React.FC = () => {
     }
   };
 
-  // Watch for new orders to play sound
+  // Watch for new orders to play sound and AUTO-PRINT
   useEffect(() => {
     if (orders.length > prevOrdersRef.current.length) {
       const newOrder = orders[0];
       if (newOrder && (newOrder.status === 'received' || newOrder.status === 'pending_customer')) {
-        // Only notify if:
-        // 1. User is Admin/Kitchen
-        // 2. User is the specific Taker for this order
+        // Notification logic
         const isMyOrder = !activeStaff || activeStaff.role === 'kitchen' || isAdmin || (activeStaff.id === newOrder.orderTakerId);
-        
         if (isMyOrder) {
           playNotification(newOrder.customerName);
+        }
+
+        // AUTO-PRINT Logic for Kitchen PC
+        if (isPrinterDevice && settings.isAutoPrintKitchenEnabled && newOrder.id !== lastPrintedOrderIdRef.current) {
+          handlePrintKitchen(newOrder);
+          lastPrintedOrderIdRef.current = newOrder.id;
         }
       }
     }
     prevOrdersRef.current = orders;
-  }, [orders, activeStaff, isAdmin]);
+  }, [orders, activeStaff, isAdmin, isPrinterDevice, settings.isAutoPrintKitchenEnabled]);
+
+  const handlePrintKitchen = (order: Order) => {
+    try {
+      const printSection = document.getElementById('print-section');
+      if (!printSection) return;
+
+      const dateStr = new Date(order.timestamp).toLocaleDateString('en-GB');
+      const timeStr = new Date(order.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      const itemsHtml = order.items.map(item => `
+        <div style="display: flex; justify-content: space-between; border-bottom: 2px dashed #ccc; padding: 10px 0;">
+          <div style="flex: 1; font-weight: 900; font-size: 22px;">${item.name.toUpperCase()}</div>
+          <div style="min-width: 60px; text-align: right; font-weight: 900; font-size: 26px;">x${item.quantity}</div>
+        </div>
+      `).join('');
+
+      printSection.innerHTML = `
+        <div style="font-family: 'Courier New', Courier, monospace; color: black; background: white; width: 100%; padding: 10px;">
+          <div style="text-align: center; border-bottom: 4px solid #000; padding-bottom: 10px; margin-bottom: 15px;">
+            <p style="margin: 0; font-size: 16px; letter-spacing: 2px; font-weight: 900;">KITCHEN ORDER (AUTO)</p>
+          </div>
+          <div style="margin-bottom: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div style="background: #000; color: #fff; padding: 10px; border-radius: 8px;">
+              <div style="font-size: 14px; font-weight: bold;">ORDER NO:</div>
+              <div style="font-size: 52px; font-weight: 900; line-height: 1;">#${order.orderNumber || '??'}</div>
+            </div>
+            <div>
+              <div style="font-size: 12px; font-weight: bold;">TABLE:</div>
+              <div style="font-size: 32px; font-weight: 900;">${order.tableNumber?.toUpperCase() || '---'}</div>
+            </div>
+          </div>
+          <div style="margin-bottom: 15px; border: 2px solid #000; padding: 10px;">
+            <div style="font-size: 12px; font-weight: bold;">CUSTOMER: ${order.customerName}</div>
+          </div>
+          <div style="margin-bottom: 20px;">
+             ${itemsHtml}
+          </div>
+          ${order.kitchenNotes ? `<div style="border: 3px solid #000; padding: 10px; font-size: 22px; font-weight: 900;">NOTES: ${order.kitchenNotes}</div>` : ''}
+          <div style="text-align: center; margin-top: 20px; font-size: 10px;">Time: ${timeStr} | Taker: ${order.orderTakerName || 'N/A'}</div>
+        </div>
+      `;
+      printSection.style.display = 'block';
+      window.print();
+      printSection.style.display = 'none';
+    } catch (e) {
+      console.error("Auto-print failed:", e);
+    }
+  };
 
   useEffect(() => {
     if (settings.notificationSoundUrl && audioRef.current) {
@@ -1302,6 +1355,8 @@ const WELCOME_MESSAGES = [
                       onInstall={handleInstallClick}
                       showSecretSlider={showSecretSlider}
                       setShowSecretSlider={setShowSecretSlider}
+                      isPrinterDevice={isPrinterDevice}
+                      setIsPrinterDevice={setIsPrinterDevice}
                     />
                   )}
                   {activeTab === 'menu' && (
