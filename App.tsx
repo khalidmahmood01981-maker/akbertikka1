@@ -146,6 +146,7 @@ const App: React.FC = () => {
   const [isLocalConnected, setIsLocalConnected] = useState(false);
   const [hasPendingWrites, setHasPendingWrites] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [qrTableNumber, setQrTableNumber] = useState('');
 
 
   const [showDataWarning, setShowDataWarning] = useState(false);
@@ -466,10 +467,10 @@ const App: React.FC = () => {
       const token = url.searchParams.get('token');
       const takerId = url.searchParams.get('takerId');
 
-      // Hourly Token Validation: Allow current hour and previous hour for buffer
-      const currentHourToken = Math.floor(Date.now() / 3600000);
+      // Daily Token Validation: Allow current day and previous day for buffer
+      const currentDayToken = Math.floor(Date.now() / 86400000);
       const providedToken = parseInt(token || '0');
-      const isTokenValid = providedToken === currentHourToken || providedToken === currentHourToken - 1;
+      const isTokenValid = providedToken === currentDayToken || providedToken === currentDayToken - 1;
 
       if (isTokenValid) {
         setIsCustomerMode(true);
@@ -952,6 +953,46 @@ const WELCOME_MESSAGES = [
     setActiveTab(tab);
   };
 
+  const handlePrintQR = (taker: StaffMember) => {
+    try {
+      const printSection = document.getElementById('print-section');
+      if (!printSection) return;
+
+      const dailyToken = Math.floor(Date.now() / 86400000);
+      const baseUrl = window.location.href.split('?')[0].split('#')[0];
+      const qrUrl = `${baseUrl}?mode=customer&takerId=${taker.id}&token=${dailyToken}${qrTableNumber ? `&table=${qrTableNumber}` : ''}`;
+      
+      // Use a temporary canvas to get QR as image
+      const canvas = document.querySelector('canvas');
+      const qrImage = canvas ? canvas.toDataURL("image/png") : '';
+
+      printSection.innerHTML = `
+        <div style="font-family: Arial, sans-serif; text-align: center; color: black; background: white; padding: 40px; border: 4px solid #000; border-radius: 20px; width: 300px; margin: auto;">
+          <h1 style="margin: 0; font-size: 24px; font-weight: 900; text-transform: uppercase;">${settings.businessName}</h1>
+          <p style="margin: 5px 0 20px; font-size: 10px; font-weight: bold; letter-spacing: 2px; color: #666;">SCAN TO ORDER / MENU</p>
+          
+          <div style="margin: 20px 0;">
+            <img src="${qrImage}" style="width: 200px; height: 200px; border: 10px solid #fff; box-shadow: 0 0 10px rgba(0,0,0,0.1);" />
+          </div>
+
+          <div style="background: #000; color: #fff; padding: 15px; border-radius: 12px; margin-top: 10px;">
+            <p style="margin: 0; font-size: 12px; font-weight: bold; opacity: 0.7;">TABLE NUMBER</p>
+            <p style="margin: 0; font-size: 42px; font-weight: 900;">${qrTableNumber || 'GEN'}</p>
+          </div>
+
+          <p style="margin: 20px 0 0; font-size: 9px; font-weight: bold; text-transform: uppercase;">Waiter: ${taker.name}</p>
+          <p style="margin: 5px 0 0; font-size: 8px; color: #888;">Valid for Today Only: ${new Date().toLocaleDateString()}</p>
+        </div>
+      `;
+      printSection.style.display = 'block';
+      window.print();
+      printSection.style.display = 'none';
+      notify("QR Code printing...", "success");
+    } catch (e) {
+      notify("Print failed: " + (e as Error).message, "error");
+    }
+  };
+
   const currentDisplayName = settings.businessName;
 
   return (
@@ -967,7 +1008,7 @@ const WELCOME_MESSAGES = [
 
             <div className="bg-white p-6 rounded-[32px] inline-block shadow-inner">
               <QRCodeCanvas
-                value={`${window.location.href.split('?')[0].split('#')[0]}?mode=customer&takerId=${activeStaff.id}&token=${Math.floor(Date.now() / 3600000)}`}
+                value={`${window.location.href.split('?')[0].split('#')[0]}?mode=customer&takerId=${activeStaff.id}&token=${Math.floor(Date.now() / 86400000)}${qrTableNumber ? `&table=${qrTableNumber}` : ''}`}
                 size={200}
                 level="H"
                 includeMargin={false}
@@ -975,16 +1016,39 @@ const WELCOME_MESSAGES = [
             </div>
 
             <div className="space-y-4">
-              <div className="bg-white/5 p-4 rounded-2xl">
-                <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest mb-1">Staff Member</p>
-                <p className="text-lg font-black text-white uppercase italic">{activeStaff.name}</p>
+              <div className="flex gap-3">
+                <div className="flex-1 space-y-1">
+                   <p className="text-[8px] font-black text-orange-600 uppercase tracking-widest ml-4 text-left">Assign Table</p>
+                   <input 
+                     type="text" 
+                     placeholder="Table #" 
+                     className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl text-white font-black text-center outline-none focus:border-orange-600 uppercase"
+                     value={qrTableNumber}
+                     onChange={e => setQrTableNumber(e.target.value)}
+                   />
+                </div>
+                <div className="flex-1 space-y-1">
+                   <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest ml-4 text-left">Staff</p>
+                   <div className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl text-white font-black text-center text-xs overflow-hidden truncate">
+                     {activeStaff.name}
+                   </div>
+                </div>
               </div>
-              <button
-                onClick={() => setShowTakerQR(false)}
-                className="w-full py-5 bg-white/5 text-white rounded-2xl font-black uppercase tracking-widest active:scale-95 transition-all"
-              >
-                Close
-              </button>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowTakerQR(false)}
+                  className="flex-1 py-5 bg-white/5 text-white rounded-2xl font-black uppercase tracking-widest active:scale-95 transition-all text-[10px]"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => handlePrintQR(activeStaff)}
+                  className="flex-[2] py-5 bg-orange-600 text-white rounded-2xl font-black uppercase tracking-widest active:scale-95 transition-all shadow-xl shadow-orange-600/20 flex items-center justify-center gap-2 text-[10px]"
+                >
+                  {ICONS.Printer} Print QR Code
+                </button>
+              </div>
             </div>
           </div>
         </div>
