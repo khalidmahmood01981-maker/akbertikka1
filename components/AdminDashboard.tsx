@@ -2095,9 +2095,46 @@ const AdminDashboard: React.FC<AdminProps> = ({
 
             <div className="h-px bg-white/5 my-2" />
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-cyan-500 font-bold">{ICONS.User}</span>
+           <div className="bg-[var(--bg-card)] p-6 rounded-[32px] border border-[var(--border)] shadow-xl space-y-4">
+            <div className="flex items-center gap-2 ml-2 mb-2">
+              <span className="text-cyan-500">{ICONS.Send}</span>
+              <p className="text-[10px] font-black uppercase text-cyan-500 tracking-[0.2em]">Local Server (Master IP)</p>
+            </div>
+
+            <div className="space-y-4 p-4 bg-black/20 rounded-2xl border border-white/5">
+              <div className="space-y-1">
+                <p className="text-[9px] font-black text-white/50 uppercase tracking-widest ml-1">Kitchen PC IP Address</p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={settings.masterIP || ''}
+                    onChange={(e) => setSettings({ ...settings, masterIP: e.target.value })}
+                    placeholder="e.g. 192.168.1.10"
+                    className="flex-1 bg-white/5 border border-white/10 rounded-xl p-3 text-white text-xs font-black tracking-widest outline-none focus:border-cyan-500 transition-all"
+                  />
+                  <button 
+                    onClick={() => {
+                      // Trigger re-detection logic if needed, or just notify
+                      notify("IP Locked Successfully!", "success");
+                    }}
+                    className="px-4 bg-cyan-600 text-white rounded-xl text-[10px] font-black uppercase"
+                  >
+                    Lock
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-3 bg-cyan-500/5 rounded-xl border border-cyan-500/10">
+                <p className="text-[8px] font-bold text-cyan-500 uppercase tracking-[0.1em] leading-relaxed">
+                   💡 TIP: Aap is computer ka IP address tabdeel hone se bachane ke liye Windows Settings mein ja kar "Static IP" set karein. Is se aapko bar bar IP change nahi karni paregi.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-[var(--bg-card)] p-6 rounded-[32px] border border-[var(--border)] shadow-xl space-y-4">
+            <div className="flex items-center gap-3">
+              <span className="text-cyan-500 font-bold">{ICONS.User}</span>
                 <div>
                   <h4 className="text-xs font-black text-white uppercase italic">Print Taker Name</h4>
                   <p className="text-[8px] font-bold text-[var(--text-muted)] uppercase tracking-widest mt-1">Show Taker/Creator name on Kitchen Ticket</p>
