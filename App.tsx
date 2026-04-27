@@ -462,6 +462,12 @@ const App: React.FC = () => {
             console.log("Master Server Detected:", info.localIP);
             setServerInfo(info);
             setIsLocalConnected(true);
+            
+            // If we are the Master PC, ensure our settings reflect our local IP
+            if (settings.masterIP !== info.localIP) {
+               setSettings(prev => ({ ...prev, masterIP: info.localIP }));
+            }
+
             // If we are online, sync this Master IP to cloud so other devices find us
             if (navigator.onLine) {
               const settingsRef = doc(db, "settings", "app_settings");
@@ -478,19 +484,24 @@ const App: React.FC = () => {
       }
 
       try {
-        const res = await fetch('/api/items');
+        const fetchURL = settings.masterIP && window.location.hostname !== settings.masterIP 
+          ? `http://${settings.masterIP}:3000/api/items` 
+          : '/api/items';
+
+        const res = await fetch(fetchURL);
         if (res.ok) {
           const data = await res.json();
-          // Only use local API items if Firebase hasn't loaded items yet
+          // Use local items if state is empty
           setItems(prev => {
             if (prev.length === 0 && data && data.length > 0) {
-              return data;
+               console.log("Loaded Items from Local Server:", data.length);
+               return data;
             }
-            return prev; // Firebase already loaded — don't overwrite
+            return prev;
           });
         }
       } catch (err) {
-        console.error("Failed to fetch local items via API", err);
+        console.error("Failed to fetch items from local/master server", err);
       }
     };
     initLocalSync();
@@ -588,6 +599,11 @@ const App: React.FC = () => {
       if (cloudItems.length > 0) {
         // Firebase always wins — update state with the authoritative cloud list
         setItems(cloudItems);
+
+        // Backup to local server if we are connected (Master PC)
+        if (isLocalConnected) {
+          api.saveItems(cloudItems).catch(() => {});
+        }
       }
       // If cloud is empty, keep whatever is already in state (local fallback)
     });
@@ -618,6 +634,47 @@ const App: React.FC = () => {
       unsubStaff();
     };
   }, [isDataLoaded]);
+
+  // Local Socket Listener for Offline Sync (Order Travelling)
+  useEffect(() => {
+    if (!isDataLoaded) return;
+
+    // Listen for new/updated orders from local server
+    api.onSync('order_sync', (newOrder: Order) => {
+      console.log("Local Order Received (Sync):", newOrder);
+      setOrders(prev => {
+        const exists = prev.find(o => o.id === newOrder.id);
+        if (exists) {
+          // Check if this is actually an update
+          const isDifferent = JSON.stringify(exists) !== JSON.stringify(newOrder);
+          if (!isDifferent) return prev;
+          return prev.map(o => o.id === newOrder.id ? newOrder : o);
+        }
+        // New order from another local device!
+        return [newOrder, ...prev].sort((a, b) => b.timestamp - a.timestamp);
+      });
+      
+      // Play sound for Kitchen/Reception
+      if (newOrder.status === 'received' || newOrder.status === 'pending') {
+        playNotification(newOrder.customerName, newOrder.orderNumber, newOrder.status);
+      }
+    });
+
+    api.onSync('order_deleted', (deletedId: string) => {
+      setOrders(prev => prev.filter(o => o.id !== deletedId));
+    });
+
+    // Update API Base URL for Remote Devices (Mobile)
+    if (settings.masterIP) {
+      const currentHost = window.location.hostname;
+      // If we are a mobile device (not localhost or master IP), connect to the kitchen server
+      if (currentHost !== settings.masterIP && currentHost !== 'localhost' && currentHost !== '127.0.0.1') {
+        const masterURL = `http://${settings.masterIP}:3000`;
+        console.log("Remote Device: Connecting to Master Server at", masterURL);
+        api.setBaseURL(masterURL);
+      }
+    }
+  }, [isDataLoaded, settings.masterIP]);
 
 
 
