@@ -80,10 +80,13 @@ const CashierView: React.FC<CashierViewProps> = ({
     if (!selectedOrder) return;
     
     const received = parseFloat(receivedAmount) || 0;
+    if (received === 0) return notify("Pehly raqm enter karein!", "error");
+
     if (received < selectedOrder.total) {
+      const shortage = selectedOrder.total - received;
       triggerConfirm({
-        title: "Partial Payment?",
-        message: `Received amount (Rs.${received}) is less than Total (Rs.${selectedOrder.total}). Mark as Paid anyway?`,
+        title: "Short Payment?",
+        message: `Customer ne Rs.${shortage} kum diye hain. Kya aap Rs.${shortage} ko DISCOUNT mein daal kar bill settle karna chahte hain?`,
         onConfirm: () => finalizePayment(received)
       });
     } else {
@@ -94,25 +97,29 @@ const CashierView: React.FC<CashierViewProps> = ({
   const finalizePayment = (received: number) => {
     if (!selectedOrder) return;
 
-    const balance = Math.max(0, selectedOrder.total - received);
+    const shortage = selectedOrder.total - received;
+    const extraDiscount = shortage > 0 ? shortage : 0;
+    const finalTotal = shortage > 0 ? received : selectedOrder.total;
     
     const updatedOrder: Order = {
       ...selectedOrder,
-      status: balance > 0 ? 'served' : 'collected', 
+      status: 'collected', 
       receivedAmount: received,
-      balance: balance,
+      balance: 0,
+      discount: (selectedOrder.discount || 0) + extraDiscount,
+      total: finalTotal,
       cashierId: activeStaff?.id || 'admin',
       cashierName: activeStaff?.name || 'Admin',
-      paymentStatus: balance > 0 ? 'partial' : 'paid',
+      paymentStatus: 'paid',
       statusTimestamps: {
         ...(selectedOrder.statusTimestamps || {}),
-        collected: balance === 0 ? Date.now() : selectedOrder.statusTimestamps?.collected
+        collected: Date.now()
       }
     };
 
     onUpdateOrder(updatedOrder);
-    if (balance > 0) {
-      notify(`Partial payment of Rs.${received} received. Balance: Rs.${balance}`, "info");
+    if (extraDiscount > 0) {
+      notify(`Order settled with Rs.${extraDiscount} extra discount.`, "success");
     } else {
       notify(`Payment for Order #${selectedOrder.orderNumber} completed!`, "success");
     }
@@ -234,8 +241,8 @@ const CashierView: React.FC<CashierViewProps> = ({
 
       {/* Payment Modal */}
       {selectedOrder && (
-        <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[600] flex flex-col items-center justify-center p-5 animate-in fade-in">
-          <div className="bg-[var(--bg-card)] rounded-[40px] w-full max-w-sm border border-white/5 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in">
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[600] flex flex-col items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-[var(--bg-card)] rounded-[40px] w-full max-w-sm border border-white/5 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in max-h-[95vh] overflow-y-auto no-scrollbar">
             <div className="p-6 border-b border-white/5 flex items-center justify-between">
               <div>
                 <h3 className="text-xl font-black uppercase italic tracking-tighter text-white">Settle <span className="text-emerald-500">Bill</span></h3>
@@ -288,16 +295,23 @@ const CashierView: React.FC<CashierViewProps> = ({
                 </div>
               </div>
 
-              {receivedAmount && parseFloat(receivedAmount) > selectedOrder.total && (
+              {receivedAmount && (
                 <motion.div 
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-orange-600/10 border border-orange-600/30 p-4 rounded-2xl text-center shadow-lg"
+                  className={`border p-4 rounded-2xl text-center shadow-lg ${parseFloat(receivedAmount) < selectedOrder.total ? 'bg-rose-600/10 border-rose-600/30' : 'bg-emerald-600/10 border-emerald-600/30'}`}
                 >
-                  <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Return Change / Baqi Raqm</p>
-                  <p className="text-3xl font-black text-white tracking-tighter italic mt-1">
-                    Rs. {(parseFloat(receivedAmount) - selectedOrder.total).toFixed(0)}
+                  <p className={`text-[10px] font-black uppercase tracking-widest ${parseFloat(receivedAmount) < selectedOrder.total ? 'text-rose-500' : 'text-emerald-500'}`}>
+                    {parseFloat(receivedAmount) < selectedOrder.total ? 'Baqi - CASH' : 'Wapsi (Change)'}
                   </p>
+                  <p className={`text-3xl font-black tracking-tighter italic mt-1 ${parseFloat(receivedAmount) < selectedOrder.total ? 'text-rose-600' : 'text-emerald-500'}`}>
+                    {parseFloat(receivedAmount) < selectedOrder.total ? '-' : ''}Rs. {Math.abs(parseFloat(receivedAmount) - selectedOrder.total).toFixed(0)}
+                  </p>
+                  {parseFloat(receivedAmount) < selectedOrder.total && (
+                    <p className="text-[7px] font-black text-rose-500/60 uppercase mt-1 tracking-widest italic">
+                      Total Discount: Rs. {((selectedOrder.discount || 0) + (selectedOrder.total - parseFloat(receivedAmount))).toFixed(0)}
+                    </p>
+                  )}
                 </motion.div>
               )}
 

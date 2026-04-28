@@ -5,6 +5,7 @@ let API_BASE = ""; // Relative to the hosted domain
 
 export class LocalApiService {
   private socket: Socket;
+  private listeners: { [event: string]: ((data: any) => void)[] } = {};
 
   constructor(baseURL?: string) {
     if (baseURL) API_BASE = baseURL;
@@ -12,12 +13,25 @@ export class LocalApiService {
   }
 
   setBaseURL(url: string) {
+    if (API_BASE === url) return;
     API_BASE = url;
-    // Reconnect socket if needed, but for now just update base
+    console.log("API & Socket Re-connecting to:", url);
+    
+    this.socket.disconnect();
+    this.socket = io(url);
+    
+    // Re-attach all existing listeners to the new socket
+    Object.keys(this.listeners).forEach(event => {
+      this.listeners[event].forEach(callback => {
+        this.socket.on(event, callback);
+      });
+    });
   }
 
   // Socket listeners
   onSync(event: string, callback: (data: any) => void) {
+    if (!this.listeners[event]) this.listeners[event] = [];
+    this.listeners[event].push(callback);
     this.socket.on(event, callback);
   }
 

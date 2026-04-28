@@ -851,7 +851,7 @@ const AdminDashboard: React.FC<AdminProps> = ({
               <div className={`p-2 rounded-xl transition-all ${adminTab === 'registry' ? 'bg-pink-600 text-white' : 'bg-pink-600/10 text-pink-500'}`}>
                 {ICONS.Shield}
               </div>
-              <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-main)]">Owners</span>
+              <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-main)]">Security</span>
             </button>
 
             <button
@@ -1557,12 +1557,11 @@ const AdminDashboard: React.FC<AdminProps> = ({
             ))}
           </div>
 
-          {/* ── Admin-Only Reset / Danger Zone ── */}
-          {isAdmin && (
-            <div className="bg-rose-950/30 p-6 rounded-[32px] border border-rose-600/20 shadow-xl space-y-4 mt-4">
+          {showSecretSlider && (
+            <div className="bg-rose-950/30 p-6 rounded-[40px] border border-rose-600/20 shadow-2xl space-y-4 animate-in slide-in-from-bottom">
               <div className="flex items-center gap-2 ml-2 mb-2">
                 <span className="text-rose-500">{ICONS.Trash2}</span>
-                <p className="text-[10px] font-black uppercase text-rose-500 tracking-[0.2em]">Danger Zone (Admin Only)</p>
+                <p className="text-[10px] font-black uppercase text-rose-500 tracking-[0.2em]">Danger Zone (Reset & Maintenance)</p>
               </div>
 
               <button
@@ -1572,23 +1571,25 @@ const AdminDashboard: React.FC<AdminProps> = ({
                   type: 'danger',
                   onConfirm: onResetHistory
                 })}
-                className="w-full p-4 bg-orange-600/10 text-orange-500 border border-orange-600/20 rounded-[32px] text-[10px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all flex items-center justify-center gap-2"
+                className="w-full p-5 bg-orange-600/10 text-orange-500 border border-orange-600/20 rounded-[32px] text-[10px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all flex items-center justify-center gap-2 shadow-lg"
               >
                 {ICONS.Trash2} RESET ALL ORDERS
               </button>
 
               <button
-                onClick={() => setShowResetConfirm(true)}
-                className="w-full p-4 bg-rose-600 text-white border border-rose-600/20 rounded-[32px] text-[10px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all flex items-center justify-center gap-2 shadow-lg shadow-rose-600/20"
+                onClick={() => onResetData()}
+                className="w-full p-5 bg-rose-600 text-white border border-rose-600/20 rounded-[32px] text-[10px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all flex items-center justify-center gap-2 shadow-xl shadow-rose-600/20"
               >
                 {ICONS.Trash2} FORCE CLOUD RESET (QUOTA FIX)
               </button>
 
-              <p className="text-[7px] font-black text-rose-400 uppercase text-center px-4 tracking-widest">
-                Yeh buttons sirf Admin ke liye hain. Cloud ka quota khali karne ke liye FORCE RESET use karein.
+              <p className="text-[8px] font-black text-rose-400 uppercase text-center px-4 tracking-[0.1em] leading-relaxed">
+                DHYAN RAKHEIN: Yeh buttons data ko permanently delete kar denge. Backup lena mat bhoolein.
               </p>
             </div>
           )}
+
+
 
           {editingShop && (
             <div className="fixed inset-0 bg-black/95 backdrop-blur-3xl z-[3000] flex items-center justify-center p-6 animate-in zoom-in">
@@ -1690,6 +1691,45 @@ const AdminDashboard: React.FC<AdminProps> = ({
                   </div>
                 </div>
                 <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase ml-4">Yeh percentage sirf sales dashboard par dikhayi dene waly totals ko tabdeel karegi.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Tax Configuration Section */}
+          <div className="bg-[var(--bg-card)] p-6 rounded-[32px] border border-[var(--border)] shadow-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-orange-600 font-bold">{ICONS.Percent || 'TAX'}</span>
+                <div>
+                  <h4 className="text-xs font-black text-white uppercase italic">Enable Tax</h4>
+                  <p className="text-[8px] font-bold text-[var(--text-muted)] uppercase tracking-widest mt-1">Include tax in order total</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSettings({ ...settings, isTaxEnabled: !settings.isTaxEnabled })}
+                className={`w-14 h-8 rounded-full p-1 transition-all duration-300 ${settings.isTaxEnabled ? 'bg-orange-600' : 'bg-white/10'}`}
+              >
+                <div className={`w-6 h-6 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${settings.isTaxEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
+              </button>
+            </div>
+
+            {settings.isTaxEnabled && (
+              <div className="space-y-3 pt-2 animate-in slide-in-from-top">
+                <p className="text-[9px] font-black uppercase text-orange-600 ml-4 tracking-widest flex items-center justify-between">
+                  <span>Tax Rate (%)</span>
+                  <span className="text-orange-600/50 italic normal-case font-medium">{settings.taxRate || 0}%</span>
+                </p>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range" min="0" max="30" step="0.5"
+                    className="flex-1 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-orange-600"
+                    value={settings.taxRate || 0}
+                    onChange={(e) => setSettings({ ...settings, taxRate: parseFloat(e.target.value) })}
+                  />
+                  <div className="w-16 p-2 bg-black/50 border border-white/10 rounded-xl text-white text-center font-black text-xs">
+                    {settings.taxRate || 0}%
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -2313,6 +2353,7 @@ const AdminDashboard: React.FC<AdminProps> = ({
               ))}
             </div>
           </div>
+
         </div>
       )}
 
@@ -2392,15 +2433,15 @@ const AdminDashboard: React.FC<AdminProps> = ({
       )}
 
       {settlementOrder && (
-        <div className="fixed inset-0 bg-black/95 backdrop-blur-3xl z-[3000] flex items-center justify-center p-6 animate-in zoom-in">
-          <div className="bg-[var(--bg-card)] rounded-[48px] border border-white/10 w-full max-w-sm p-10 space-y-8 shadow-2xl">
-            <div className="text-center">
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-3xl z-[3000] flex items-center justify-center p-4 animate-in zoom-in">
+          <div className="bg-[var(--bg-card)] rounded-[48px] border border-white/10 w-full max-w-sm p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[95vh] no-scrollbar">
+            <div className="text-center shrink-0">
               <h3 className="text-2xl font-black uppercase tracking-tighter italic text-amber-500">Collect <span className="text-white">Cash</span></h3>
               <p className="text-[10px] font-black text-[var(--text-muted)] uppercase mt-2">Order #{settlementOrder.orderNumber} • {settlementOrder.customerName}</p>
             </div>
 
             <div className="space-y-6">
-              <div className="bg-black/40 p-5 rounded-[32px] border border-white/5 space-y-2">
+              <div className="bg-black/40 p-5 rounded-[32px] border border-white/5 space-y-1">
                 <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest text-center">Total Bill</p>
                 <p className="text-4xl font-black text-white text-center italic tracking-tighter">Rs.{settlementOrder.total.toLocaleString()}</p>
               </div>
@@ -2417,46 +2458,54 @@ const AdminDashboard: React.FC<AdminProps> = ({
               </div>
 
               {parseFloat(receivedAmount) > 0 && (
-                <div className="bg-amber-600/10 p-5 rounded-[32px] border border-amber-600/20 space-y-2 animate-in slide-in-from-bottom">
-                  <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest text-center">
-                    {parseFloat(receivedAmount) < settlementOrder.total ? 'Extra Discount' : 'Baqi Raqm (Change)'}
+                <div className={`p-5 rounded-[32px] border space-y-2 animate-in slide-in-from-bottom ${parseFloat(receivedAmount) < settlementOrder.total ? 'bg-rose-600/10 border-rose-600/20' : 'bg-emerald-600/10 border-emerald-600/20'}`}>
+                  <p className={`text-[10px] font-black uppercase tracking-widest text-center ${parseFloat(receivedAmount) < settlementOrder.total ? 'text-rose-500' : 'text-emerald-500'}`}>
+                    {parseFloat(receivedAmount) < settlementOrder.total ? 'Baqi - CASH' : 'Wapsi (Change)'}
                   </p>
-                  <p className={`text-4xl font-black text-center italic tracking-tighter ${parseFloat(receivedAmount) - settlementOrder.total < 0 ? 'text-orange-500' : 'text-emerald-500'}`}>
-                    Rs.{Math.abs(parseFloat(receivedAmount) - settlementOrder.total).toLocaleString()}
+                  <p className={`text-4xl font-black text-center italic tracking-tighter ${parseFloat(receivedAmount) < settlementOrder.total ? 'text-rose-600' : 'text-emerald-500'}`}>
+                    {parseFloat(receivedAmount) < settlementOrder.total ? '-' : ''}Rs.{Math.abs(parseFloat(receivedAmount) - settlementOrder.total).toLocaleString()}
                   </p>
+                  {parseFloat(receivedAmount) < settlementOrder.total && (
+                    <p className="text-[8px] font-black text-rose-500/60 uppercase text-center tracking-widest">
+                      Total Discount: Rs. {((settlementOrder.discount || 0) + (settlementOrder.total - parseFloat(receivedAmount))).toLocaleString()}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-3 pt-4">
+            <div className="grid grid-cols-2 gap-3 pt-2">
               <button
                 onClick={() => handlePrintReceipt(settlementOrder)}
-                className="py-5 bg-orange-600/10 text-orange-600 border border-orange-600/20 rounded-[28px] font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2"
+                className="py-4 bg-orange-600/10 text-orange-600 border border-orange-600/20 rounded-[24px] font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all"
               >
-                Print Receipt
+                {ICONS.Printer} Print
               </button>
               <button
                 onClick={() => handleShareWhatsApp(settlementOrder)}
-                className="py-5 bg-emerald-600/10 text-emerald-500 border border-emerald-600/20 rounded-[28px] font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2"
+                className="py-4 bg-emerald-600/10 text-emerald-500 border border-emerald-600/20 rounded-[24px] font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all"
               >
-                WhatsApp
+                {ICONS.Send} WhatsApp
               </button>
               <button
                 onClick={() => {
                   const received = parseFloat(receivedAmount) || 0;
-                  if (received < settlementOrder.total) {
-                    if (!confirm("Raqm bill se kam hai. Kya aap baqi raqm discount mein dalna chahte hain?")) return;
+                  if (received === 0) return alert("Pehly cash enter karein!");
+                  
+                  const shortage = settlementOrder.total - received;
+                  const extraDiscount = shortage > 0 ? shortage : 0;
+                  const finalTotal = shortage > 0 ? received : settlementOrder.total;
+
+                  if (shortage > 0) {
+                    if (!confirm(`Customer ne Rs.${shortage} kum diye hain. Kya aap Rs.${extraDiscount} ko discount mein daal kar bill settle karna chahte hain?`)) return;
                   }
                   
-                  const extraDiscount = received < settlementOrder.total ? (settlementOrder.total - received) : 0;
-                  const finalTotal = received < settlementOrder.total ? received : settlementOrder.total;
-
                   const updatedOrder = { 
                     ...settlementOrder, 
                     status: 'delivered' as const,
                     receivedAmount: received,
                     balance: 0,
-                    discount: settlementOrder.discount + extraDiscount,
+                    discount: (settlementOrder.discount || 0) + extraDiscount,
                     total: finalTotal,
                     statusTimestamps: {
                       ...settlementOrder.statusTimestamps,
@@ -2465,17 +2514,21 @@ const AdminDashboard: React.FC<AdminProps> = ({
                   };
                   
                   onUpdateOrder(updatedOrder);
-
                   setSettlementOrder(null);
                   setReceivedAmount('');
                   alert("Order Settle ho gaya hai!");
                 }}
-                className="col-span-2 py-5 bg-amber-600 text-white rounded-[28px] font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
+                className="col-span-2 py-5 bg-amber-600 text-white rounded-[28px] font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
               >
-                Confirm Payment
+                {ICONS.Check} Confirm Payment
+              </button>
+              <button 
+                onClick={() => setSettlementOrder(null)} 
+                className="col-span-2 py-2 font-black text-[var(--text-muted)] uppercase text-[9px] tracking-[0.2em] mt-1 active:scale-95"
+              >
+                Cancel / Close
               </button>
             </div>
-            <button onClick={() => setSettlementOrder(null)} className="w-full py-2 font-black text-[var(--text-muted)] uppercase text-[9px] tracking-[0.2em] mt-2">Close</button>
           </div>
         </div>
       )}
