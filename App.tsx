@@ -465,7 +465,17 @@ const App: React.FC = () => {
             
             // If we are the Master PC, ensure our settings reflect our local IP
             if (settings.masterIP !== info.localIP) {
-               setSettings(prev => ({ ...prev, masterIP: info.localIP }));
+               setSettings(prev => {
+                 const newSettings = { ...prev, masterIP: info.localIP };
+                 // Prime the local server with our settings
+                 api.saveSettings(newSettings).catch(() => {});
+                 return newSettings;
+               });
+            }
+
+            // Prime the local server with our items if it's empty or we have data
+            if (items.length > 0) {
+              api.saveItems(items).catch(() => {});
             }
 
             // If we are online, sync this Master IP to cloud so other devices find us
@@ -492,13 +502,15 @@ const App: React.FC = () => {
         if (res.ok) {
           const data = await res.json();
           // Use local items if state is empty
-          setItems(prev => {
-            if (prev.length === 0 && data && data.length > 0) {
-               console.log("Loaded Items from Local Server:", data.length);
-               return data;
-            }
-            return prev;
-          });
+          if (data && data.length > 0) {
+            setItems(prev => {
+              if (prev.length === 0) {
+                 console.log("Loaded Items from Local Server:", data.length);
+                 return data;
+              }
+              return prev;
+            });
+          }
         }
       } catch (err) {
         console.error("Failed to fetch items from local/master server", err);
@@ -634,6 +646,13 @@ const App: React.FC = () => {
       unsubStaff();
     };
   }, [isDataLoaded]);
+  
+  // Prime Local Server with Items whenever they change and we are connected
+  useEffect(() => {
+    if (isLocalConnected && items.length > 0) {
+      api.saveItems(items).catch(() => {});
+    }
+  }, [items, isLocalConnected]);
 
   // Local Socket Listener for Offline Sync (Order Travelling)
   useEffect(() => {
@@ -662,6 +681,12 @@ const App: React.FC = () => {
 
     api.onSync('order_deleted', (deletedId: string) => {
       setOrders(prev => prev.filter(o => o.id !== deletedId));
+    });
+
+    api.onSync('items_sync', (newItems: MenuItem[]) => {
+      console.log("Local Items Received (Sync):", newItems.length);
+      setItems(newItems);
+      notify("Menu updated from Master", "info");
     });
 
     // Update API Base URL for Remote Devices (Mobile)
