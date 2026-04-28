@@ -2156,6 +2156,24 @@ const AdminDashboard: React.FC<AdminProps> = ({
                   <div className={`w-5 h-5 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${settings.isAutoPrintKitchenEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
                 </button>
               </div>
+
+              <div className="flex items-center justify-between border-t border-white/5 pt-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-orange-600/10 text-orange-600 rounded-xl flex items-center justify-center">
+                    {ICONS.List}
+                  </div>
+                  <div>
+                    <h4 className="text-[10px] font-black text-white uppercase italic">Queue Mode (List)</h4>
+                    <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase tracking-widest mt-1">Orders go to a list instead of printing directly</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSettings({ ...settings, isQueueModeEnabled: !settings.isQueueModeEnabled })}
+                  className={`w-12 h-7 rounded-full p-1 transition-all duration-300 ${settings.isQueueModeEnabled ? 'bg-orange-600' : 'bg-white/10'}`}
+                >
+                  <div className={`w-5 h-5 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${settings.isQueueModeEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center justify-between ml-6 bg-white/5 p-3 rounded-2xl">

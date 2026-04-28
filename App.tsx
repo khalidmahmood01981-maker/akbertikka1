@@ -120,6 +120,7 @@ const App: React.FC = () => {
     enableVoiceAnnouncement: true,
     isAutoPrintKitchenEnabled: true,
     isAutoPrintBillEnabled: false,
+    isQueueModeEnabled: true,
     enableKitchenPrinting: true,
     enableBillPrinting: true,
   });
@@ -152,6 +153,9 @@ const App: React.FC = () => {
   const [pendingCount, setPendingCount] = useState(0);
   const [qrTableNumber, setQrTableNumber] = useState('');
   const [isPrinterDevice, setIsPrinterDevice] = useState(() => localStorage.getItem('is_printer_device') === 'true');
+  const [kitchenQueue, setKitchenQueue] = useState<Order[]>([]);
+  const [showQueueModal, setShowQueueModal] = useState(false);
+  
   const settingsRef = useRef(settings);
   const isPrinterDeviceRef = useRef(isPrinterDevice);
   const ordersRef = useRef(orders);
@@ -707,11 +711,21 @@ const App: React.FC = () => {
       // 1. Notification Sound
       playNotification(newOrder.customerName, newOrder.orderNumber, newOrder.status);
       
-      // 2. Auto-Print for new orders (on Kitchen PC)
-      if (isNewOrder && currentIsPrinter && currentSettings.isAutoPrintKitchenEnabled && newOrder.id !== lastPrintedOrderIdRef.current) {
-        console.log("AUTO-PRINT TRIGGERED for order:", newOrder.orderNumber);
-        handlePrintKitchen(newOrder);
-        lastPrintedOrderIdRef.current = newOrder.id;
+      // 2. Auto-Print vs Queue Logic
+      if (isNewOrder && currentIsPrinter && currentSettings.isAutoPrintKitchenEnabled) {
+        if (currentSettings.isQueueModeEnabled) {
+          // Add to Queue instead of printing
+          setKitchenQueue(prev => {
+            if (prev.find(o => o.id === newOrder.id)) return prev;
+            return [...prev, newOrder];
+          });
+          notify(`Order #${newOrder.orderNumber} added to Queue`, "info");
+        } else if (newOrder.id !== lastPrintedOrderIdRef.current) {
+          // Direct Auto-Print
+          console.log("AUTO-PRINT TRIGGERED for order:", newOrder.orderNumber);
+          handlePrintKitchen(newOrder);
+          lastPrintedOrderIdRef.current = newOrder.id;
+        }
       }
 
       // 3. Visual Notification
@@ -1689,6 +1703,80 @@ const WELCOME_MESSAGES = [
               )}
             </div>
           </main>
+
+          {/* Floating Kitchen Queue Button */}
+          {kitchenQueue.length > 0 && (
+            <button
+              onClick={() => setShowQueueModal(true)}
+              className="fixed bottom-24 right-6 w-16 h-16 bg-orange-600 text-white rounded-full shadow-2xl flex items-center justify-center z-[200] animate-bounce border-4 border-white/20"
+            >
+              <div className="relative">
+                {ICONS.Printer}
+                <span className="absolute -top-4 -right-4 bg-white text-orange-600 text-[10px] font-black px-2 py-0.5 rounded-full border-2 border-orange-600">
+                  {kitchenQueue.length}
+                </span>
+              </div>
+            </button>
+          )}
+
+          {/* Kitchen Queue Modal */}
+          {showQueueModal && (
+            <div className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[3000] flex items-center justify-center p-6 animate-in zoom-in">
+              <div className="bg-[var(--bg-card)] rounded-[40px] border border-white/10 w-full max-w-sm flex flex-col max-h-[80vh] shadow-2xl">
+                <div className="p-8 border-b border-white/5 flex justify-between items-center">
+                  <div>
+                    <h3 className="text-xl font-black text-white uppercase italic">Kitchen <span className="text-orange-600">Queue</span></h3>
+                    <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest">Pending Prints</p>
+                  </div>
+                  <button onClick={() => setShowQueueModal(false)} className="p-2 bg-white/5 rounded-xl text-gray-400">{ICONS.X}</button>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar">
+                  {kitchenQueue.map(order => (
+                    <div key={order.id} className="bg-black/40 p-4 rounded-3xl border border-white/5 flex items-center justify-between group">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-orange-600/10 text-orange-600 rounded-2xl flex items-center justify-center font-black">
+                          #{order.orderNumber}
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-white uppercase italic">{order.customerName}</p>
+                          <p className="text-[7px] font-black text-orange-600 uppercase">{order.items.length} Items • {order.tableNumber || 'WALK-IN'}</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          handlePrintKitchen(order);
+                          setKitchenQueue(prev => prev.filter(o => o.id !== order.id));
+                        }}
+                        className="p-3 bg-orange-600 text-white rounded-xl active:scale-90 shadow-lg"
+                      >
+                        {ICONS.Printer}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="p-6 bg-black/20 flex gap-3 rounded-b-[40px]">
+                  <button 
+                    onClick={() => setKitchenQueue([])}
+                    className="flex-1 py-4 text-[9px] font-black text-gray-500 uppercase"
+                  >
+                    Clear All
+                  </button>
+                  <button 
+                    onClick={() => {
+                      kitchenQueue.forEach(o => handlePrintKitchen(o));
+                      setKitchenQueue([]);
+                      setShowQueueModal(false);
+                    }}
+                    className="flex-[2] py-4 bg-emerald-600 text-white rounded-2xl font-black text-[9px] uppercase shadow-xl"
+                  >
+                    Print All
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {!isNavHidden && !showTakerQR && !showLogin && !showPinModal && !confirmModal.show && !showDataWarning && (
             <nav className="fixed bottom-0 left-0 right-0 bg-[var(--bg-nav)]/90 backdrop-blur-2xl border-t border-[var(--border)] flex justify-around items-center p-1.5 pb-safe z-[100] rounded-t-[32px] shadow-2xl">
