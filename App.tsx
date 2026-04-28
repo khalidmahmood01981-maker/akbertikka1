@@ -471,6 +471,9 @@ const App: React.FC = () => {
                  api.saveSettings(newSettings).catch(() => {});
                  return newSettings;
                });
+            } else if (!settings.masterIP) {
+              // Client device detected master, save it locally for future direct access
+              setSettings(prev => ({ ...prev, masterIP: info.localIP }));
             }
 
             // Prime the local server with our items if it's empty or we have data
@@ -661,22 +664,20 @@ const App: React.FC = () => {
     // Listen for new/updated orders from local server
     api.onSync('order_sync', (newOrder: Order) => {
       console.log("Local Order Received (Sync):", newOrder);
+      notify(`New Local Order: #${newOrder.orderNumber} (${newOrder.customerName})`, "success");
+      
       setOrders(prev => {
         const exists = prev.find(o => o.id === newOrder.id);
         if (exists) {
-          // Check if this is actually an update
           const isDifferent = JSON.stringify(exists) !== JSON.stringify(newOrder);
           if (!isDifferent) return prev;
           return prev.map(o => o.id === newOrder.id ? newOrder : o);
         }
-        // New order from another local device!
         return [newOrder, ...prev].sort((a, b) => b.timestamp - a.timestamp);
       });
       
       // Play sound for Kitchen/Reception
-      if (newOrder.status === 'received' || newOrder.status === 'pending') {
-        playNotification(newOrder.customerName, newOrder.orderNumber, newOrder.status);
-      }
+      playNotification(newOrder.customerName, newOrder.orderNumber, newOrder.status);
     });
 
     api.onSync('order_deleted', (deletedId: string) => {
@@ -756,19 +757,34 @@ const App: React.FC = () => {
     return Math.max(...orders.map(o => o.orderNumber || 0)) + 1;
   };
 
-  const handleOrderComplete = async (order: Order) => {
     try {
-      // Enriched order count logic
       const enrichedOrder = {
         ...order,
         orderNumber: order.orderNumber || getNextOrderNumber()
       };
 
-      // Firestore handles everything (Queueing + Persistence)
-      setPendingCount(prev => prev + 1);
-      await setDoc(doc(db, "orders", enrichedOrder.id), safeSanitize(enrichedOrder));
+      // 1. LOCAL SYNC FIRST (Important for Offline Travel)
+      await offlineDB.savePendingSync({
+        id: enrichedOrder.id,
+        data: enrichedOrder,
+        type: 'order',
+        timestamp: Date.now()
+      });
+      await offlineDB.cacheOrder(enrichedOrder);
 
-      // Also upsert customer record
+      // Attempt immediate local server push
+      api.saveOrder(enrichedOrder).then(() => {
+        offlineDB.deletePendingSyncItem(enrichedOrder.id);
+      }).catch(() => {
+        console.log("Local server sync pending (will retry)");
+      });
+
+      // 2. CLOUD SYNC SECOND (Fires and forgets if offline)
+      setDoc(doc(db, "orders", enrichedOrder.id), safeSanitize(enrichedOrder)).catch(() => {
+        console.log("Cloud sync pending (Offline mode)");
+      });
+
+      // Customer record upsert
       if (order.customerPhone && order.customerPhone.trim().length > 5) {
         const existingCustomer = customers.find(c => c.phone === order.customerPhone);
         const udhaarAmount = order.paymentMethod === 'khata' ? order.total : 0;
@@ -783,36 +799,14 @@ const App: React.FC = () => {
           lastVisit: order.timestamp,
           balance: (existingCustomer?.balance || 0) + udhaarAmount
         };
-
-        setPendingCount(prev => prev + 1);
-        await setDoc(doc(db, "customers", customerDoc.id), safeSanitize(customerDoc));
+        setDoc(doc(db, "customers", customerDoc.id), safeSanitize(customerDoc)).catch(() => {});
       }
 
-      // Offline Sync for Local Node Server
-      await offlineDB.savePendingSync({
-        id: enrichedOrder.id,
-        data: enrichedOrder,
-        type: 'order',
-        timestamp: Date.now()
-      });
-      await offlineDB.cacheOrder(enrichedOrder);
-
-      // Immediate attempt to sync to local server
-      api.saveOrder(enrichedOrder).then(() => {
-        offlineDB.deletePendingSyncItem(enrichedOrder.id);
-      }).catch(() => {
-        console.log("Local server sync pending (will retry)");
-      });
+      notify("Order Sent Successfully!", "success");
     } catch (e) {
       console.error(e);
-    }
-
-    try {
-      notify("Bill Saved Locally!", "success");
-    } catch (e) {
       notify("Error: " + (e as Error).message, "error");
     }
-  };
 
 
 
@@ -820,18 +814,7 @@ const App: React.FC = () => {
     const existingOrder = orders.find(o => o.id === uo.id);
     const statusChanged = existingOrder && existingOrder.status !== uo.status;
 
-    setPendingCount(prev => prev + 1);
-    await setDoc(doc(db, "orders", uo.id), safeSanitize(uo));
-
-
-
-
-
-    if (statusChanged) {
-      playNotification(uo.customerName, uo.orderNumber, uo.status);
-    }
-
-    // Offline Sync for Local Node Server
+    // 1. LOCAL SYNC FIRST
     await offlineDB.savePendingSync({
       id: uo.id,
       data: uo,
@@ -840,10 +823,18 @@ const App: React.FC = () => {
     });
     await offlineDB.cacheOrder(uo);
 
-    // Immediate attempt to sync to local server
     api.saveOrder(uo).then(() => {
       offlineDB.deletePendingSyncItem(uo.id);
     }).catch(() => {});
+
+    // 2. CLOUD SYNC
+    setDoc(doc(db, "orders", uo.id), safeSanitize(uo)).catch(() => {
+      console.log("Cloud sync pending (Update)");
+    });
+
+    if (statusChanged) {
+      playNotification(uo.customerName, uo.orderNumber, uo.status);
+    }
   };
 
   const handleLogout = () => {
