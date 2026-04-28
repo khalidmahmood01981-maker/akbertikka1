@@ -664,7 +664,6 @@ const App: React.FC = () => {
     // Listen for new/updated orders from local server
     api.onSync('order_sync', (newOrder: Order) => {
       console.log("Local Order Received (Sync):", newOrder);
-      notify(`New Local Order: #${newOrder.orderNumber} (${newOrder.customerName})`, "success");
       
       setOrders(prev => {
         const exists = prev.find(o => o.id === newOrder.id);
@@ -673,6 +672,14 @@ const App: React.FC = () => {
           if (!isDifferent) return prev;
           return prev.map(o => o.id === newOrder.id ? newOrder : o);
         }
+
+        // New Order Received! Trigger Auto-Print if enabled on this device (Kitchen PC)
+        if (isPrinterDevice && settings.isAutoPrintKitchenEnabled && newOrder.id !== lastPrintedOrderIdRef.current) {
+          handlePrintKitchen(newOrder);
+          lastPrintedOrderIdRef.current = newOrder.id;
+        }
+
+        notify(`New Local Order: #${newOrder.orderNumber} (${newOrder.customerName})`, "success");
         return [newOrder, ...prev].sort((a, b) => b.timestamp - a.timestamp);
       });
       
@@ -686,8 +693,10 @@ const App: React.FC = () => {
 
     api.onSync('items_sync', (newItems: MenuItem[]) => {
       console.log("Local Items Received (Sync):", newItems.length);
-      setItems(newItems);
-      notify("Menu updated from Master", "info");
+      setItems(prev => {
+        if (JSON.stringify(prev) === JSON.stringify(newItems)) return prev;
+        return newItems;
+      });
     });
 
     // Update API Base URL for Remote Devices (Mobile)
@@ -757,6 +766,7 @@ const App: React.FC = () => {
     return Math.max(...orders.map(o => o.orderNumber || 0)) + 1;
   };
 
+  const handleOrderComplete = async (order: Order) => {
     try {
       const enrichedOrder = {
         ...order,
@@ -807,6 +817,7 @@ const App: React.FC = () => {
       console.error(e);
       notify("Error: " + (e as Error).message, "error");
     }
+  };
 
 
 
