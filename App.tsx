@@ -669,6 +669,8 @@ const App: React.FC = () => {
     api.onSync('order_sync', (newOrder: Order) => {
       console.log("Local Order Received (Sync):", newOrder);
       
+      const isNewOrder = !orders.find(o => o.id === newOrder.id);
+      
       setOrders(prev => {
         const exists = prev.find(o => o.id === newOrder.id);
         if (exists) {
@@ -676,19 +678,24 @@ const App: React.FC = () => {
           if (!isDifferent) return prev;
           return prev.map(o => o.id === newOrder.id ? newOrder : o);
         }
-
-        // New Order Received! Trigger Auto-Print if enabled on this device (Kitchen PC)
-        if (isPrinterDevice && settings.isAutoPrintKitchenEnabled && newOrder.id !== lastPrintedOrderIdRef.current) {
-          handlePrintKitchen(newOrder);
-          lastPrintedOrderIdRef.current = newOrder.id;
-        }
-
-        notify(`New Local Order: #${newOrder.orderNumber} (${newOrder.customerName})`, "success");
         return [newOrder, ...prev].sort((a, b) => b.timestamp - a.timestamp);
       });
+
+      // --- SIDE EFFECTS (Sound & Print) ---
       
-      // Play sound for Kitchen/Reception
+      // 1. Notification Sound
       playNotification(newOrder.customerName, newOrder.orderNumber, newOrder.status);
+      
+      // 2. Auto-Print for new orders (on Kitchen PC)
+      if (isNewOrder && isPrinterDevice && settings.isAutoPrintKitchenEnabled && newOrder.id !== lastPrintedOrderIdRef.current) {
+        handlePrintKitchen(newOrder);
+        lastPrintedOrderIdRef.current = newOrder.id;
+      }
+
+      // 3. Visual Notification
+      if (isNewOrder) {
+        notify(`New Local Order: #${newOrder.orderNumber} (${newOrder.customerName})`, "success");
+      }
     });
 
     api.onSync('order_deleted', (deletedId: string) => {
