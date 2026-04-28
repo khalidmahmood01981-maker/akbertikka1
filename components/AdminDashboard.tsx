@@ -799,6 +799,16 @@ const AdminDashboard: React.FC<AdminProps> = ({
               <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-main)]">Vendor</span>
             </button>
 
+            <button
+              onClick={() => handleTabChange('config')}
+              className={`bg-[var(--bg-card)] p-2 rounded-[24px] border border-[var(--border)] flex flex-col items-center justify-center shadow-xl active:scale-95 transition-all gap-2 group ${adminTab === 'config' ? 'border-orange-600' : ''}`}
+            >
+              <div className={`p-2 rounded-xl transition-all ${adminTab === 'config' ? 'bg-orange-600 text-white' : 'bg-orange-600/10 text-orange-600'}`}>
+                {ICONS.Settings}
+              </div>
+              <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-main)]">Config</span>
+            </button>
+
             {!isCashier && (
               <>
                 <button
