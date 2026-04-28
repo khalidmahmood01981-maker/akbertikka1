@@ -44,37 +44,7 @@ const CashierView: React.FC<CashierViewProps> = ({
 
   const totalPendingAmount = pendingOrders.reduce((sum, o) => sum + o.total, 0);
 
-  const handleShareWhatsApp = (order: Order) => {
-    try {
-      const rawPhone = order.customerPhone?.trim();
-      if (!rawPhone || rawPhone.length < 5) {
-        notify("Mobile number lazmi hai!", "error");
-        return;
-      }
 
-      let cleanPhone = rawPhone.replace(/\D/g, '');
-      if (cleanPhone.startsWith('0')) {
-        cleanPhone = (settings?.whatsappCountryCode || '92') + cleanPhone.substring(1);
-      } else if (!cleanPhone.startsWith(settings?.whatsappCountryCode || '92')) {
-        cleanPhone = (settings?.whatsappCountryCode || '92') + cleanPhone;
-      }
-
-      const headerName = settings.businessName;
-      const dateStr = new Date(order.timestamp).toLocaleDateString();
-      const tableStr = order.tableNumber ? `Table: ${order.tableNumber}\n` : '';
-      const itemsList = order.items.map(item => `• ${item.name} (${item.unit === 'rs' ? 'Rs.' : 'x'}${item.quantity}): Rs.${(item.price * item.quantity).toFixed(0)}`).join('\n');
-
-      const deliveryStr = order.deliveryFee && order.deliveryFee > 0 ? `Delivery Fee: Rs. ${order.deliveryFee.toFixed(0)}\n` : '';
-      const message = `*${headerName} - INVOICE*\n--------------------------\nOrder ID: ${order.id.slice(-6).toUpperCase()}\nOrder No: #${order.orderNumber}\nDate: ${dateStr}\n${tableStr}Customer: ${order.customerName}\nPayment Status: PAID\n--------------------------\n${itemsList}\n--------------------------\nSubtotal: Rs. ${order.subtotal.toFixed(0)}\n${deliveryStr}*Grand Total: Rs. ${order.total.toFixed(0)}*\n--------------------------\nShukriya! Phir zaroor aaiye ga.`;
-      
-      const encodedMsg = encodeURIComponent(message);
-      const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedMsg}`;
-      window.open(whatsappUrl, '_blank');
-      notify("Opening WhatsApp...", "success");
-    } catch (e) {
-      notify("WhatsApp Error: " + (e as Error).message, "error");
-    }
-  };
 
   const handleCompletePayment = () => {
     if (!selectedOrder) return;
@@ -329,19 +299,13 @@ const CashierView: React.FC<CashierViewProps> = ({
             </div>
 
             <div className="p-6 pt-0 space-y-2">
-              <button 
+              <button
                 onClick={handleCompletePayment}
                 disabled={!receivedAmount}
                 className="w-full py-6 bg-emerald-600 text-white rounded-[24px] text-[12px] font-black uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-emerald-600/20 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale disabled:scale-100"
               >
                 {ICONS.CheckCircle}
                 Finalize & Collect
-              </button>
-              <button 
-                onClick={() => handleShareWhatsApp(selectedOrder)}
-                className="w-full py-4 bg-[#25D366] text-white rounded-[20px] text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-3 active:scale-95 transition-all shadow-lg"
-              >
-                📱 Send WhatsApp Bill
               </button>
             </div>
           </div>

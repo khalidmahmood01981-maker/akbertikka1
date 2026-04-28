@@ -809,19 +809,7 @@ const AdminDashboard: React.FC<AdminProps> = ({
               <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-main)]">Config</span>
             </button>
 
-            {!isCashier && (
-              <>
-                <button
-                  onClick={() => handleTabChange('config')}
-                  className={`bg-[var(--bg-card)] p-2 rounded-[24px] border border-[var(--border)] flex flex-col items-center justify-center shadow-xl active:scale-95 transition-all gap-2 group ${adminTab === 'config' ? 'border-cyan-600' : ''}`}
-                >
-                  <div className={`p-2 rounded-xl transition-all ${adminTab === 'config' ? 'bg-cyan-600 text-white' : 'bg-cyan-600/10 text-cyan-500'}`}>
-                    {ICONS.Settings}
-                  </div>
-                  <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-main)]">Config</span>
-                </button>
-              </>
-            )}
+
 
             <button
               onClick={() => handleTabChange('settlement')}
@@ -1631,45 +1619,68 @@ const AdminDashboard: React.FC<AdminProps> = ({
 
 
       {(isAdmin || activeShop) && adminTab === 'config' && (
-        <div className="space-y-8 animate-in slide-in-from-bottom px-1">
+        <div className="space-y-6 animate-in slide-in-from-bottom px-1 pb-10">
+          
+          {/* 1. Business Profile */}
           <div className="bg-[var(--bg-card)] p-6 rounded-[32px] border border-[var(--border)] shadow-xl space-y-6">
-            <div className="flex items-center gap-2 ml-2">
-              <span className="text-orange-600">{ICONS.Dashboard}</span>
-              <p className="text-[10px] font-black uppercase text-orange-600 tracking-[0.2em]">Business Profile</p>
+            <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+              <div className="w-10 h-10 bg-orange-600/10 rounded-xl flex items-center justify-center text-orange-600">
+                {ICONS.Dashboard}
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase text-orange-600 tracking-[0.2em]">Business Profile</p>
+                <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Logo, Name & Receipt Text</p>
+              </div>
             </div>
 
-            <div className="space-y-3">
-              <p className="text-[9px] font-black uppercase text-[var(--text-muted)] ml-4 tracking-widest">Restaurant Name</p>
-              {isAdmin ? (
-                <input
-                  type="text"
-                  placeholder="ENTER RESTAURANT NAME"
-                  className="w-full p-4 bg-black/50 border border-white/10 rounded-2xl text-white text-center font-black tracking-widest outline-none focus:border-orange-600 text-xs uppercase"
-                  value={settings.businessName || ''}
-                  onChange={(e) => setSettings({ ...settings, businessName: e.target.value })}
-                />
-              ) : (
-                <div className="w-full p-4 bg-black/30 border border-white/5 rounded-2xl text-white text-center font-black tracking-widest text-xs uppercase opacity-80">
-                  {settings.businessName}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <p className="text-[9px] font-black uppercase text-[var(--text-muted)] ml-2 tracking-widest">Restaurant Name</p>
+                  {isAdmin ? (
+                    <input
+                      type="text"
+                      className="w-full p-4 bg-black/50 border border-white/10 rounded-2xl text-white font-black tracking-widest outline-none focus:border-orange-600 text-xs uppercase"
+                      value={settings.businessName || ''}
+                      onChange={(e) => setSettings({ ...settings, businessName: e.target.value })}
+                    />
+                  ) : (
+                    <div className="w-full p-4 bg-black/30 border border-white/5 rounded-2xl text-white font-black tracking-widest text-xs uppercase opacity-80">
+                      {settings.businessName}
+                    </div>
+                  )}
                 </div>
-              )}
+
+                <div className="space-y-2">
+                  <p className="text-[9px] font-black uppercase text-[var(--text-muted)] ml-2 tracking-widest">Custom Receipt Footer</p>
+                  <textarea
+                    placeholder="e.g. Shukriya! Dobara tashreef layen."
+                    rows={2}
+                    className="w-full p-4 bg-black/50 border border-white/10 rounded-2xl text-white font-black tracking-widest outline-none focus:border-orange-600 text-xs resize-none"
+                    value={settings.receiptFooterText || ''}
+                    onChange={(e) => setSettings({ ...settings, receiptFooterText: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col items-center justify-center p-6 bg-black/30 rounded-[32px] border border-dashed border-white/10">
+                <p className="text-[9px] font-black uppercase text-[var(--text-muted)] mb-4 tracking-widest">Business Logo</p>
+                <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                  <div className="w-24 h-24 rounded-3xl bg-white/5 border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden group-hover:border-orange-600/50 transition-all">
+                    {settings.businessLogo ? (
+                      <img src={settings.businessLogo} className="w-full h-full object-contain" alt="Logo" />
+                    ) : (
+                      <span className="text-2xl opacity-20">{ICONS.Upload}</span>
+                    )}
+                  </div>
+                  <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                    {ICONS.Edit}
+                  </div>
+                </div>
+                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleLogoUpload} />
+              </div>
             </div>
 
-            <div className="space-y-3">
-              <p className="text-[9px] font-black uppercase text-[var(--text-muted)] ml-4 tracking-widest flex items-center justify-between">
-                <span>Custom Bill / Receipt Text</span>
-                <span className="text-orange-500/50 italic normal-case font-medium">Footer on bills</span>
-              </p>
-              <textarea
-                placeholder="e.g. Shukriya! Dobara tashreef layen."
-                rows={3}
-                className="w-full p-4 bg-black/50 border border-white/10 rounded-2xl text-white font-black tracking-widest outline-none focus:border-orange-600 text-xs resize-none"
-                value={settings.receiptFooterText || ''}
-                onChange={(e) => setSettings({ ...settings, receiptFooterText: e.target.value })}
-              />
-              <p className="text-[7px] font-black text-orange-600/50 uppercase ml-4">Yeh text bill aur receipt ke neeche print hoga.</p>
-            </div>
-            
             <div className="space-y-3">
               <p className="text-[9px] font-black uppercase text-[var(--text-muted)] ml-4 tracking-widest flex items-center justify-between">
                 <span>Business Start Time (Shift)</span>
@@ -1682,748 +1693,354 @@ const AdminDashboard: React.FC<AdminProps> = ({
                 onChange={(e) => setSettings({ ...settings, businessDayStartTime: e.target.value })}
               />
             </div>
-
-            {showSecretSlider && (
-              <div className="space-y-3 pt-2 animate-in slide-in-from-top">
-                <p className="text-[9px] font-black uppercase text-blue-500 ml-4 tracking-widest flex items-center justify-between">
-                  <span>Sales Display Adjustment (%)</span>
-                  <span className="text-blue-500/50 italic normal-case font-medium">100% = Real</span>
-                </p>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range" min="1" max="200" step="1"
-                    className="flex-1 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                    value={settings.statsAdjustmentPercentage || 100}
-                    onChange={(e) => setSettings({ ...settings, statsAdjustmentPercentage: parseInt(e.target.value) })}
-                  />
-                  <div className="w-16 p-2 bg-black/50 border border-white/10 rounded-xl text-white text-center font-black text-xs">
-                    {settings.statsAdjustmentPercentage || 100}%
-                  </div>
-                </div>
-                <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase ml-4">Yeh percentage sirf sales dashboard par dikhayi dene waly totals ko tabdeel karegi.</p>
-              </div>
-            )}
           </div>
 
-          {/* Tax Configuration Section */}
-          <div className="bg-[var(--bg-card)] p-6 rounded-[32px] border border-[var(--border)] shadow-xl space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-orange-600 font-bold">{ICONS.Percent || 'TAX'}</span>
-                <div>
-                  <h4 className="text-xs font-black text-white uppercase italic">Enable Tax</h4>
-                  <p className="text-[8px] font-bold text-[var(--text-muted)] uppercase tracking-widest mt-1">Include tax in order total</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setSettings({ ...settings, isTaxEnabled: !settings.isTaxEnabled })}
-                className={`w-14 h-8 rounded-full p-1 transition-all duration-300 ${settings.isTaxEnabled ? 'bg-orange-600' : 'bg-white/10'}`}
-              >
-                <div className={`w-6 h-6 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${settings.isTaxEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
-              </button>
-            </div>
-
-            {settings.isTaxEnabled && (
-              <div className="space-y-3 pt-2 animate-in slide-in-from-top">
-                <p className="text-[9px] font-black uppercase text-orange-600 ml-4 tracking-widest flex items-center justify-between">
-                  <span>Tax Rate (%)</span>
-                  <span className="text-orange-600/50 italic normal-case font-medium">{settings.taxRate || 0}%</span>
-                </p>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range" min="0" max="30" step="0.5"
-                    className="flex-1 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-orange-600"
-                    value={settings.taxRate || 0}
-                    onChange={(e) => setSettings({ ...settings, taxRate: parseFloat(e.target.value) })}
-                  />
-                  <div className="w-16 p-2 bg-black/50 border border-white/10 rounded-xl text-white text-center font-black text-xs">
-                    {settings.taxRate || 0}%
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* PWA Installation Section */}
-          <div className="bg-[var(--bg-card)] p-6 rounded-[32px] border border-orange-600/30 shadow-xl space-y-6 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-10">
-              <span className="text-6xl text-orange-500">{ICONS.Download}</span>
-            </div>
-            
-            <div className="flex items-center gap-2 ml-2">
-              <span className="text-orange-500">{ICONS.Smartphone || ICONS.Monitor}</span>
-              <p className="text-[10px] font-black uppercase text-orange-500 tracking-[0.2em]">App Download (Install PWA)</p>
-            </div>
-
-            <div className="space-y-4">
-              <div className="p-5 bg-orange-600/10 rounded-[28px] border border-orange-600/20 text-center">
-                <p className="text-[10px] font-black text-white uppercase italic mb-2">Offline Use & Faster Access</p>
-                <p className="text-[9px] font-bold text-[var(--text-muted)] leading-relaxed mb-4">
-                  App ko apnay PC ya Mobile mein install karein taake aap internet ke baghair (Offline) bhi orders le saken aur real-time data share kar saken.
-                </p>
-                
-                {isInstallable ? (
-                  <button
-                    onClick={onInstall}
-                    className="w-full py-5 bg-orange-600 text-white rounded-[24px] font-black uppercase text-[12px] tracking-widest shadow-xl shadow-orange-600/20 active:scale-95 transition-all flex items-center justify-center gap-3"
-                  >
-                    {ICONS.Download} INSTALL APP NOW
-                  </button>
-                ) : (
-                  <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
-                    <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">
-                      {window.matchMedia('(display-mode: standalone)').matches ? '✅ APP INSTALLED' : '✨ APP IS READY TO INSTALL'}
-                    </p>
-                    <p className="text-[8px] font-bold text-[var(--text-muted)] mt-1 uppercase">
-                      Agay button nazar nahi aa raha to Chrome menu mein 'Install App' ya 'Add to Home Screen' select karein.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Local Router Sync Section */}
-          <div className="bg-[var(--bg-card)] p-6 rounded-[40px] border border-blue-600/30 shadow-2xl space-y-6 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-6 opacity-5">
-              <span className="text-8xl text-blue-500">{ICONS.Wifi}</span>
-            </div>
-            
-            <div className="flex items-center gap-2 ml-2">
-              <div className="w-8 h-8 bg-blue-600/20 rounded-xl flex items-center justify-center text-blue-500 shadow-lg">
-                {ICONS.Wifi}
+          {/* 2. Printing & Kitchen Workflow */}
+          <div className="bg-[var(--bg-card)] p-6 rounded-[32px] border border-blue-600/20 shadow-xl space-y-6">
+            <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+              <div className="w-10 h-10 bg-blue-600/10 rounded-xl flex items-center justify-center text-blue-500">
+                {ICONS.Printer}
               </div>
               <div>
-                <p className="text-[10px] font-black uppercase text-blue-500 tracking-[0.2em]">Offline Network Sync</p>
-                <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Connect devices via Router</p>
+                <p className="text-[10px] font-black uppercase text-blue-500 tracking-[0.2em]">Printing & Kitchen</p>
+                <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Hardware & Workflow Control</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-4">
-                <div className="p-6 bg-blue-600/10 rounded-[32px] border border-blue-600/20 text-center relative overflow-hidden group">
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-2">Master Server IP</p>
-                  <p className="text-4xl font-black text-white italic tracking-tighter">
-                    {serverInfo ? `${serverInfo.localIP}` : '---.---.---.---'}
-                  </p>
-                  <p className="text-[10px] font-black text-blue-500/60 uppercase mt-1">Port: {serverInfo?.port || '3000'}</p>
-                </div>
-
-                <div className="space-y-3 bg-black/40 p-6 rounded-[32px] border border-white/5">
-                  <h5 className="text-[10px] font-black text-white uppercase italic flex items-center gap-2">
-                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-                    How to connect?
-                  </h5>
-                  <div className="space-y-3">
-                    <div className="flex gap-3">
-                      <div className="w-5 h-5 bg-blue-600/20 rounded-lg flex items-center justify-center text-[10px] font-black text-blue-500 shrink-0">1</div>
-                      <p className="text-[9px] font-bold text-[var(--text-muted)] leading-relaxed uppercase">Connect Mobiles/Tablets to the <b>SAME ROUTER</b>.</p>
-                    </div>
-                    <div className="flex gap-3">
-                      <div className="w-5 h-5 bg-blue-600/20 rounded-lg flex items-center justify-center text-[10px] font-black text-blue-500 shrink-0">2</div>
-                      <p className="text-[9px] font-bold text-[var(--text-muted)] leading-relaxed uppercase">Scan the <b>QR CODE</b> or type the URL in browser.</p>
-                    </div>
-                    <div className="flex gap-3">
-                      <div className="w-5 h-5 bg-blue-600/20 rounded-lg flex items-center justify-center text-[10px] font-black text-blue-500 shrink-0">3</div>
-                      <p className="text-[9px] font-bold text-[var(--text-muted)] leading-relaxed uppercase">Go to <b>CONFIG</b> on mobile & set this IP as Master.</p>
+                <div className="flex items-center justify-between p-4 bg-black/30 rounded-2xl border border-white/5">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">🖥️</span>
+                    <div>
+                      <h4 className="text-[10px] font-black text-white uppercase italic">Printer Mode</h4>
+                      <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Enable printing on this device</p>
                     </div>
                   </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col items-center justify-center space-y-4">
-                {serverInfo ? (
-                  <div className="p-4 bg-white rounded-[40px] shadow-2xl border-4 border-blue-600/20 relative group">
-                    <QRCodeCanvas 
-                      value={`http://${serverInfo.localIP}:${serverInfo.port}`}
-                      size={180}
-                      level="H"
-                      includeMargin={true}
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 rounded-[36px]">
-                       <button 
-                         onClick={() => {
-                           navigator.clipboard.writeText(`http://${serverInfo.localIP}:${serverInfo.port}`);
-                           alert("URL Copied!");
-                         }}
-                         className="px-6 py-3 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
-                       >
-                         Copy URL
-                       </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="w-[200px] h-[200px] bg-black/20 rounded-[40px] border border-dashed border-white/10 flex items-center justify-center text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest text-center px-6">
-                    Searching for local network...
-                  </div>
-                )}
-                <p className="text-[8px] font-black text-blue-500/40 uppercase tracking-[0.3em] italic">Scan to connect</p>
-              </div>
-            </div>
-
-            <div className="pt-6 border-t border-white/5 space-y-4">
-               <div className="flex flex-col md:flex-row gap-4">
-                  <div className="flex-1 space-y-2">
-                    <p className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest ml-4 italic">Manual Configuration</p>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="Master IP (e.g. 192.168.1.10)"
-                        className="flex-1 p-4 bg-black/60 border border-white/10 rounded-[24px] text-white text-xs font-bold outline-none focus:border-blue-500 shadow-inner"
-                        value={settings.masterIP || ''}
-                        onChange={(e) => setSettings({ ...settings, masterIP: e.target.value })}
-                      />
-                      <button 
-                        onClick={() => {
-                          if (serverInfo) {
-                            setSettings({ ...settings, masterIP: serverInfo.localIP });
-                            alert("This device is now the Master Server!");
-                          }
-                        }}
-                        className="px-6 bg-blue-600 text-white rounded-[24px] text-[9px] font-black uppercase tracking-widest shadow-lg shadow-blue-600/20 active:scale-95 transition-all"
-                      >
-                        Set Me As Master
-                      </button>
-                    </div>
-                  </div>
-               </div>
-               <p className="text-[7px] font-bold text-blue-500/40 uppercase text-center tracking-widest">Note: Static IP on Router is recommended for stable connection.</p>
-            </div>
-          </div>
-
-          <div className="bg-[var(--bg-card)] p-6 rounded-[32px] border border-[var(--border)] shadow-xl space-y-6">
-            <div className="flex items-center gap-2 ml-2">
-              <span className="text-orange-600">{ICONS.Lock}</span>
-              <p className="text-[10px] font-black uppercase text-orange-600 tracking-[0.2em]">Owner Security</p>
-            </div>
-
-            <div className="space-y-3">
-              <p className="text-[9px] font-black uppercase text-[var(--text-muted)] ml-4 tracking-widest">Change Master Password</p>
-              <div className="space-y-2 p-4 bg-black/30 rounded-[32px] border border-white/5">
-                <input
-                  type="password"
-                  placeholder="NEW PASSWORD"
-                  className="w-full p-4 bg-black/50 border border-white/10 rounded-2xl text-white text-center font-black tracking-widest outline-none focus:border-orange-600 text-xs"
-                  value={newOwnerPassword}
-                  onChange={(e) => setNewOwnerPassword(e.target.value)}
-                />
-                <input
-                  type="password"
-                  placeholder="CONFIRM PASSWORD"
-                  className="w-full p-4 bg-black/50 border border-white/10 rounded-2xl text-white text-center font-black tracking-widest outline-none focus:border-orange-600 text-xs"
-                  value={confirmOwnerPassword}
-                  onChange={(e) => setConfirmOwnerPassword(e.target.value)}
-                />
-                <button
-                  onClick={() => {
-                    if (newOwnerPassword && newOwnerPassword === confirmOwnerPassword) {
-                      setSettings({ ...settings, adminSecretKey: newOwnerPassword });
-                      setNewOwnerPassword('');
-                      setConfirmOwnerPassword('');
-                      alert("Password Updated Successfully!");
-                    } else {
-                      alert("Passwords do not match or are empty!");
-                    }
-                  }}
-                  className="w-full py-4 bg-orange-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg active:scale-95 transition-all mt-2"
-                >
-                  Update Password
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-[var(--bg-card)] p-6 rounded-[32px] border border-[var(--border)] shadow-xl space-y-6">
-            <div className="flex items-center gap-2 ml-2">
-              <span className="text-orange-600">{ICONS.Settings}</span>
-              <p className="text-[10px] font-black uppercase text-orange-600 tracking-[0.2em]">System Maintenance</p>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <button onClick={onExportData} className="flex flex-col items-center justify-center p-3 bg-emerald-600/10 border border-emerald-600/20 rounded-[32px] group active:scale-95 transition-all">
-                <div className="text-emerald-500 mb-2 group-hover:scale-110 transition-transform">{ICONS.Download}</div>
-                <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Backup Data</span>
-              </button>
-              <button onClick={() => fileInputRef.current?.click()} className="flex flex-col items-center justify-center p-3 bg-orange-600/10 border border-orange-600/20 rounded-[32px] group active:scale-95 transition-all">
-                <div className="text-orange-600 mb-2 group-hover:scale-110 transition-transform">{ICONS.Upload}</div>
-                <span className="text-[9px] font-black text-orange-600 uppercase tracking-widest">Restore Data</span>
-                <input type="file" accept=".json" ref={fileInputRef} className="hidden" onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) setShowRestoreConfirm(file);
-                  e.target.value = '';
-                }} />
-              </button>
-            </div>
-
-            <button 
-              onClick={handleOptimizeMenuImages}
-              className="w-full p-4 bg-blue-600/10 text-blue-500 border border-blue-600/20 rounded-[32px] text-[10px] font-black uppercase tracking-[0.2em] active:scale-95 transition-all flex items-center justify-center gap-2"
-            >
-              {ICONS.Check} OPTIMIZE MENU IMAGES (150x)
-            </button>
-          </div>
-
-          <div className="bg-[var(--bg-card)] p-6 rounded-[32px] border border-[var(--border)] shadow-xl space-y-6">
-            <div className="flex items-center gap-2 ml-2">
-              <span className="text-orange-600">{ICONS.Utensils}</span>
-              <p className="text-[10px] font-black uppercase text-orange-600 tracking-[0.2em]">App Fonts & Typography</p>
-            </div>
-
-            <div className="space-y-3">
-              <p className="text-[9px] font-black uppercase text-[var(--text-muted)] ml-4 tracking-widest">Font Size Control</p>
-              <div className="flex items-center justify-between gap-4 p-4 bg-black/30 rounded-[32px] border border-white/5">
-                <button
-                  onClick={() => adjustFontSize(-1)}
-                  className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center text-orange-600 text-xl border border-white/10 active:scale-90 transition-all shadow-lg"
-                >
-                  {ICONS.Minus}
-                </button>
-
-                <div className="text-center">
-                  <p className="text-3xl font-black text-white italic leading-none">{settings.fontSizeNumber || 16}<span className="text-xs ml-1 opacity-40">px</span></p>
-                  <p className="text-[8px] font-black text-[var(--text-muted)] uppercase tracking-widest mt-1">Base Size</p>
-                </div>
-
-                <button
-                  onClick={() => adjustFontSize(1)}
-                  className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center text-orange-600 text-xl border border-white/10 active:scale-90 transition-all shadow-lg"
-                >
-                  {ICONS.Plus}
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <p className="text-[9px] font-black uppercase text-[var(--text-muted)] ml-4 tracking-widest">Font Style (Typography)</p>
-              <div className="grid grid-cols-2 gap-2 p-2 bg-black/30 rounded-[32px] border border-white/5">
-                {(['inter', 'oswald', 'courier', 'roboto', 'serif'] as FontFamily[]).map(style => (
                   <button
-                    key={style}
-                    onClick={() => setSettings({ ...settings, fontFamily: style })}
-                    className={`p-4 rounded-2xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 font-${style} ${settings.fontFamily === style ? 'bg-orange-600 text-white' : 'bg-white/5 text-[var(--text-muted)] hover:bg-white/10'}`}
+                    onClick={() => {
+                      const newVal = !isPrinterDevice;
+                      setIsPrinterDevice?.(newVal);
+                      localStorage.setItem('is_printer_device', newVal ? 'true' : 'false');
+                    }}
+                    className={`w-12 h-7 rounded-full p-1 transition-all duration-300 ${isPrinterDevice ? 'bg-blue-600' : 'bg-white/10'}`}
                   >
-                    {style === 'inter' ? 'Modern' : style === 'oswald' ? 'Condensed' : style === 'courier' ? 'POS Type' : style === 'roboto' ? 'Clean' : 'Classic'}
+                    <div className={`w-5 h-5 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${isPrinterDevice ? 'translate-x-5' : 'translate-x-0'}`} />
                   </button>
-                ))}
-              </div>
-            </div>
-
-            <p className="text-[8px] font-bold text-[var(--text-muted)] text-center uppercase tracking-widest px-4 leading-relaxed">
-              Yeh settings poori app (Billing, Inventory, Menu, Reports) ka look aur size tabdeel kar dengi.
-            </p>
-          </div>
-
-          <div className="bg-[var(--bg-card)] p-6 rounded-[32px] border border-[var(--border)] shadow-xl space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-emerald-500">{ICONS.Send}</span>
-                <div>
-                  <h4 className="text-xs font-black text-white uppercase italic">Auto WhatsApp Bill</h4>
-                  <p className="text-[8px] font-bold text-[var(--text-muted)] uppercase tracking-widest mt-1">Send invoice automatically after bill</p>
                 </div>
-              </div>
-              <button
-                onClick={() => setSettings({ ...settings, isAutoWhatsappEnabled: !settings.isAutoWhatsappEnabled })}
-                className={`w-14 h-8 rounded-full p-1 transition-all duration-300 ${settings.isAutoWhatsappEnabled ? 'bg-emerald-600' : 'bg-white/10'}`}
-              >
-                <div className={`w-6 h-6 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${settings.isAutoWhatsappEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
-              </button>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-orange-600 font-bold">{ICONS.Mic}</span>
-                <div>
-                  <h4 className="text-xs font-black text-white uppercase italic">Voice Announcement</h4>
-                  <p className="text-[8px] font-bold text-[var(--text-muted)] uppercase tracking-widest mt-1">Announce customer name on Ready</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setSettings({ ...settings, enableVoiceAnnouncement: !settings.enableVoiceAnnouncement })}
-                className={`w-14 h-8 rounded-full p-1 transition-all duration-300 ${settings.enableVoiceAnnouncement ? 'bg-orange-600' : 'bg-white/10'}`}
-              >
-                <div className={`w-6 h-6 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${settings.enableVoiceAnnouncement ? 'translate-x-6' : 'translate-x-0'}`} />
-              </button>
-            </div>
-          </div>
 
-          <div className="bg-[var(--bg-card)] p-6 rounded-[32px] border border-[var(--border)] shadow-xl space-y-4">
-            <div className="flex items-center gap-2 ml-2 mb-2">
-              <span className="text-blue-500">{ICONS.Printer}</span>
-              <p className="text-[10px] font-black uppercase text-blue-500 tracking-[0.2em]">Print & Receipt Settings</p>
-            </div>
-
-            <div className="flex items-center justify-between mb-4 pb-4 border-b border-white/5">
-              <div className="flex items-center gap-3">
-                <span className="text-xl">🖥️</span>
-                <div>
-                  <h4 className="text-xs font-black text-white uppercase italic">Printer Mode (This Device)</h4>
-                  <p className="text-[8px] font-bold text-[var(--text-muted)] uppercase tracking-widest mt-1">Enable auto-print on this PC</p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  const newVal = !isPrinterDevice;
-                  setIsPrinterDevice?.(newVal);
-                  localStorage.setItem('is_printer_device', newVal ? 'true' : 'false');
-                }}
-                className={`w-14 h-8 rounded-full p-1 transition-all duration-300 ${isPrinterDevice ? 'bg-blue-600' : 'bg-white/10'}`}
-              >
-                <div className={`w-6 h-6 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${isPrinterDevice ? 'translate-x-6' : 'translate-x-0'}`} />
-              </button>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-indigo-500 font-bold">{ICONS.ChefHat}</span>
-                <div>
-                  <h4 className="text-xs font-black text-white uppercase italic">Enable Kitchen Printing</h4>
-                  <p className="text-[8px] font-bold text-[var(--text-muted)] uppercase tracking-widest mt-1">Global switch for overall kitchen printing</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setSettings({ ...settings, enableKitchenPrinting: !settings.enableKitchenPrinting })}
-                className={`w-14 h-8 rounded-full p-1 transition-all duration-300 ${settings.enableKitchenPrinting ? 'bg-indigo-600' : 'bg-white/10'}`}
-                title="Toggle Enable Kitchen Printing"
-              >
-                <div className={`w-6 h-6 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${settings.enableKitchenPrinting ? 'translate-x-6' : 'translate-x-0'}`} />
-              </button>
-            </div>
-
-            <div className="flex items-center justify-between ml-6 bg-white/5 p-3 rounded-2xl">
-              <div className="flex items-center gap-3">
-                <span className="text-blue-400 font-bold">{ICONS.Zap || ICONS.Printer}</span>
-                <div>
-                  <h4 className="text-[10px] font-black text-white uppercase italic">Auto Print on Send</h4>
-                  <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase tracking-widest mt-1">Print kitchen list automatically when sent</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setSettings({ ...settings, isAutoPrintKitchenEnabled: !settings.isAutoPrintKitchenEnabled })}
-                className={`w-12 h-7 rounded-full p-1 transition-all duration-300 ${settings.isAutoPrintKitchenEnabled ? 'bg-blue-600' : 'bg-white/10'}`}
-                title="Toggle Auto Print Kitchen"
-              >
-                <div className={`w-5 h-5 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${settings.isAutoPrintKitchenEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
-              </button>
-            </div>
-
-            <div className="h-px bg-white/5 my-2" />
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-sky-500 font-bold">{ICONS.History}</span>
-                <div>
-                  <h4 className="text-xs font-black text-white uppercase italic">Enable Bill Printing</h4>
-                  <p className="text-[8px] font-bold text-[var(--text-muted)] uppercase tracking-widest mt-1">Global switch for all customer receipt printing</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setSettings({ ...settings, enableBillPrinting: !settings.enableBillPrinting })}
-                className={`w-14 h-8 rounded-full p-1 transition-all duration-300 ${settings.enableBillPrinting ? 'bg-sky-600' : 'bg-white/10'}`}
-                title="Toggle Enable Bill Printing"
-              >
-                <div className={`w-6 h-6 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${settings.enableBillPrinting ? 'translate-x-6' : 'translate-x-0'}`} />
-              </button>
-            </div>
-
-            <div className="bg-emerald-600/5 p-5 rounded-[32px] border border-emerald-600/10 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-emerald-600/10 text-emerald-500 rounded-xl flex items-center justify-center">
-                    {ICONS.Printer || ICONS.Zap}
+                <div className="flex items-center justify-between p-4 bg-black/30 rounded-2xl border border-white/5">
+                  <div className="flex items-center gap-3">
+                    <span className="text-indigo-500">{ICONS.ChefHat}</span>
+                    <div>
+                      <h4 className="text-[10px] font-black text-white uppercase italic">Enable Kitchen Prints</h4>
+                      <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Global kitchen printing switch</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-[10px] font-black text-white uppercase italic">This is Printer Device</h4>
-                    <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase tracking-widest mt-1">Mark this PC as the main Kitchen Printer</p>
-                  </div>
+                  <button
+                    onClick={() => setSettings({ ...settings, enableKitchenPrinting: !settings.enableKitchenPrinting })}
+                    className={`w-12 h-7 rounded-full p-1 transition-all duration-300 ${settings.enableKitchenPrinting ? 'bg-indigo-600' : 'bg-white/10'}`}
+                  >
+                    <div className={`w-5 h-5 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${settings.enableKitchenPrinting ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
                 </div>
-                <button
-                  onClick={() => {
-                    const newVal = localStorage.getItem('is_printer_device') === 'true' ? 'false' : 'true';
-                    localStorage.setItem('is_printer_device', newVal);
-                    window.location.reload(); // Reload to apply printer state
-                  }}
-                  className={`w-12 h-7 rounded-full p-1 transition-all duration-300 ${localStorage.getItem('is_printer_device') === 'true' ? 'bg-emerald-600' : 'bg-white/10'}`}
-                >
-                  <div className={`w-5 h-5 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${localStorage.getItem('is_printer_device') === 'true' ? 'translate-x-5' : 'translate-x-0'}`} />
-                </button>
               </div>
 
-              <div className="flex items-center justify-between border-t border-white/5 pt-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-cyan-600/10 text-cyan-500 rounded-xl flex items-center justify-center">
-                    {ICONS.Zap}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-black/30 rounded-2xl border border-orange-600/20">
+                  <div className="flex items-center gap-3">
+                    <span className="text-orange-600">{ICONS.Layers}</span>
+                    <div>
+                      <h4 className="text-[10px] font-black text-white uppercase italic">Queue Mode</h4>
+                      <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Hold orders for manual printing</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-[10px] font-black text-white uppercase italic">Auto-Print Kitchen Ticket</h4>
-                    <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase tracking-widest mt-1">Automatically print new orders from all devices</p>
-                  </div>
+                  <button
+                    onClick={() => setSettings({ ...settings, isQueueModeEnabled: !settings.isQueueModeEnabled })}
+                    className={`w-12 h-7 rounded-full p-1 transition-all duration-300 ${settings.isQueueModeEnabled ? 'bg-orange-600' : 'bg-white/10'}`}
+                  >
+                    <div className={`w-5 h-5 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${settings.isQueueModeEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
                 </div>
-                <button
-                  onClick={() => setSettings({ ...settings, isAutoPrintKitchenEnabled: !settings.isAutoPrintKitchenEnabled })}
-                  className={`w-12 h-7 rounded-full p-1 transition-all duration-300 ${settings.isAutoPrintKitchenEnabled ? 'bg-cyan-600' : 'bg-white/10'}`}
-                >
-                  <div className={`w-5 h-5 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${settings.isAutoPrintKitchenEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
-                </button>
-              </div>
 
-              <div className="flex items-center justify-between border-t border-white/5 pt-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-orange-600/10 text-orange-600 rounded-xl flex items-center justify-center">
-                    {ICONS.List}
+                <div className="flex items-center justify-between p-4 bg-black/30 rounded-2xl border border-emerald-600/20">
+                  <div className="flex items-center gap-3">
+                    <span className="text-emerald-500">{ICONS.CheckCircle}</span>
+                    <div>
+                      <h4 className="text-[10px] font-black text-white uppercase italic">Auto Print (Kitchen)</h4>
+                      <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Print when kitchen receives order</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-[10px] font-black text-white uppercase italic">Queue Mode (List)</h4>
-                    <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase tracking-widest mt-1">Orders go to a list instead of printing directly</p>
-                  </div>
+                  <button
+                    onClick={() => setSettings({ ...settings, isAutoPrintKitchenEnabled: !settings.isAutoPrintKitchenEnabled })}
+                    className={`w-12 h-7 rounded-full p-1 transition-all duration-300 ${settings.isAutoPrintKitchenEnabled ? 'bg-emerald-600' : 'bg-white/10'}`}
+                  >
+                    <div className={`w-5 h-5 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${settings.isAutoPrintKitchenEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
                 </div>
-                <button
-                  onClick={() => setSettings({ ...settings, isQueueModeEnabled: !settings.isQueueModeEnabled })}
-                  className={`w-12 h-7 rounded-full p-1 transition-all duration-300 ${settings.isQueueModeEnabled ? 'bg-orange-600' : 'bg-white/10'}`}
-                >
-                  <div className={`w-5 h-5 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${settings.isQueueModeEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
-                </button>
               </div>
             </div>
 
-            <div className="flex items-center justify-between ml-6 bg-white/5 p-3 rounded-2xl">
-              <div className="flex items-center gap-3">
-                <span className="text-emerald-400 font-bold">{ICONS.Zap || ICONS.Inventory}</span>
-                <div>
-                  <h4 className="text-[10px] font-black text-white uppercase italic">Auto Print on Finalize</h4>
-                  <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase tracking-widest mt-1">Print invoice automatically after payment</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setSettings({ ...settings, isAutoPrintBillEnabled: !settings.isAutoPrintBillEnabled })}
-                className={`w-12 h-7 rounded-full p-1 transition-all duration-300 ${settings.isAutoPrintBillEnabled ? 'bg-emerald-600' : 'bg-white/10'}`}
-                title="Toggle Auto Print Bill"
-              >
-                <div className={`w-5 h-5 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${settings.isAutoPrintBillEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
-              </button>
-            </div>
-
-            <div className="h-px bg-white/5 my-2" />
-
-           <div className="bg-[var(--bg-card)] p-6 rounded-[32px] border border-[var(--border)] shadow-xl space-y-4">
-            <div className="flex items-center gap-2 ml-2 mb-2">
-              <span className="text-cyan-500">{ICONS.Send}</span>
-              <p className="text-[10px] font-black uppercase text-cyan-500 tracking-[0.2em]">Local Server (Master IP)</p>
-            </div>
-
-            <div className="space-y-4 p-4 bg-black/20 rounded-2xl border border-white/5">
-              <div className="space-y-1">
-                <p className="text-[9px] font-black text-white/50 uppercase tracking-widest ml-1">Kitchen PC IP Address</p>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={settings.masterIP || ''}
-                    onChange={(e) => setSettings({ ...settings, masterIP: e.target.value })}
-                    placeholder="e.g. 192.168.1.10"
-                    className="flex-1 bg-white/5 border border-white/10 rounded-xl p-3 text-white text-xs font-black tracking-widest outline-none focus:border-cyan-500 transition-all"
-                  />
+            <div className="bg-black/30 p-6 rounded-[32px] border border-white/5 space-y-4">
+               <div className="flex items-center justify-between">
+                  <p className="text-[9px] font-black uppercase text-blue-500 tracking-widest italic">Local Master IP Sync</p>
                   <button 
                     onClick={() => {
-                      // Trigger re-detection logic if needed, or just notify
-                      notify("IP Locked Successfully!", "success");
+                      if (serverInfo) {
+                        setSettings({ ...settings, masterIP: serverInfo.localIP });
+                        alert("IP Set: " + serverInfo.localIP);
+                      }
                     }}
-                    className="px-4 bg-cyan-600 text-white rounded-xl text-[10px] font-black uppercase"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[8px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all"
                   >
-                    Lock
+                    Set My IP
+                  </button>
+               </div>
+               <input
+                 type="text"
+                 placeholder="Master IP (e.g. 192.168.1.10)"
+                 className="w-full p-4 bg-black/50 border border-white/10 rounded-2xl text-white text-xs font-bold outline-none focus:border-blue-500"
+                 value={settings.masterIP || ''}
+                 onChange={(e) => setSettings({ ...settings, masterIP: e.target.value })}
+               />
+               <p className="text-[7px] font-bold text-blue-500/40 uppercase text-center tracking-widest leading-relaxed">
+                 Connect other devices using the Master IP above.
+               </p>
+            </div>
+          </div>
+
+          {/* 3. Security & Finance */}
+          <div className="bg-[var(--bg-card)] p-6 rounded-[32px] border border-red-600/20 shadow-xl space-y-6">
+            <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+              <div className="w-10 h-10 bg-red-600/10 rounded-xl flex items-center justify-center text-red-500">
+                {ICONS.Lock}
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase text-red-500 tracking-[0.2em]">Security & Finance</p>
+                <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Passcodes & Tax control</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                   <p className="text-[9px] font-black uppercase text-[var(--text-muted)] ml-2 tracking-widest">Master Password</p>
+                   <div className="flex gap-2">
+                    <input
+                      type="password"
+                      placeholder="NEW PASSWORD"
+                      className="flex-1 p-4 bg-black/50 border border-white/10 rounded-2xl text-white text-center font-black tracking-widest outline-none focus:border-red-600 text-xs"
+                      value={newOwnerPassword}
+                      onChange={(e) => setNewOwnerPassword(e.target.value)}
+                    />
+                    <button
+                      onClick={() => {
+                        if (newOwnerPassword) {
+                          setSettings({ ...settings, adminSecretKey: newOwnerPassword });
+                          setNewOwnerPassword('');
+                          alert("Password Updated!");
+                        }
+                      }}
+                      className="px-6 bg-red-600 text-white rounded-2xl font-black uppercase text-[9px] tracking-widest"
+                    >
+                      Update
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-black/30 rounded-2xl border border-white/5">
+                  <div className="flex items-center gap-3">
+                    <span className="text-orange-600 font-bold">{ICONS.Percent || 'TAX'}</span>
+                    <div>
+                      <h4 className="text-[10px] font-black text-white uppercase italic">Enable Tax</h4>
+                      <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Add tax to bills</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setSettings({ ...settings, isTaxEnabled: !settings.isTaxEnabled })}
+                    className={`w-12 h-7 rounded-full p-1 transition-all duration-300 ${settings.isTaxEnabled ? 'bg-orange-600' : 'bg-white/10'}`}
+                  >
+                    <div className={`w-5 h-5 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${settings.isTaxEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
                   </button>
                 </div>
-              </div>
 
-              <div className="p-3 bg-cyan-500/5 rounded-xl border border-cyan-500/10">
-                <p className="text-[8px] font-bold text-cyan-500 uppercase tracking-[0.1em] leading-relaxed">
-                   💡 TIP: Aap is computer ka IP address tabdeel hone se bachane ke liye Windows Settings mein ja kar "Static IP" set karein. Is se aapko bar bar IP change nahi karni paregi.
+                {settings.isTaxEnabled && (
+                  <div className="p-4 bg-black/30 rounded-2xl border border-orange-600/10 space-y-2">
+                    <p className="text-[9px] font-black uppercase text-orange-600 tracking-widest flex justify-between">
+                      <span>Rate</span>
+                      <span>{settings.taxRate || 0}%</span>
+                    </p>
+                    <input
+                      type="range" min="0" max="30" step="0.5"
+                      className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-orange-600"
+                      value={settings.taxRate || 0}
+                      onChange={(e) => setSettings({ ...settings, taxRate: parseFloat(e.target.value) })}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {showSecretSlider && (
+              <div className="bg-blue-600/5 p-6 rounded-[32px] border border-blue-600/20 space-y-4">
+                <p className="text-[9px] font-black uppercase text-blue-500 tracking-widest flex items-center justify-between">
+                  <span>Sales Display Adjustment (%)</span>
+                  <span className="bg-blue-600 text-white px-3 py-1 rounded-full">{settings.statsAdjustmentPercentage || 100}%</span>
                 </p>
+                <input
+                  type="range" min="1" max="200" step="1"
+                  className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                  value={settings.statsAdjustmentPercentage || 100}
+                  onChange={(e) => setSettings({ ...settings, statsAdjustmentPercentage: parseInt(e.target.value) })}
+                />
               </div>
-            </div>
+            )}
           </div>
 
-          <div className="bg-[var(--bg-card)] p-6 rounded-[32px] border border-[var(--border)] shadow-xl space-y-4">
-            <div className="flex items-center gap-3">
-              <span className="text-cyan-500 font-bold">{ICONS.User}</span>
-                <div>
-                  <h4 className="text-xs font-black text-white uppercase italic">Print Taker Name</h4>
-                  <p className="text-[8px] font-bold text-[var(--text-muted)] uppercase tracking-widest mt-1">Show Taker/Creator name on Kitchen Ticket</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setSettings({ ...settings, includeTakerNameOnPrint: !settings.includeTakerNameOnPrint })}
-                className={`w-14 h-8 rounded-full p-1 transition-all duration-300 ${settings.includeTakerNameOnPrint ? 'bg-cyan-600' : 'bg-white/10'}`}
-                title="Toggle Print Taker Name"
-              >
-                <div className={`w-6 h-6 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${settings.includeTakerNameOnPrint ? 'translate-x-6' : 'translate-x-0'}`} />
-              </button>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-yellow-500 font-bold">{ICONS.History || ICONS.FileText}</span>
-                <div>
-                  <h4 className="text-xs font-black text-white uppercase italic">Print Bill Number</h4>
-                  <p className="text-[8px] font-bold text-[var(--text-muted)] uppercase tracking-widest mt-1">Show Bill No on prints</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setSettings({ ...settings, includeBillNoOnPrint: !settings.includeBillNoOnPrint })}
-                className={`w-14 h-8 rounded-full p-1 transition-all duration-300 ${settings.includeBillNoOnPrint ? 'bg-yellow-600' : 'bg-white/10'}`}
-                title="Toggle Print Bill Number"
-              >
-                <div className={`w-6 h-6 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${settings.includeBillNoOnPrint ? 'translate-x-6' : 'translate-x-0'}`} />
-              </button>
-            </div>
-          </div>
-
-
-
+          {/* 4. Appearance & Look */}
           <div className="bg-[var(--bg-card)] p-6 rounded-[32px] border border-[var(--border)] shadow-xl space-y-6">
-            <div className="flex items-center gap-2 ml-2">
-              <span className="text-orange-600">{ICONS.Image}</span>
-              <p className="text-[10px] font-black uppercase text-orange-600 tracking-[0.2em]">Business Logo</p>
-            </div>
-
-            <div className="flex items-center gap-4 bg-black/20 p-4 rounded-[28px] border border-white/5">
-              <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center overflow-hidden border border-white/10 shrink-0">
-                {settings.businessLogo ? <img src={settings.businessLogo} className="w-full h-full object-cover" /> : ICONS.Package}
+            <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+              <div className="w-10 h-10 bg-purple-600/10 rounded-xl flex items-center justify-center text-purple-500">
+                {ICONS.Utensils}
               </div>
-              <div className="flex-1 space-y-2">
-                <input type="file" id="logo-up-config" accept="image/*" onChange={handleLogoUpload} className="hidden" />
-                <label htmlFor="logo-up-config" className="block text-center p-2.5 bg-orange-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest cursor-pointer active:scale-95 transition-all">
-                  {isCompressing ? 'Compressing...' : 'Update Logo'}
-                </label>
-                {settings.businessLogo && (
-                  <button onClick={() => setSettings({ ...settings, businessLogo: undefined })} className="w-full p-2 bg-red-500/10 text-red-500 rounded-xl text-[8px] font-black uppercase">Remove</button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-[var(--bg-card)] p-6 rounded-[32px] border border-[var(--border)] shadow-xl space-y-6">
-            <div className="flex justify-between items-center px-2">
-              <p className="text-[10px] font-black uppercase text-orange-600 tracking-[0.2em]">Notification Sound</p>
-              <div className="flex gap-2">
-                <input type="file" id="sound-up-admin" accept="audio/*" onChange={handleSoundUpload} className="hidden" />
-                <label htmlFor="sound-up-admin" className="px-4 py-2 bg-orange-600 text-white rounded-xl text-[8px] font-black uppercase tracking-widest cursor-pointer active:scale-95 transition-all flex items-center gap-2">
-                  {ICONS.Plus} Upload
-                </label>
+              <div>
+                <p className="text-[10px] font-black uppercase text-purple-500 tracking-[0.2em]">App Customization</p>
+                <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Font & Typography</p>
               </div>
             </div>
 
-            <div className="space-y-3">
-              <p className="text-[9px] font-black uppercase text-[var(--text-muted)] ml-4 tracking-widest">Select Sound</p>
-              <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto no-scrollbar p-1">
-                {(settings.notificationSounds || []).map(sound => (
-                  <div
-                    key={sound.id}
-                    className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${settings.notificationSoundUrl === sound.url ? 'bg-orange-600/10 border-orange-600' : 'bg-black/20 border-white/5'}`}
-                  >
-                    <button
-                      onClick={() => setSettings({ ...settings, notificationSoundUrl: sound.url })}
-                      className="flex-1 text-left"
-                    >
-                      <p className={`text-xs font-black uppercase italic ${settings.notificationSoundUrl === sound.url ? 'text-white' : 'text-[var(--text-muted)]'}`}>{sound.name}</p>
-                    </button>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          const audio = new Audio(sound.url);
-                          audio.play().catch(e => alert("Please interact with the page first."));
-                        }}
-                        className="p-2 bg-emerald-600/10 text-emerald-500 rounded-lg border border-emerald-600/20 active:scale-90"
-                      >
-                        {ICONS.Play}
-                      </button>
-                      {sound.id !== 'default' && (
-                        <button
-                          onClick={() => {
-                            if (confirm("Delete this sound?")) {
-                              const updated = (settings.notificationSounds || []).filter(s => s.id !== sound.id);
-                              setSettings({ ...settings, notificationSounds: updated });
-                            }
-                          }}
-                          className="p-2 bg-red-600/10 text-red-500 rounded-lg border border-red-600/20 active:scale-90"
-                        >
-                          {ICONS.Trash2}
-                        </button>
-                      )}
-                    </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-4">
+                <p className="text-[9px] font-black uppercase text-[var(--text-muted)] ml-2 tracking-widest">Font Size Control</p>
+                <div className="flex items-center justify-between p-4 bg-black/30 rounded-[32px] border border-white/5">
+                  <button onClick={() => adjustFontSize(-1)} className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-orange-600 text-xl border border-white/10 active:scale-90 transition-all">{ICONS.Minus}</button>
+                  <div className="text-center">
+                    <p className="text-2xl font-black text-white italic">{settings.fontSizeNumber || 16}px</p>
                   </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-[var(--text-muted)] uppercase ml-4">Sound Repeat Count</label>
-              <div className="flex items-center gap-4 p-2 bg-black/30 rounded-[24px] border border-white/5">
-                <button
-                  onClick={() => setSettings({ ...settings, notificationRepeatCount: Math.max(1, (settings.notificationRepeatCount || 1) - 1) })}
-                  className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-orange-600 active:scale-90 transition-all"
-                >
-                  {ICONS.Minus}
-                </button>
-                <div className="flex-1 text-center font-black text-white text-lg italic">
-                  {settings.notificationRepeatCount || 1} <span className="text-[8px] opacity-40 uppercase ml-1">Times</span>
+                  <button onClick={() => adjustFontSize(1)} className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-orange-600 text-xl border border-white/10 active:scale-90 transition-all">{ICONS.Plus}</button>
                 </div>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-[9px] font-black uppercase text-[var(--text-muted)] ml-2 tracking-widest">App Theme</p>
+                <div className="grid grid-cols-3 gap-2 p-1.5 bg-black/20 rounded-2xl border border-[var(--border)]">
+                  {(['midnight', 'dark', 'light'] as AppTheme[]).map(t => (
+                    <button key={t} onClick={() => setSettings({ ...settings, theme: t })} className={`py-3 rounded-xl text-[10px] font-black uppercase transition-all ${settings.theme === t ? 'bg-orange-600 text-white shadow-lg' : 'text-[var(--text-muted)] hover:bg-white/5'}`}>{t}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+              {(['inter', 'oswald', 'courier', 'roboto', 'serif'] as FontFamily[]).map(style => (
                 <button
-                  onClick={() => setSettings({ ...settings, notificationRepeatCount: Math.min(10, (settings.notificationRepeatCount || 1) + 1) })}
-                  className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-orange-600 active:scale-90 transition-all"
+                  key={style}
+                  onClick={() => setSettings({ ...settings, fontFamily: style })}
+                  className={`p-3 rounded-xl text-[9px] font-black uppercase transition-all flex items-center justify-center gap-2 font-${style} ${settings.fontFamily === style ? 'bg-orange-600 text-white' : 'bg-white/5 text-[var(--text-muted)] hover:bg-white/10'}`}
                 >
-                  {ICONS.Plus}
+                  {style}
                 </button>
-              </div>
-              <p className="text-[7px] font-black text-orange-600/50 uppercase ml-4">How many times the alert sound will play.</p>
-            </div>
-          </div>
-
-          <div className="bg-[var(--bg-card)] p-6 rounded-[32px] border border-[var(--border)] shadow-xl space-y-6">
-            <div className="flex justify-between items-center px-2">
-              <p className="text-[10px] font-black uppercase text-orange-600 tracking-[0.2em]">Delivery Zones</p>
-              <button
-                onClick={handleAddDeliveryZone}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-[8px] font-black uppercase tracking-widest active:scale-95 transition-all flex items-center gap-2"
-              >
-                {ICONS.Plus} Add Zone
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto no-scrollbar p-1">
-                {(settings.deliveryZones || []).map(zone => (
-                  <div
-                    key={zone.id}
-                    className="flex items-center justify-between p-4 rounded-2xl border bg-black/20 border-white/5"
-                  >
-                    <div className="flex-1">
-                      <p className="text-xs font-black uppercase italic text-white">{zone.name}</p>
-                      <p className="text-[9px] font-black text-orange-600 uppercase tracking-widest">Fee: Rs.{zone.fee}</p>
-                    </div>
-                    <button
-                      onClick={() => handleDeleteDeliveryZone(zone.id)}
-                      className="p-2 bg-red-600/10 text-red-500 rounded-lg border border-red-600/20 active:scale-90"
-                    >
-                      {ICONS.Trash2}
-                    </button>
-                  </div>
-                ))}
-                {(settings.deliveryZones || []).length === 0 && (
-                  <p className="text-center py-4 text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest">No delivery zones configured.</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-[var(--bg-card)] p-6 rounded-[32px] border border-[var(--border)] shadow-xl space-y-4">
-            <p className="text-[10px] font-black uppercase text-orange-600 tracking-[0.2em] ml-2">System Theme</p>
-            <div className="grid grid-cols-3 gap-2 p-1.5 bg-black/20 rounded-2xl border border-[var(--border)]">
-              {(['midnight', 'dark', 'light'] as AppTheme[]).map(t => (
-                <button key={t} onClick={() => setSettings({ ...settings, theme: t })} className={`py-3 rounded-xl text-[10px] font-black uppercase transition-all ${settings.theme === t ? 'bg-orange-600 text-white shadow-lg' : 'text-[var(--text-muted)] hover:bg-white/5'}`}>{t}</button>
               ))}
             </div>
           </div>
 
+          {/* 5. Notifications & Delivery */}
+          <div className="bg-[var(--bg-card)] p-6 rounded-[32px] border border-emerald-600/20 shadow-xl space-y-4">
+             <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-emerald-600/10 rounded-xl flex items-center justify-center text-emerald-500">
+                    {ICONS.Bell}
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase text-emerald-500 tracking-[0.2em]">Notifications</p>
+                  </div>
+                </div>
+             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex items-center justify-between p-4 bg-black/30 rounded-2xl border border-white/5">
+                <div className="flex items-center gap-3">
+                  <span className="text-emerald-500">{ICONS.Send}</span>
+                  <div>
+                    <h4 className="text-[10px] font-black text-white uppercase italic">Auto WhatsApp</h4>
+                    <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Send bill automatically</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSettings({ ...settings, isAutoWhatsappEnabled: !settings.isAutoWhatsappEnabled })}
+                  className={`w-12 h-7 rounded-full p-1 transition-all duration-300 ${settings.isAutoWhatsappEnabled ? 'bg-emerald-600' : 'bg-white/10'}`}
+                >
+                  <div className={`w-5 h-5 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${settings.isAutoWhatsappEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+              </div>
+              
+              <div className="flex items-center justify-between p-4 bg-black/30 rounded-2xl border border-white/5">
+                <div className="flex items-center gap-3">
+                  <span className="text-orange-600 font-bold">{ICONS.Mic}</span>
+                  <div>
+                    <h4 className="text-[10px] font-black text-white uppercase italic">Voice Alert</h4>
+                    <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Announce order ready</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSettings({ ...settings, enableVoiceAnnouncement: !settings.enableVoiceAnnouncement })}
+                  className={`w-12 h-7 rounded-full p-1 transition-all duration-300 ${settings.enableVoiceAnnouncement ? 'bg-orange-600' : 'bg-white/10'}`}
+                >
+                  <div className={`w-5 h-5 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${settings.enableVoiceAnnouncement ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-4 border-t border-white/5">
+               <p className="text-[10px] font-black uppercase text-orange-600 tracking-[0.2em] ml-2">Delivery Zones</p>
+               <div className="flex flex-wrap gap-2">
+                  {(settings.deliveryZones || []).map(zone => (
+                    <div key={zone.id} className="flex items-center gap-3 p-3 bg-black/30 rounded-2xl border border-white/5">
+                      <div>
+                        <p className="text-[10px] font-black uppercase text-white italic">{zone.name}</p>
+                        <p className="text-[8px] font-bold text-orange-600">Rs.{zone.fee}</p>
+                      </div>
+                      <button onClick={() => handleDeleteDeliveryZone(zone.id)} className="text-red-500/50 hover:text-red-500">{ICONS.X}</button>
+                    </div>
+                  ))}
+                  <button onClick={handleAddDeliveryZone} className="px-4 py-3 border-2 border-dashed border-white/10 rounded-2xl text-[10px] font-black text-[var(--text-muted)] uppercase hover:border-orange-600/50 transition-all">+ Add Zone</button>
+               </div>
+            </div>
+          </div>
+
+          {/* 6. Maintenance & Data */}
+          <div className="bg-[var(--bg-card)] p-6 rounded-[32px] border border-amber-600/20 shadow-xl space-y-6">
+            <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+              <div className="w-10 h-10 bg-amber-600/10 rounded-xl flex items-center justify-center text-amber-600">
+                {ICONS.Settings}
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase text-amber-600 tracking-[0.2em]">Maintenance</p>
+                <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Backup & System Tools</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <button onClick={onExportData} className="flex flex-col items-center justify-center p-4 bg-emerald-600/10 border border-emerald-600/20 rounded-[28px] group transition-all">
+                <div className="text-emerald-500 mb-2 group-hover:scale-110 transition-transform">{ICONS.Download}</div>
+                <span className="text-[7px] font-black text-emerald-500 uppercase">Backup</span>
+              </button>
+              <button onClick={() => fileInputRef.current?.click()} className="flex flex-col items-center justify-center p-4 bg-blue-600/10 border border-blue-600/20 rounded-[28px] group transition-all">
+                <div className="text-blue-600 mb-2 group-hover:scale-110 transition-transform">{ICONS.Upload}</div>
+                <span className="text-[7px] font-black text-blue-600 uppercase">Restore</span>
+              </button>
+              <button onClick={handleOptimizeMenuImages} className="flex flex-col items-center justify-center p-4 bg-purple-600/10 border border-purple-600/20 rounded-[28px] group transition-all">
+                <div className="text-purple-500 mb-2 group-hover:scale-110 transition-transform">{ICONS.Check}</div>
+                <span className="text-[7px] font-black text-purple-500 uppercase">Optimize</span>
+              </button>
+              <button onClick={() => setShowResetConfirm(true)} className="flex flex-col items-center justify-center p-4 bg-red-600/10 border border-red-600/20 rounded-[28px] group transition-all">
+                <div className="text-red-500 mb-2 group-hover:scale-110 transition-transform">{ICONS.Trash2}</div>
+                <span className="text-[7px] font-black text-red-500 uppercase">Reset</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

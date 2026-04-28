@@ -268,11 +268,13 @@ const HistoryView: React.FC<HistoryProps> = ({
         </div>
       `;
       printSection.style.display = 'block';
-      window.print();
-      printSection.style.display = 'none';
-      
-      // Automatically close the view after printing
-      setSelectedInvoice(null);
+      setTimeout(() => {
+        window.print();
+        printSection.style.display = 'none';
+        
+        // Automatically close the view after printing
+        setSelectedInvoice(null);
+      }, 300);
     } catch (e) {
       console.error("Print failed:", e);
     }

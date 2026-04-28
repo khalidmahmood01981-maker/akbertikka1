@@ -21,7 +21,6 @@ const LiveOrdersView: React.FC<LiveOrdersViewProps> = ({
 }) => {
   const [filterStatus, setFilterStatus] = useState<OrderStatus | 'all'>('all');
   const [showSummary, setShowSummary] = useState(false);
-  const [viewMode, setViewMode] = useState<'active' | 'print'>('active');
 
   const handlePrintOrder = (order: Order) => {
     try {
@@ -88,12 +87,21 @@ const LiveOrdersView: React.FC<LiveOrdersViewProps> = ({
         </div>
       `;
       printSection.style.display = 'block';
-      window.print();
-      printSection.style.display = 'none';
+      
+      // Use setTimeout to ensure DOM is updated and printing is stable
+      setTimeout(() => {
+        window.print();
+        printSection.style.display = 'none';
 
-      // Update printed status
-      onUpdateOrder({ ...order, isPrinted: true });
-      notify("Order Printed", "success");
+        // Update printed status
+        // fulfill user request: "jab print ho jay kitchen mein to es ka matlab ahi ka order kitchen ny receve ker lay hai"
+        if (order.status === 'received') {
+          onUpdateStatus(order, 'preparing');
+        } else {
+          onUpdateOrder({ ...order, isPrinted: true });
+        }
+        notify("Order Printed", "success");
+      }, 300);
     } catch (e) {
       notify("Printing Error: " + (e as Error).message, "error");
     }
@@ -180,48 +188,41 @@ const LiveOrdersView: React.FC<LiveOrdersViewProps> = ({
   return (
     <div className="space-y-4 pb-20">
       {/* Kitchen Header & Stats */}
-      <div className="bg-[var(--bg-card)] p-8 rounded-[48px] border border-white/5 shadow-2xl space-y-6">
+      <div className="bg-[var(--bg-card)] p-4 sm:p-8 rounded-[32px] sm:rounded-[48px] border border-white/5 shadow-2xl space-y-4 sm:space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className={`p-4 rounded-2xl shadow-lg ${isKitchen ? 'bg-orange-600 text-white shadow-orange-600/20' : 'bg-blue-600 text-white shadow-blue-600/20'}`}>
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl shadow-lg ${isKitchen ? 'bg-orange-600 text-white shadow-orange-600/20' : 'bg-blue-600 text-white shadow-blue-600/20'}`}>
               {isKitchen ? ICONS.ChefHat : ICONS.History}
             </div>
             <div>
-              <h2 className="text-3xl font-black uppercase italic tracking-tighter text-white leading-none">
+              <h2 className="text-xl sm:text-3xl font-black uppercase italic tracking-tighter text-white leading-none">
                 {isKitchen ? 'Kitchen' : 'Order'} <span className={isKitchen ? 'text-orange-600' : 'text-blue-600'}>Monitor</span>
               </h2>
-              <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest mt-1">
+              <p className="text-[7px] sm:text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest mt-1">
                 {isKitchen ? 'Real-time production dashboard' : 'Track your active orders'}
               </p>
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
             {isKitchen && (
-              <button 
-                onClick={() => setShowSummary(!showSummary)}
-                className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all active:scale-95 ${
-                  showSummary ? 'bg-orange-600 text-white border-orange-600 shadow-lg' : 'bg-white/5 text-orange-600 border-orange-600/20 hover:bg-white/10'
-                }`}
-              >
-                {ICONS.Settings}
-                {showSummary ? 'Hide Summary' : 'Show Summary'}
-              </button>
+              <div className="flex gap-2">
+
+                <button 
+                  onClick={() => setShowSummary(!showSummary)}
+                  className={`flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl text-[8px] sm:text-[10px] font-black uppercase tracking-widest border transition-all active:scale-95 whitespace-nowrap ${
+                    showSummary ? 'bg-orange-600 text-white border-orange-600 shadow-lg' : 'bg-white/5 text-orange-600 border-orange-600/20 hover:bg-white/10'
+                  }`}
+                >
+                  {ICONS.Settings}
+                  <span className="hidden xs:inline">{showSummary ? 'Hide Summary' : 'Show Summary'}</span>
+                  <span className="xs:hidden">{showSummary ? 'Hide' : 'Summary'}</span>
+                </button>
+              </div>
             )}
-            {isKitchen && (
-              <button 
-                onClick={() => setViewMode(viewMode === 'active' ? 'print' : 'active')}
-                className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all active:scale-95 ${
-                  viewMode === 'print' ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg' : 'bg-white/5 text-emerald-600 border-emerald-600/20 hover:bg-white/10'
-                }`}
-              >
-                {ICONS.Inventory}
-                {viewMode === 'print' ? 'View Orders' : 'Print List'}
-              </button>
-            )}
-            <div className="bg-black/40 px-5 py-2.5 rounded-2xl border border-white/5 text-center min-w-[80px]">
-              <p className="text-[8px] font-black text-[var(--text-muted)] uppercase tracking-widest">Active</p>
-              <p className="text-lg font-black text-white">{activeOrders.length}</p>
+            <div className="bg-black/40 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl border border-white/5 text-center min-w-[60px] sm:min-w-[80px]">
+              <p className="text-[6px] sm:text-[8px] font-black text-[var(--text-muted)] uppercase tracking-widest">Active</p>
+              <p className="text-sm sm:text-lg font-black text-white">{activeOrders.length}</p>
             </div>
           </div>
         </div>
@@ -270,8 +271,7 @@ const LiveOrdersView: React.FC<LiveOrdersViewProps> = ({
         )}
       </div>
 
-      {viewMode === 'active' && (
-        <>
+
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide px-1">
             {(['all', 'received', 'preparing', 'ready'] as const).map(s => (
               <button
@@ -288,7 +288,7 @@ const LiveOrdersView: React.FC<LiveOrdersViewProps> = ({
             ))}
           </div>
 
-          <div className={`grid gap-4 px-1 ${isKitchen ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
+          <div className={`grid gap-3 sm:gap-4 px-1 ${isKitchen ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
             <AnimatePresence mode="popLayout">
               {activeOrders.map(order => {
                 const timeDiff = Date.now() - order.timestamp;
@@ -301,7 +301,7 @@ const LiveOrdersView: React.FC<LiveOrdersViewProps> = ({
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 key={order.id}
-                className={`bg-[var(--bg-card)] rounded-[32px] border p-5 space-y-4 shadow-2xl relative overflow-hidden flex flex-col h-full transition-all duration-500 ${
+                className={`bg-[var(--bg-card)] rounded-[24px] sm:rounded-[32px] border p-4 sm:p-5 space-y-3 sm:space-y-4 shadow-2xl relative overflow-hidden flex flex-col h-full transition-all duration-500 ${
                   isUrgent ? 'border-red-600/50 ring-2 ring-red-600/20 bg-red-600/5' : 'border-[var(--border)]'
                 } ${
                   order.status === 'received' ? 'ring-2 ring-blue-500 ring-offset-4 ring-offset-black' : ''
@@ -320,46 +320,41 @@ const LiveOrdersView: React.FC<LiveOrdersViewProps> = ({
 
                 {/* Status Header */}
                 <div className="flex justify-between items-start pt-1">
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-2xl font-black text-orange-600 uppercase tracking-widest bg-orange-600/10 px-3 py-1 rounded-lg border border-orange-600/20">#{order.orderNumber || '??'}</span>
-                      <span className={`px-2.5 py-1 rounded-xl text-[9px] font-black text-white uppercase tracking-widest shadow-lg ${getStatusColor(order.status!)}`}>
+                  <div className="space-y-1.5 flex-1 mr-2">
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                      <span className="text-base sm:text-2xl font-black text-orange-600 uppercase tracking-widest bg-orange-600/10 px-2 sm:px-3 py-0.5 sm:py-1 rounded-lg border border-orange-600/20">#{order.orderNumber || '??'}</span>
+                      <span className={`px-2 py-0.5 rounded-lg text-[7px] sm:text-[9px] font-black text-white uppercase tracking-widest shadow-lg ${getStatusColor(order.status!)}`}>
                         {getStatusLabel(order.status!)}
                       </span>
                       {order.tableNumber ? (
-                        <span className="bg-orange-600/10 text-orange-600 px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest border border-orange-600/20">
-                          Table {order.tableNumber}
+                        <span className="bg-orange-600/10 text-orange-600 px-2 py-0.5 rounded-lg text-[7px] sm:text-[9px] font-black uppercase tracking-widest border border-orange-600/20">
+                          T-{order.tableNumber}
                         </span>
                       ) : (
-                        <span className="bg-blue-600/10 text-blue-600 px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest border border-blue-600/20">
+                        <span className="bg-blue-600/10 text-blue-600 px-2 py-0.5 rounded-lg text-[7px] sm:text-[9px] font-black uppercase tracking-widest border border-blue-600/20">
                           Takeaway
                         </span>
                       )}
-                      {order.isPrinted && (
-                        <span className="bg-emerald-600 text-white px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-1 shadow-lg shadow-emerald-600/20">
-                          {ICONS.CheckCircle} PRINTED
-                        </span>
-                      )}
                     </div>
-                    <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter leading-none">
+                    <h3 className="text-lg sm:text-2xl font-black text-white uppercase italic tracking-tighter leading-tight mt-1">
                       {order.customerName}
                     </h3>
                   </div>
-                  <div className="text-right">
-                    <p className="text-[10px] font-black text-[var(--text-muted)] uppercase">
+                  <div className="text-right shrink-0">
+                    <p className="text-[8px] sm:text-[10px] font-black text-[var(--text-muted)] uppercase">
                       {new Date(order.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
                     <TimeElapsed 
                       timestamp={order.timestamp} 
                       statusTimestamps={order.statusTimestamps}
                       currentStatus={order.status}
-                      className={`text-[10px] font-black uppercase block mt-1 ${isUrgent ? 'text-red-500 animate-pulse' : 'text-orange-600'}`}
+                      className={`text-[8px] sm:text-[10px] font-black uppercase block mt-1 ${isUrgent ? 'text-red-500 animate-pulse' : 'text-orange-600'}`}
                     />
                   </div>
                 </div>
 
                 {/* Items List / Kitchen Tickets */}
-                <div className="flex-1 space-y-3 bg-black/40 p-5 rounded-[28px] border border-white/5 shadow-inner overflow-y-auto">
+                <div className="flex-1 space-y-3 bg-black/40 p-3 sm:p-5 rounded-[28px] border border-white/5 shadow-inner overflow-y-auto">
                   {order.kitchenTickets && order.kitchenTickets.length > 0 ? (
                     <div className="space-y-4">
                       {order.kitchenTickets.slice(-1).map(ticket => (
@@ -376,7 +371,7 @@ const LiveOrdersView: React.FC<LiveOrdersViewProps> = ({
                                   <span className="w-9 h-9 bg-orange-600 text-white rounded-2xl flex items-center justify-center text-base font-black shadow-xl ring-4 ring-orange-600/10">
                                     {item.quantity > 0 && order.kitchenTickets!.length > 1 ? `+${item.quantity}` : item.quantity}
                                   </span>
-                                  <span className="text-lg font-black text-white/90 uppercase tracking-tight italic leading-tight">{item.name}</span>
+                                  <span className="text-sm sm:text-lg font-black text-white/90 uppercase tracking-tight italic leading-tight">{item.name}</span>
                                 </div>
                               </div>
                             ))}
@@ -392,7 +387,7 @@ const LiveOrdersView: React.FC<LiveOrdersViewProps> = ({
                             <span className="w-9 h-9 bg-orange-600 text-white rounded-2xl flex items-center justify-center text-base font-black shadow-xl ring-4 ring-orange-600/10">
                               {item.quantity}
                             </span>
-                            <span className="text-lg font-black text-white/90 uppercase tracking-tight italic leading-tight">{item.name}</span>
+                             <span className="text-sm sm:text-lg font-black text-white/90 uppercase tracking-tight italic leading-tight">{item.name}</span>
                           </div>
                         </div>
                       ))}
@@ -412,114 +407,57 @@ const LiveOrdersView: React.FC<LiveOrdersViewProps> = ({
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-2 pt-2">
-                  {isAdmin && (
-                    <>
-                      <button 
-                        onClick={() => triggerConfirm({
-                          title: "Cancel Order?",
-                          message: "Kya aap waqai is order ko cancel karna chahte hain?",
-                          onConfirm: () => onUpdateStatus(order, 'cancelled')
-                        })}
-                        className="p-4 bg-red-600/10 text-red-500 rounded-2xl active:scale-95 transition-all hover:bg-red-600/20"
-                        title="Cancel Order"
-                      >
-                        {ICONS.Trash2}
-                      </button>
-                      
-                      <button 
-                        onClick={() => onEditOrder(order)}
-                        className="p-4 bg-blue-600/10 text-blue-500 rounded-2xl active:scale-95 transition-all hover:bg-blue-600/20"
-                        title="Edit Order"
-                      >
-                        {ICONS.Settings}
-                      </button>
-                    </>
+                <div className="flex gap-2 pt-1">
+                  {(isAdmin || isKitchen) && (
+                    <button 
+                      onClick={() => triggerConfirm({
+                        title: "Cancel Order?",
+                        message: "Kya aap waqai is order ko cancel karna chahte hain?",
+                        onConfirm: () => onUpdateStatus(order, 'cancelled')
+                      })}
+                      className="p-3 sm:p-4 bg-red-600/10 text-red-500 rounded-xl sm:rounded-2xl active:scale-95 transition-all hover:bg-red-600/20"
+                      title="Cancel Order"
+                    >
+                      {ICONS.Trash2}
+                    </button>
                   )}
 
                   {order.status === 'received' && (
                     <button 
-                      onClick={() => onUpdateStatus(order, 'preparing')}
-                      className="flex-1 py-5 bg-indigo-600 text-white rounded-2xl font-black uppercase text-[12px] tracking-widest active:scale-95 transition-all shadow-xl shadow-indigo-600/20 flex items-center justify-center gap-3"
+                      onClick={() => {
+                        onUpdateStatus(order, 'preparing');
+                        if (settings.isAutoPrintKitchenEnabled) {
+                          handlePrintOrder(order);
+                        }
+                      }}
+                      className="flex-1 py-3 sm:py-5 bg-indigo-600 text-white rounded-xl sm:rounded-2xl font-black uppercase text-[10px] sm:text-[12px] tracking-widest active:scale-95 transition-all shadow-xl shadow-indigo-600/20 flex items-center justify-center gap-2"
                     >
                       {ICONS.CheckCircle}
-                      Receive Order
+                      <span>Receive</span>
                     </button>
                   )}
                   {order.status === 'preparing' && (
                     <button 
                       onClick={() => onUpdateStatus(order, 'ready')}
-                      className="flex-1 py-5 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[12px] tracking-widest active:scale-95 transition-all shadow-xl shadow-emerald-600/20 flex items-center justify-center gap-3"
+                      className="flex-1 py-4 sm:py-5 bg-emerald-600 text-white rounded-xl sm:rounded-2xl font-black uppercase text-[10px] sm:text-[12px] tracking-widest active:scale-95 transition-all shadow-xl shadow-emerald-600/20 flex items-center justify-center gap-2"
                     >
                       {ICONS.Utensils}
-                      Mark Ready
+                      <span>Ready</span>
                     </button>
                   )}
                   {order.status === 'ready' && (
-                    <div className="flex-1 py-5 bg-emerald-600/20 text-emerald-500 rounded-2xl font-black uppercase text-[12px] tracking-widest flex items-center justify-center gap-3 border-2 border-emerald-500/30 shadow-lg shadow-emerald-500/10 animate-pulse">
-                      <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.8)]" />
-                      ORDER READY
+                    <div className="flex-1 py-4 sm:py-5 bg-emerald-600/20 text-emerald-500 rounded-xl sm:rounded-2xl font-black uppercase text-[10px] sm:text-[12px] tracking-widest flex items-center justify-center gap-2 border-2 border-emerald-500/30 shadow-lg shadow-emerald-500/10 animate-pulse">
+                      <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.8)]" />
+                      <span>DONE</span>
                     </div>
                   )}
-                  {isKitchen && (
-                    <button 
-                      onClick={() => handlePrintOrder(order)}
-                      className="p-4 bg-emerald-600/10 text-emerald-600 rounded-2xl active:scale-95 transition-all hover:bg-emerald-600/20"
-                      title="Print Order"
-                    >
-                      {ICONS.Inventory}
-                    </button>
-                  )}
+
                 </div>
               </motion.div>
             );
           })}
         </AnimatePresence>
       </div>
-      </>
-      )}
-
-      {viewMode === 'print' && (
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="space-y-4"
-        >
-          <div className="bg-[var(--bg-card)] p-6 rounded-[32px] border border-emerald-600/20">
-            <h3 className="text-xl font-black uppercase italic tracking-tighter text-emerald-600">Print <span className="text-white">Queue</span></h3>
-            <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest mt-1">Pending kitchen prints</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {activeOrders.map(order => (
-              <div key={order.id} className={`bg-[var(--bg-card)] p-6 rounded-[32px] border transition-all flex justify-between items-center shadow-xl ${order.isPrinted ? 'border-emerald-600/50 bg-emerald-600/5 opacity-80' : 'border-white/5 border-l-4 border-l-emerald-600'}`}>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-lg font-black text-white italic tracking-tighter uppercase leading-none truncate max-w-[120px]">{order.customerName}</span>
-                    <span className="text-xs font-black text-emerald-500">#{order.orderNumber}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Table: {order.tableNumber || 'Takeaway'}</p>
-                    {order.isPrinted && <span className="text-[9px] font-black text-emerald-500 uppercase flex items-center gap-1">{ICONS.CheckCircle} PRINTED</span>}
-                  </div>
-                </div>
-
-                <button 
-                  onClick={() => handlePrintOrder(order)}
-                  className={`flex items-center gap-2 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-xl ${
-                    order.isPrinted 
-                      ? 'bg-white/5 text-emerald-600 border border-emerald-600/20' 
-                      : 'bg-emerald-600 text-white shadow-emerald-600/20'
-                  }`}
-                >
-                  {ICONS.Inventory}
-                  {order.isPrinted ? 'Print Again' : 'Print Token'}
-                </button>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-      )}
     </div>
   );
 };

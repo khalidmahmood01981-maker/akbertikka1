@@ -471,14 +471,16 @@ const POS: React.FC<POSProps> = ({
         </div>
       `;
       printSection.style.display = 'block';
-      window.print();
-      printSection.style.display = 'none';
+      setTimeout(() => {
+        window.print();
+        printSection.style.display = 'none';
 
-      if (autoReset) {
-        resetForNextBill();
-      } else {
-        notify("Printing Bill...", "success");
-      }
+        if (autoReset) {
+          resetForNextBill();
+        } else {
+          notify("Printing Bill...", "success");
+        }
+      }, 300);
     } catch (e) {
       notify("Printing Error: " + (e as Error).message, "error");
     }
@@ -568,9 +570,11 @@ const POS: React.FC<POSProps> = ({
         </div>
       `;
       printSection.style.display = 'block';
-      window.print();
-      printSection.style.display = 'none';
-      notify("Kitchen Ticket Sent to Printer!", "success");
+      setTimeout(() => {
+        window.print();
+        printSection.style.display = 'none';
+        notify("Kitchen Ticket Sent to Printer!", "success");
+      }, 300);
     } catch (e) {
       notify("Kitchen Print Error: " + (e as Error).message, "error");
     }
