@@ -117,7 +117,11 @@ const App: React.FC = () => {
       { id: 'p5', name: 'GAS BILL', category: 'Utilities', unit: 'rs' },
     ],
     isAutoWhatsappEnabled: true,
-    enableVoiceAnnouncement: true
+    enableVoiceAnnouncement: true,
+    isAutoPrintKitchenEnabled: true,
+    isAutoPrintBillEnabled: false,
+    enableKitchenPrinting: true,
+    enableBillPrinting: true,
   });
 
   const [activeTab, setActiveTab] = useState<TabType>(() => {
