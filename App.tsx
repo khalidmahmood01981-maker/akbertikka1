@@ -152,6 +152,13 @@ const App: React.FC = () => {
   const [pendingCount, setPendingCount] = useState(0);
   const [qrTableNumber, setQrTableNumber] = useState('');
   const [isPrinterDevice, setIsPrinterDevice] = useState(() => localStorage.getItem('is_printer_device') === 'true');
+  const settingsRef = useRef(settings);
+  const isPrinterDeviceRef = useRef(isPrinterDevice);
+  const ordersRef = useRef(orders);
+
+  useEffect(() => { settingsRef.current = settings; }, [settings]);
+  useEffect(() => { isPrinterDeviceRef.current = isPrinterDevice; }, [isPrinterDevice]);
+  useEffect(() => { ordersRef.current = orders; }, [orders]);
   const lastPrintedOrderIdRef = useRef<string | null>(null);
 
 
@@ -388,8 +395,10 @@ const App: React.FC = () => {
         </div>
       `;
       printSection.style.display = 'block';
-      window.print();
-      printSection.style.display = 'none';
+      setTimeout(() => {
+        window.print();
+        printSection.style.display = 'none';
+      }, 300);
     } catch (e) {
       console.error("Auto-print failed:", e);
     }
@@ -478,6 +487,14 @@ const App: React.FC = () => {
             } else if (!settings.masterIP) {
               // Client device detected master, save it locally for future direct access
               setSettings(prev => ({ ...prev, masterIP: info.localIP }));
+            }
+
+            // Auto-set Printer Mode for the Master PC
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+              if (localStorage.getItem('is_printer_device') !== 'true') {
+                localStorage.setItem('is_printer_device', 'true');
+                setIsPrinterDevice(true);
+              }
             }
 
             // Prime the local server with our items if it's empty or we have data
@@ -669,7 +686,11 @@ const App: React.FC = () => {
     api.onSync('order_sync', (newOrder: Order) => {
       console.log("Local Order Received (Sync):", newOrder);
       
-      const isNewOrder = !orders.find(o => o.id === newOrder.id);
+      const currentOrders = ordersRef.current;
+      const currentSettings = settingsRef.current;
+      const currentIsPrinter = isPrinterDeviceRef.current;
+
+      const isNewOrder = !currentOrders.find(o => o.id === newOrder.id);
       
       setOrders(prev => {
         const exists = prev.find(o => o.id === newOrder.id);
@@ -687,7 +708,8 @@ const App: React.FC = () => {
       playNotification(newOrder.customerName, newOrder.orderNumber, newOrder.status);
       
       // 2. Auto-Print for new orders (on Kitchen PC)
-      if (isNewOrder && isPrinterDevice && settings.isAutoPrintKitchenEnabled && newOrder.id !== lastPrintedOrderIdRef.current) {
+      if (isNewOrder && currentIsPrinter && currentSettings.isAutoPrintKitchenEnabled && newOrder.id !== lastPrintedOrderIdRef.current) {
+        console.log("AUTO-PRINT TRIGGERED for order:", newOrder.orderNumber);
         handlePrintKitchen(newOrder);
         lastPrintedOrderIdRef.current = newOrder.id;
       }
@@ -1310,6 +1332,13 @@ const WELCOME_MESSAGES = [
                 >
                   {ICONS.Refresh || '🔄'}
                 </button>
+
+                {isPrinterDevice && (
+                  <div className={`p-2 rounded-lg border flex items-center gap-1.5 ${settings.isAutoPrintKitchenEnabled ? 'bg-emerald-600/10 border-emerald-600 text-emerald-500' : 'bg-white/5 border-white/10 text-gray-400'}`} title={settings.isAutoPrintKitchenEnabled ? "Silent Auto-Print Active" : "Auto-Print Disabled"}>
+                    {ICONS.Printer}
+                    <span className="text-[7px] font-black uppercase">Kitchen</span>
+                  </div>
+                )}
                 <div
                   className={`flex items-center gap-2 ${activeStaff?.role === 'taker' ? 'cursor-pointer active:scale-95 transition-all' : ''}`}
 
