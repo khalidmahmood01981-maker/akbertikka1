@@ -369,9 +369,9 @@ const HistoryView: React.FC<HistoryProps> = ({
               className="w-full bg-black/40 text-white p-3 rounded-xl border border-white/10 outline-none font-black uppercase text-[10px] tracking-widest focus:border-orange-600 transition-colors"
             >
               <option value="all">ALL STAFF HISTORY</option>
-              {settings.staffMembers?.filter(m => m.role === 'taker').map(member => (
+              {settings.staffMembers?.map(member => (
                 <option key={member.id} value={member.id}>
-                  {member.name.toUpperCase()} ONLY
+                  {member.name.toUpperCase()} ({member.role.toUpperCase()})
                 </option>
               ))}
             </select>
@@ -438,8 +438,9 @@ const HistoryView: React.FC<HistoryProps> = ({
                     <p className="text-[9px] font-black text-[var(--text-muted)] uppercase">{new Date(order.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
                     <div className="flex flex-col items-end gap-0.5 mt-0.5">
                       {order.tableNumber && <p className="text-[8px] font-black text-emerald-500 uppercase">Table: {order.tableNumber}</p>}
-                      {order.orderTakerName && <p className="text-[7px] font-black text-blue-500 uppercase">TAKER: {order.orderTakerName}</p>}
-                      {order.cashierName && <p className="text-[7px] font-black text-emerald-600 uppercase">CASHIER: {order.cashierName}</p>}
+                      {order.orderTakerName && <p className="text-[7px] font-black text-blue-500 uppercase">WAITER: {order.orderTakerName}</p>}
+                      {order.cashierName && <p className="text-[7px] font-black text-purple-500 uppercase">CASHIER: {order.cashierName}</p>}
+                      {order.discount > 0 && <p className="text-[7px] font-black text-orange-500 uppercase font-italic">DISCOUNT: -Rs.{order.discount}</p>}
                     </div>
                     <p className="text-2xl font-black text-orange-600 uppercase tracking-widest bg-orange-600/10 px-3 py-1 rounded-lg border border-orange-600/20 mt-1">NO: #{order.orderNumber || '??'}</p>
                     <p className="text-[7px] font-black text-orange-600 uppercase mt-0.5">ID: {order.id.slice(-4)}</p>
