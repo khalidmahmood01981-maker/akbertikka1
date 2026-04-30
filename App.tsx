@@ -1902,6 +1902,7 @@ const WELCOME_MESSAGES = [
                       notify={notify}
                       triggerConfirm={triggerConfirm}
                       isTotalsUnlocked={isTotalsUnlocked}
+                      staffMembers={staffMembers}
                     />
                   )}
                   {activeTab === 'orders' && (
