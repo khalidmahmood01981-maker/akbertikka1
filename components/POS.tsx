@@ -729,14 +729,6 @@ const POS: React.FC<POSProps> = ({
                 <p className="text-white text-2xl font-black italic tracking-tighter">Rs.{finalTotal.toFixed(0)}</p>
               </div>
             </button>
-
-            <button
-              onClick={() => handleCheckout('kitchen')}
-              className="bg-indigo-600 p-6 rounded-[32px] shadow-2xl flex items-center justify-center active:scale-[0.98] transition-all hover:bg-indigo-700 border-b-4 border-indigo-800 aspect-square"
-              title="Quick Send to Kitchen"
-            >
-              <div className="scale-125 text-white">{ICONS.Utensils}</div>
-            </button>
           </motion.div>
         )}
       </AnimatePresence>
