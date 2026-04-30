@@ -598,13 +598,13 @@ const POS: React.FC<POSProps> = ({
               <div className="aspect-square bg-gray-900/50 relative overflow-hidden rounded-t-[18px] flex items-center justify-center">
                 <picture>
                   <source srcSet={`${item.image.replace(/\.(jpg|png)$/i, '.webp')}`} type="image/webp" />
-                  <img src={item.image} alt={item.name} loading="lazy" className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 p-0.5" />
+                  <img src={item.image} alt={item.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 </picture>
                 <div className="absolute bottom-1 right-1 bg-black/70 backdrop-blur-md text-white px-2 py-1 rounded-lg text-[9px] font-black border border-white/5">
                   {item.unit === 'rs' ? 'Any' : `Rs.${item.price}`}
                 </div>
               </div>
-              <div className="p-1 text-center">
+              <div className="p-0 text-center">
                 <h3 className="text-[9px] sm:text-lg md:text-xl font-black uppercase text-[var(--text-main)] leading-none italic tracking-tight truncate px-1 py-1">{item.name}</h3>
               </div>
             </motion.div>
