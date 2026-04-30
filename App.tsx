@@ -752,6 +752,29 @@ const App: React.FC = () => {
       } catch (err) {
         console.error("Failed to fetch items from local/master server", err);
       }
+
+      // Fetch Orders from Local API
+      try {
+        const fetchOrdersURL = settings.masterIP && window.location.hostname !== settings.masterIP 
+          ? `http://${settings.masterIP}:3000/api/orders` 
+          : '/api/orders';
+
+        const resOrders = await fetch(fetchOrdersURL);
+        if (resOrders.ok) {
+          const ordersData = await resOrders.json();
+          if (ordersData && ordersData.length > 0) {
+            setOrders(prev => {
+              if (prev.length === 0) {
+                 console.log("Loaded Orders from Local Server:", ordersData.length);
+                 return ordersData.sort((a: Order, b: Order) => b.timestamp - a.timestamp);
+              }
+              return prev;
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch orders from local/master server", err);
+      }
     };
     initLocalSync();
 
@@ -829,12 +852,12 @@ const App: React.FC = () => {
       }
     };
 
-    // Orders Sync - Includes metadata to detect unsynced local changes
-    const unsubOrders = onSnapshot(collections.orders, { includeMetadataChanges: true }, (snapshot) => {
-      handleMetadata(snapshot);
-      const cloudOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
-      setOrders(cloudOrders.sort((a, b) => b.timestamp - a.timestamp));
-    });
+    // Orders Sync - Removed Firestore listener to keep history strictly local
+    // const unsubOrders = onSnapshot(collections.orders, { includeMetadataChanges: true }, (snapshot) => {
+    //   handleMetadata(snapshot);
+    //   const cloudOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+    //   setOrders(cloudOrders.sort((a, b) => b.timestamp - a.timestamp));
+    // });
 
     // Customer sync
     const unsubCustomers = onSnapshot(collections.customers, (snapshot) => {
@@ -875,7 +898,7 @@ const App: React.FC = () => {
     });
 
     return () => {
-      unsubOrders();
+      // unsubOrders(); // Removed
       unsubCustomers();
       unsubItems();
       unsubSettings();
@@ -1038,10 +1061,10 @@ const App: React.FC = () => {
         console.log("Local server sync pending (will retry)");
       });
 
-      // 2. CLOUD SYNC SECOND (Fires and forgets if offline)
-      setDoc(doc(db, "orders", enrichedOrder.id), safeSanitize(enrichedOrder)).catch(() => {
-        console.log("Cloud sync pending (Offline mode)");
-      });
+      // 2. CLOUD SYNC (Removed as per user request to keep history local)
+      // setDoc(doc(db, "orders", enrichedOrder.id), safeSanitize(enrichedOrder)).catch(() => {
+      //   console.log("Cloud sync pending (Offline mode)");
+      // });
 
       // 3. Update Local State Immediately (for speed & offline)
       setOrders(prev => {
@@ -1094,10 +1117,10 @@ const App: React.FC = () => {
       offlineDB.deletePendingSyncItem(uo.id);
     }).catch(() => {});
 
-    // 2. CLOUD SYNC
-    setDoc(doc(db, "orders", uo.id), safeSanitize(uo)).catch(() => {
-      console.log("Cloud sync pending (Update)");
-    });
+    // 2. CLOUD SYNC (Removed to keep history local)
+    // setDoc(doc(db, "orders", uo.id), safeSanitize(uo)).catch(() => {
+    //   console.log("Cloud sync pending (Update)");
+    // });
 
     // 3. Update Local State Immediately
     setOrders(prev => prev.map(o => o.id === uo.id ? uo : o));
@@ -1863,7 +1886,7 @@ const WELCOME_MESSAGES = [
                         onConfirm: async () => {
                           setOrders(prev => prev.filter(o => o.id !== id));
                           api.deleteOrder(id).catch(() => {});
-                          await deleteDoc(doc(db, "orders", id));
+                          // await deleteDoc(doc(db, "orders", id)); // Disabled cloud delete
                           notify("Order Deleted", "error");
                         }
                       })}
@@ -1885,9 +1908,15 @@ const WELCOME_MESSAGES = [
                         onConfirm: async () => {
                           setIsSyncing(true);
                           try {
-                            const orderSnap = await getDocs(collections.orders);
-                            for (const d of orderSnap.docs) {
-                              await deleteDoc(doc(db, "orders", d.id));
+                            // Cloud delete disabled
+                            // const orderSnap = await getDocs(collections.orders);
+                            // for (const d of orderSnap.docs) {
+                            //   await deleteDoc(doc(db, "orders", d.id));
+                            // }
+                            
+                            // Delete from local server API (Need to implement bulk delete or loop)
+                            for (const o of orders) {
+                              api.deleteOrder(o.id).catch(() => {});
                             }
                             setOrders([]);
                             notify("History Cleared", "success");
