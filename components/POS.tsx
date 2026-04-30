@@ -714,7 +714,7 @@ const POS: React.FC<POSProps> = ({
                 setCustomerWhatsApp('');
                 setCustomerName('');
               }}
-              className="flex-1 bg-orange-600 p-6 rounded-[32px] shadow-2xl flex items-center justify-between active:scale-[0.98] transition-all hover:bg-orange-700 border-b-4 border-orange-800"
+              className="flex-1 bg-orange-600 p-3.5 sm:p-6 rounded-[28px] sm:rounded-[32px] shadow-2xl flex items-center justify-between active:scale-[0.98] transition-all hover:bg-orange-700 border-b-4 border-orange-800"
             >
               <div className="flex items-center gap-3">
                 <div className="bg-white/20 p-3 rounded-xl text-white">
