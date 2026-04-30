@@ -370,6 +370,9 @@ const App: React.FC = () => {
     if (orders.length > prevOrdersRef.current.length) {
       const newOrder = orders[0];
       if (newOrder && (newOrder.status === 'received' || newOrder.status === 'pending_customer')) {
+        // Only auto-print if the order is fresh (within last 60 seconds) to avoid double printing on refresh
+        const isFresh = (Date.now() - newOrder.timestamp) < 60000;
+        if (!isFresh) return;
         // Notification logic
         const isMyOrder = !activeStaff || activeStaff.role === 'kitchen' || isAdmin || (activeStaff.id === newOrder.orderTakerId);
         if (isMyOrder) {
@@ -576,8 +579,8 @@ const App: React.FC = () => {
                    <b>CUSTOMER:</b> ${order.customerName.toUpperCase()}
                 </div>
                 ${order.kitchenNotes ? `
-                  <div style="margin-top: 10px; font-size: 18px; background: #000; color: #fff; padding: 10px; border-radius: 8px; text-align: center; border: 2px solid #000; line-height: 1.2;">
-                    <div style="font-size: 10px; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 2px;">!!! INSTRUCTION !!!</div>
+                  <div style="margin-top: 10px; font-size: 18px; background: #fff; color: #000; padding: 10px; border-radius: 8px; text-align: center; border: 3px solid #000; line-height: 1.2;">
+                    <div style="font-size: 10px; margin-bottom: 4px; border-bottom: 2px solid #000; padding-bottom: 2px; font-weight: 900;">!!! INSTRUCTION !!!</div>
                     ${order.kitchenNotes.toUpperCase()}
                   </div>
                 ` : ''}
