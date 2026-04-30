@@ -18,7 +18,6 @@ interface HistoryProps {
   notify: (message: string, type?: 'success' | 'error' | 'info') => void;
   triggerConfirm: (config: { title: string; message: string; onConfirm: () => void; type?: 'danger' | 'info' }) => void;
   isTotalsUnlocked?: boolean;
-  staffMembers?: StaffMember[];
 }
 
 const HistoryView: React.FC<HistoryProps> = ({ 
@@ -35,8 +34,7 @@ const HistoryView: React.FC<HistoryProps> = ({
   isAdmin,
   notify,
   triggerConfirm,
-  isTotalsUnlocked = false,
-  staffMembers = []
+  isTotalsUnlocked = false
 }) => {
   const [tab, setTab] = useState<'sales' | 'purchases' | 'items'>('sales');
   
@@ -80,12 +78,30 @@ const HistoryView: React.FC<HistoryProps> = ({
     return orders.filter(order => {
       const orderDateStr = getBusinessDate(order.timestamp, settings.businessDayStartTime); 
       const dateMatch = orderDateStr === focusDate;
-      const takerMatch = activeStaff 
-        ? order.orderTakerId === activeStaff.id 
-        : (selectedOrderTaker === 'all' || order.orderTakerId === selectedOrderTaker);
+
+      let takerMatch = true;
+      if (activeStaff) {
+        // Logged-in staff: taker/kitchen sees own orders, cashier sees orders they processed
+        if (activeStaff.role === 'cashier') {
+          takerMatch = (order.cashierName || '').toUpperCase() === activeStaff.name.toUpperCase();
+        } else {
+          takerMatch = order.orderTakerId === activeStaff.id;
+        }
+      } else if (selectedOrderTaker !== 'all') {
+        // Admin filtering: find the selected staff member
+        const selectedMember = settings.staffMembers?.find(m => m.id === selectedOrderTaker);
+        if (selectedMember) {
+          if (selectedMember.role === 'cashier') {
+            takerMatch = (order.cashierName || '').toUpperCase() === selectedMember.name.toUpperCase();
+          } else {
+            takerMatch = order.orderTakerId === selectedOrderTaker;
+          }
+        }
+      }
+
       return dateMatch && takerMatch;
     }).sort((a, b) => b.timestamp - a.timestamp);
-  }, [orders, focusDate, selectedOrderTaker, activeStaff, settings.businessDayStartTime]);
+  }, [orders, focusDate, selectedOrderTaker, activeStaff, settings.businessDayStartTime, settings.staffMembers]);
 
   const filteredPurchases = useMemo(() => {
     return purchases.filter(purchase => {
@@ -371,7 +387,7 @@ const HistoryView: React.FC<HistoryProps> = ({
               className="w-full bg-black/40 text-white p-3 rounded-xl border border-white/10 outline-none font-black uppercase text-[10px] tracking-widest focus:border-orange-600 transition-colors"
             >
               <option value="all">ALL STAFF HISTORY</option>
-              {staffMembers?.map(member => (
+              {settings.staffMembers?.map(member => (
                 <option key={member.id} value={member.id}>
                   {member.name.toUpperCase()} ({member.role.toUpperCase()})
                 </option>
