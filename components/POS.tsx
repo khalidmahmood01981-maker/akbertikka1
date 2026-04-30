@@ -595,10 +595,10 @@ const POS: React.FC<POSProps> = ({
                   {item.unit === 'rs' ? `Rs.${totalQtyInCart}` : totalQtyInCart}
                 </div>
               )}
-              <div className="h-20 sm:h-48 md:h-56 lg:h-64 bg-gray-800 relative overflow-hidden rounded-t-[18px]">
+              <div className="aspect-square bg-gray-900/50 relative overflow-hidden rounded-t-[18px] flex items-center justify-center">
                 <picture>
                   <source srcSet={`${item.image.replace(/\.(jpg|png)$/i, '.webp')}`} type="image/webp" />
-                  <img src={item.image} alt={item.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  <img src={item.image} alt={item.name} loading="lazy" className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 p-2" />
                 </picture>
                 <div className="absolute bottom-1 right-1 bg-black/70 backdrop-blur-md text-white px-2 py-1 rounded-lg text-[9px] font-black border border-white/5">
                   {item.unit === 'rs' ? 'Any' : `Rs.${item.price}`}
