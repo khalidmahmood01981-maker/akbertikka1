@@ -559,7 +559,7 @@ const POS: React.FC<POSProps> = ({
       {/* Item Grid */}
       <motion.div
         layout
-        className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-5"
+        className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-8"
         initial="hidden"
         animate="visible"
         variants={{
@@ -595,7 +595,7 @@ const POS: React.FC<POSProps> = ({
                   {item.unit === 'rs' ? `Rs.${totalQtyInCart}` : totalQtyInCart}
                 </div>
               )}
-              <div className="h-20 sm:h-36 md:h-44 lg:h-52 bg-gray-800 relative overflow-hidden rounded-t-[18px]">
+              <div className="h-20 sm:h-48 md:h-56 lg:h-64 bg-gray-800 relative overflow-hidden rounded-t-[18px]">
                 <picture>
                   <source srcSet={`${item.image.replace(/\.(jpg|png)$/i, '.webp')}`} type="image/webp" />
                   <img src={item.image} alt={item.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
@@ -605,7 +605,7 @@ const POS: React.FC<POSProps> = ({
                 </div>
               </div>
               <div className="p-2 text-center">
-                <h3 className="text-[9px] sm:text-base md:text-lg font-black uppercase text-[var(--text-main)] leading-none italic tracking-tight truncate px-1">{item.name}</h3>
+                <h3 className="text-[9px] sm:text-lg md:text-xl font-black uppercase text-[var(--text-main)] leading-none italic tracking-tight truncate px-1 py-1">{item.name}</h3>
               </div>
             </motion.div>
           );
