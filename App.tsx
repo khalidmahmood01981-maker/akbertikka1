@@ -376,11 +376,16 @@ const App: React.FC = () => {
           playNotification(newOrder.customerName);
         }
 
-        // AUTO-PRINT Logic for Kitchen PC removed as per user request
+        // Direct Auto-Print for new orders received via cloud (if we are the printer)
+        if (isPrinterDevice && settings.enableKitchenPrinting && settings.isAutoPrintKitchenEnabled) {
+          if (newOrder.id !== lastPrintedOrderIdRef.current) {
+            handlePrintKitchen(newOrder);
+          }
+        }
       }
     }
     prevOrdersRef.current = orders;
-  }, [orders, activeStaff, isAdmin, isPrinterDevice, settings.isAutoPrintKitchenEnabled]);
+  }, [orders, activeStaff, isAdmin, isPrinterDevice, settings.isAutoPrintKitchenEnabled, settings.enableKitchenPrinting]);
 
 
 
@@ -912,7 +917,7 @@ const App: React.FC = () => {
       playNotification(newOrder.customerName, newOrder.orderNumber, newOrder.status);
       
       // 2. Auto-Print vs Queue Logic (enabled only for designated printer devices, usually the Master PC)
-      if (isNewOrder && currentIsPrinter && currentSettings.isAutoPrintKitchenEnabled) {
+      if (isNewOrder && currentIsPrinter && currentSettings.enableKitchenPrinting && currentSettings.isAutoPrintKitchenEnabled) {
         if (currentSettings.isQueueModeEnabled) {
           // Add to Queue instead of printing
           setKitchenQueue(prev => {

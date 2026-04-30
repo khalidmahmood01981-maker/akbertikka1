@@ -434,22 +434,30 @@ const LiveOrdersView: React.FC<LiveOrdersViewProps> = ({
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-2 pt-1">
-                  {(isAdmin || isKitchen) && (
-                    <button 
-                      onClick={() => triggerConfirm({
-                        title: "Cancel Order?",
-                        message: "Kya aap waqai is order ko cancel karna chahte hain?",
-                        onConfirm: () => onUpdateStatus(order, 'cancelled')
-                      })}
-                      className="p-3 sm:p-4 bg-red-600/10 text-red-500 rounded-xl sm:rounded-2xl active:scale-95 transition-all hover:bg-red-600/20"
-                      title="Cancel Order"
-                    >
-                      {ICONS.Trash2}
-                    </button>
-                  )}
+                  <div className="flex gap-2 pt-1">
+                    {(isAdmin || isKitchen) && (
+                      <button 
+                        onClick={() => triggerConfirm({
+                          title: "Cancel Order?",
+                          message: "Kya aap waqai is order ko cancel karna chahte hain?",
+                          onConfirm: () => onUpdateStatus(order, 'cancelled')
+                        })}
+                        className="p-3 sm:p-4 bg-red-600/10 text-red-500 rounded-xl sm:rounded-2xl active:scale-95 transition-all hover:bg-red-600/20"
+                        title="Cancel Order"
+                      >
+                        {ICONS.Trash2}
+                      </button>
+                    )}
 
-                  {order.status === 'received' && (
+                    <button 
+                      onClick={() => handlePrintOrder(order)}
+                      className="p-3 sm:p-4 bg-blue-600/10 text-blue-500 rounded-xl sm:rounded-2xl active:scale-95 transition-all hover:bg-blue-600/20"
+                      title="Print KOT"
+                    >
+                      {ICONS.Printer}
+                    </button>
+
+                    {order.status === 'received' && (
                     <button 
                       onClick={() => {
                         onUpdateStatus(order, 'preparing');

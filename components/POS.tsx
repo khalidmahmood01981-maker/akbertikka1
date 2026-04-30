@@ -350,18 +350,18 @@ const POS: React.FC<POSProps> = ({
 
       if (mode === 'final') {
         setSuccessOrder(newOrder);
-        if (settings.isAutoPrintBillEnabled && isPrinterDevice) {
+        if (settings.enableBillPrinting && settings.isAutoPrintBillEnabled && isPrinterDevice) {
           handlePrint(newOrder, true);
         }
       } else if (mode === 'kitchen') {
         notify("Order sent to kitchen!", "success");
-        if (settings.isAutoPrintKitchenEnabled && isPrinterDevice) {
+        if (settings.enableKitchenPrinting && settings.isAutoPrintKitchenEnabled && isPrinterDevice) {
           handlePrintKitchen(newOrder);
         }
         resetForNextBill();
       } else if (mode === 'update') {
         notify("Bill updated successfully!", "success");
-        if (settings.isAutoPrintKitchenEnabled && isPrinterDevice) {
+        if (settings.enableKitchenPrinting && settings.isAutoPrintKitchenEnabled && isPrinterDevice) {
           handlePrintKitchen(newOrder);
         }
         resetForNextBill();
