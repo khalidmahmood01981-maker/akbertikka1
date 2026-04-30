@@ -911,8 +911,8 @@ const App: React.FC = () => {
       // 1. Notification Sound
       playNotification(newOrder.customerName, newOrder.orderNumber, newOrder.status);
       
-      // 2. Auto-Print vs Queue Logic (disabled for printer devices to avoid double printing with modal)
-      if (isNewOrder && !currentIsPrinter && currentSettings.isAutoPrintKitchenEnabled) {
+      // 2. Auto-Print vs Queue Logic (enabled only for designated printer devices, usually the Master PC)
+      if (isNewOrder && currentIsPrinter && currentSettings.isAutoPrintKitchenEnabled) {
         if (currentSettings.isQueueModeEnabled) {
           // Add to Queue instead of printing
           setKitchenQueue(prev => {
@@ -923,7 +923,7 @@ const App: React.FC = () => {
         } else if (newOrder.id !== lastPrintedOrderIdRef.current) {
           // Direct Auto-Print
           console.log("AUTO-PRINT TRIGGERED for order:", newOrder.orderNumber);
-          // handlePrintKitchen(newOrder); // Removed
+          handlePrintKitchen(newOrder); 
           lastPrintedOrderIdRef.current = newOrder.id;
         }
       }
@@ -1114,6 +1114,7 @@ const App: React.FC = () => {
   };
 
   const handlePrintKitchen = (order: Order) => {
+    lastPrintedOrderIdRef.current = order.id;
     handlePrintKitchenTicket(order);
   };
 
