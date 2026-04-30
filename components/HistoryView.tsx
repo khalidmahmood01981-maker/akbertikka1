@@ -18,6 +18,7 @@ interface HistoryProps {
   notify: (message: string, type?: 'success' | 'error' | 'info') => void;
   triggerConfirm: (config: { title: string; message: string; onConfirm: () => void; type?: 'danger' | 'info' }) => void;
   isTotalsUnlocked?: boolean;
+  staffMembers?: StaffMember[];
 }
 
 const HistoryView: React.FC<HistoryProps> = ({ 
@@ -34,7 +35,8 @@ const HistoryView: React.FC<HistoryProps> = ({
   isAdmin,
   notify,
   triggerConfirm,
-  isTotalsUnlocked = false
+  isTotalsUnlocked = false,
+  staffMembers = []
 }) => {
   const [tab, setTab] = useState<'sales' | 'purchases' | 'items'>('sales');
   
@@ -369,7 +371,7 @@ const HistoryView: React.FC<HistoryProps> = ({
               className="w-full bg-black/40 text-white p-3 rounded-xl border border-white/10 outline-none font-black uppercase text-[10px] tracking-widest focus:border-orange-600 transition-colors"
             >
               <option value="all">ALL STAFF HISTORY</option>
-              {settings.staffMembers?.map(member => (
+              {staffMembers?.map(member => (
                 <option key={member.id} value={member.id}>
                   {member.name.toUpperCase()} ({member.role.toUpperCase()})
                 </option>

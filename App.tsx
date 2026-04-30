@@ -1854,6 +1854,7 @@ const WELCOME_MESSAGES = [
                       customers={customers}
                       settings={settings}
                       purchases={purchases}
+                      staffMembers={staffMembers}
                       activeStaff={activeStaff}
                       onUpdateOrder={handleUpdateOrder}
                       onUpdatePurchase={(up) => setPurchases(purchases.map(p => p.id === up.id ? up : p))}
