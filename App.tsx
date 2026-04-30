@@ -696,10 +696,11 @@ const App: React.FC = () => {
                });
             }
 
-            // Auto-set Printer Mode for the Master PC
+            // Auto-set Printer Mode ONLY for the Master PC (localhost/127.0.0.1)
             const currentHost = window.location.hostname;
-            const isLocal = currentHost === 'localhost' || currentHost === '127.0.0.1' || currentHost === info.localIP;
-            if (isLocal) {
+            const isActuallyMaster = currentHost === 'localhost' || currentHost === '127.0.0.1';
+            
+            if (isActuallyMaster) {
               if (localStorage.getItem('is_printer_device') !== 'true') {
                 localStorage.setItem('is_printer_device', 'true');
                 setIsPrinterDevice(true);
