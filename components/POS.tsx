@@ -588,25 +588,37 @@ const POS: React.FC<POSProps> = ({
               whileTap={{ scale: 0.95 }}
               key={item.id}
               onClick={() => setSelectedItemForQty(item)}
-              className={`bg-[var(--bg-card)] rounded-[18px] border overflow-hidden transition-all shadow-lg group relative border-b-4 active:scale-95 border-[var(--border)] hover:border-b-orange-600 cursor-pointer`}
+              className="bg-[var(--bg-card)] rounded-[24px] border overflow-hidden transition-all shadow-xl group relative active:scale-95 border-[var(--border)] hover:border-orange-600 cursor-pointer aspect-square"
             >
+              {/* Image Container - Now Fills Entire Card */}
+              <div className="absolute inset-0 w-full h-full">
+                <picture>
+                  <source srcSet={`${item.image.replace(/\.(jpg|png)$/i, '.webp')}`} type="image/webp" />
+                  <img src={item.image} alt={item.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                </picture>
+                
+                {/* Dark Gradient Overlay for Text Readability */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent" />
+              </div>
+
+              {/* Price Tag */}
+              <div className="absolute top-2 right-2 bg-orange-600/90 backdrop-blur-md text-white px-2 py-1 rounded-lg text-[10px] font-black border border-white/20 shadow-lg z-20">
+                {item.unit === 'rs' ? 'Any' : `Rs.${item.price}`}
+              </div>
+
+              {/* Item Name Overlay at Bottom */}
+              <div className="absolute bottom-0 left-0 right-0 p-2 text-center z-30">
+                <h3 className="text-[10px] sm:text-lg md:text-xl font-black uppercase text-white leading-none italic tracking-tight truncate drop-shadow-md">
+                  {item.name}
+                </h3>
+              </div>
+
+              {/* Quantity Counter Overlay */}
               {totalQtyInCart > 0 && (
-                <div className="absolute top-2 left-2 bg-orange-600 text-white min-w-[24px] h-6 px-1.5 rounded-lg flex items-center justify-center text-[10px] font-black z-10 shadow-lg border-2 border-white/10 animate-in zoom-in">
+                <div className="absolute top-2 left-2 bg-white text-orange-600 min-w-[28px] h-7 px-2 rounded-xl flex items-center justify-center text-[12px] font-black z-40 shadow-2xl border-2 border-orange-600 animate-in zoom-in">
                   {item.unit === 'rs' ? `Rs.${totalQtyInCart}` : totalQtyInCart}
                 </div>
               )}
-              <div className="aspect-square bg-gray-900/50 relative overflow-hidden rounded-t-[18px] flex items-center justify-center">
-                <picture>
-                  <source srcSet={`${item.image.replace(/\.(jpg|png)$/i, '.webp')}`} type="image/webp" />
-                  <img src={item.image} alt={item.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                </picture>
-                <div className="absolute bottom-1 right-1 bg-black/70 backdrop-blur-md text-white px-2 py-1 rounded-lg text-[9px] font-black border border-white/5">
-                  {item.unit === 'rs' ? 'Any' : `Rs.${item.price}`}
-                </div>
-              </div>
-              <div className="p-0 text-center">
-                <h3 className="text-[9px] sm:text-lg md:text-xl font-black uppercase text-[var(--text-main)] leading-none italic tracking-tight truncate px-1 py-1">{item.name}</h3>
-              </div>
             </motion.div>
           );
         })}
