@@ -559,7 +559,7 @@ const POS: React.FC<POSProps> = ({
       {/* Item Grid */}
       <motion.div
         layout
-        className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-8"
+        className="grid grid-cols-3 gap-3 sm:gap-8 md:gap-10"
         initial="hidden"
         animate="visible"
         variants={{
