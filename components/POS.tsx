@@ -608,7 +608,7 @@ const POS: React.FC<POSProps> = ({
 
               {/* Item Name Overlay at Bottom */}
               <div className="absolute bottom-0 left-0 right-0 p-2 text-center z-30">
-                <h3 className="text-[10px] sm:text-lg md:text-xl font-black uppercase text-white leading-none italic tracking-tight truncate drop-shadow-md">
+                <h3 className="text-[14px] sm:text-2xl md:text-3xl font-black uppercase text-white leading-tight truncate drop-shadow-md px-1">
                   {item.name}
                 </h3>
               </div>
