@@ -56,6 +56,12 @@ async function startServer() {
   // Socket.io for Real-time Sync
   io.on("connection", (socket) => {
     console.log("Client connected:", socket.id);
+    
+    socket.on("print_command", (data) => {
+      console.log("Print command received:", data.type, "for order:", data.order?.id);
+      io.emit("print_command", data);
+    });
+
     socket.on("disconnect", () => console.log("Client disconnected"));
   });
 

@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { motion, AnimatePresence } from 'framer-motion';
+import { QRCodeCanvas } from 'qrcode.react';
 import { MenuItem, Order, OrderItem, AppSettings, Customer, StaffMember, OrderStatus, KitchenTicket } from '../types';
 import { ICONS, CATEGORIES } from '../constants';
 import TimeElapsed from './TimeElapsed';
+import { api } from '../utils/api';
 
 interface POSProps {
   items: MenuItem[];
@@ -23,11 +25,14 @@ interface POSProps {
   setIsNavHidden?: (hidden: boolean) => void;
   isAdmin?: boolean;
   initialTableNumber?: string;
+  isPrinterDevice?: boolean;
+  handlePrint: (order: Order, isFinalBill?: boolean) => void;
+  handlePrintKitchen: (order: Order) => void;
 }
 
 const POS: React.FC<POSProps> = ({ 
   items, customers, settings, shopName, activeStaff, pendingOrders, allOrders, onOrderComplete, onUpdateOrder, onDeleteOrder, notify, orderToEdit, onClearOrderToEdit, triggerConfirm,
-  setIsNavHidden, isAdmin, initialTableNumber
+  setIsNavHidden, isAdmin, initialTableNumber, isPrinterDevice, handlePrint, handlePrintKitchen
 }) => {
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [selectedItemForQty, setSelectedItemForQty] = useState<MenuItem | null>(null);
@@ -37,6 +42,7 @@ const POS: React.FC<POSProps> = ({
   const [category, setCategory] = useState<string>('All');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [customerWhatsApp, setCustomerWhatsApp] = useState('');
   const [tableNumber, setTableNumber] = useState('');
   const [kitchenNotes, setKitchenNotes] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -182,6 +188,9 @@ const POS: React.FC<POSProps> = ({
     notify("QR Code not recognized", "error");
   };
 
+
+
+
   useEffect(() => {
     const phone = customerPhone.trim();
     const name = customerName.trim();
@@ -287,6 +296,7 @@ const POS: React.FC<POSProps> = ({
           total: finalTotal,
           customerName: customerName.trim() || 'WALK-IN',
           customerPhone: customerPhone.trim() || '',
+          whatsappNumber: customerWhatsApp.trim() || undefined,
           paymentMethod: selectedPaymentMethod,
           status: mode === 'final' ? 'served' : (mode === 'kitchen' ? 'received' : existingOrder.status),
           isPrinted: mode === 'kitchen' ? false : (existingOrder.isPrinted || false),
@@ -312,6 +322,7 @@ const POS: React.FC<POSProps> = ({
           total: finalTotal,
           customerName: customerName.trim() || 'WALK-IN',
           customerPhone: customerPhone.trim() || '',
+          whatsappNumber: customerWhatsApp.trim() || undefined,
           paymentMethod: selectedPaymentMethod,
           status,
           kitchenTickets: newKitchenTickets,
@@ -335,12 +346,7 @@ const POS: React.FC<POSProps> = ({
         onOrderComplete(newOrder);
       }
 
-      // Auto Print Logic
-      if (mode === 'kitchen' && settings.isAutoPrintKitchenEnabled) {
-        handlePrintKitchen(newOrder);
-      } else if (mode === 'final' && settings.isAutoPrintBillEnabled) {
-        handlePrint(newOrder);
-      }
+      // Auto Print Logic removed as per user request
 
       if (mode === 'final') {
         setSuccessOrder(newOrder);
@@ -376,209 +382,9 @@ const POS: React.FC<POSProps> = ({
     }
   };
 
-  const handlePrint = (order: Order, autoReset = false) => {
-    try {
-      if (settings.enableBillPrinting === false) {
-        notify("Bill Printing is disabled in Settings!", "error");
-        return;
-      }
-      const printSection = document.getElementById('print-section');
-      if (!printSection) throw new Error("Print section not found");
 
-      const headerName = shopName || settings.businessName;
-      const itemsHtml = order.items.map(item => `
-        <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #ccc; padding: 6px 0; font-size: 12px; font-family: 'Courier New', Courier, monospace;">
-          <div style="flex: 1; text-align: left; padding-right: 10px;">
-            <div style="font-weight: bold;">${item.name.toUpperCase()}</div>
-            <div style="font-size: 10px; color: #333;">
-              ${item.unit === 'rs' ? `Rs. ${item.quantity}` : `${item.quantity} x Rs. ${item.price}`}
-            </div>
-          </div>
-          <div style="width: 70px; text-align: right; font-weight: bold; align-self: center;">
-            Rs.${(item.price * item.quantity).toFixed(0)}
-          </div>
-        </div>
-      `).join('');
 
-      printSection.innerHTML = `
-        <div style="font-family: 'Courier New', Courier, monospace; color: black; background: white; width: 100%; box-sizing: border-box; padding: 0;">
-          <div style="text-align: center; margin-bottom: 15px;">
-            <h1 style="margin: 0; font-size: 22px; text-transform: uppercase; font-weight: 900;">${headerName}</h1>
-            <p style="margin: 2px 0; font-size: 10px; letter-spacing: 3px; font-weight: bold;">*** INVOICE ***</p>
-          </div>
-          
-          <div style="border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 8px 0; margin-bottom: 10px; font-size: 11px; line-height: 1.5;">
-            <div style="display: flex; justify-content: space-between; font-size: 16px; font-weight: 900; background: #eee; padding: 4px; margin-bottom: 5px;">
-              <span>ORDER NO: #${order.orderNumber || '00'}</span>
-              <span>BILL NO: #${order.id.slice(-6).toUpperCase()}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-top: 4px;">
-              <span><b>DATE:</b> ${new Date(order.timestamp).toLocaleDateString()}</span>
-              <span><b>TIME:</b> ${new Date(order.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-            </div>
-            <div style="margin-top: 4px;">
-              <b>CUSTOMER:</b> ${order.customerName.toUpperCase()}
-            </div>
-            ${order.customerPhone ? `<div><b>PHONE:</b> ${order.customerPhone}</div>` : ''}
-            <div style="display: flex; justify-content: space-between; margin-top: 4px;">
-              ${order.tableNumber ? `<span><b>TABLE:</b> ${order.tableNumber.toUpperCase()}</span>` : '<span></span>'}
-              <span><b>PAY:</b> ${order.paymentMethod?.toUpperCase() || 'CASH'}</span>
-            </div>
-          </div>
-          
-          <div style="margin-bottom: 15px;">
-            <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 10px; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 4px;">
-              <span>ITEM DESCRIPTION</span>
-              <span>AMOUNT</span>
-            </div>
-            ${itemsHtml}
-          </div>
-          
-            ${order.kitchenNotes ? `
-              <div style="margin-top: 10px; padding: 5px; border: 1px dashed #000; font-size: 10px; font-style: italic;">
-                <b>NOTES:</b> ${order.kitchenNotes.toUpperCase()}
-              </div>
-            ` : ''}
-          </div>
-          
-          <div style="border-top: 1px solid #000; padding-top: 8px; space-y: 4px;">
-            <div style="display: flex; justify-content: space-between; font-size: 12px;">
-              <span>SUBTOTAL:</span>
-              <span>Rs.${order.subtotal.toFixed(0)}</span>
-            </div>
-            ${order.tax && order.tax > 0 ? `
-              <div style="display: flex; justify-content: space-between; font-size: 12px;">
-                <span>TAX:</span>
-                <span>Rs.${order.tax.toFixed(0)}</span>
-              </div>
-            ` : ''}
-            ${order.discount && order.discount > 0 ? `
-              <div style="display: flex; justify-content: space-between; font-size: 12px;">
-                <span>DISCOUNT:</span>
-                <span>-Rs.${order.discount.toFixed(0)}</span>
-              </div>
-            ` : ''}
-            <div style="display: flex; justify-content: space-between; font-weight: 900; font-size: 20px; margin-top: 10px; border: 2px solid #000; padding: 8px; text-align: center;">
-              <span style="flex: 1;">TOTAL:</span>
-              <span style="flex: 1; text-align: right;">Rs.${order.total.toFixed(0)}</span>
-            </div>
-          </div>
-          
-          <div style="text-align: center; margin-top: 25px; border-top: 1px dashed #000; padding-top: 15px;">
-            <p style="margin: 0; font-size: 12px; font-weight: bold;">THANK YOU FOR YOUR VISIT!</p>
-            <p style="margin: 5px 0 0 0; font-size: 9px; color: #666;">Software by: Smart Order Taker</p>
-          </div>
-        </div>
-      `;
-      printSection.style.display = 'block';
-      setTimeout(() => {
-        window.print();
-        printSection.style.display = 'none';
 
-        if (autoReset) {
-          resetForNextBill();
-        } else {
-          notify("Printing Bill...", "success");
-        }
-      }, 300);
-    } catch (e) {
-      notify("Printing Error: " + (e as Error).message, "error");
-    }
-  };
-
-  const handlePrintKitchen = (order: Order) => {
-    try {
-      if (settings.enableKitchenPrinting === false) {
-        notify("Kitchen Printing is disabled in Settings!", "error");
-        return;
-      }
-      const printSection = document.getElementById('print-section');
-      if (!printSection) throw new Error("Print section not found");
-
-      // Get items from the latest kitchen ticket if available, otherwise use full order items
-      const latestTicket = order.kitchenTickets && order.kitchenTickets.length > 0 
-        ? order.kitchenTickets[order.kitchenTickets.length - 1] 
-        : null;
-      
-      const printItems = latestTicket ? latestTicket.items : order.items;
-
-      const itemsHtml = printItems.map(item => `
-        <div style="display: flex; justify-content: space-between; border-bottom: 2px dashed #ccc; padding: 10px 0;">
-          <div style="flex: 1; font-weight: 900; font-size: 22px;">${item.name.toUpperCase()}</div>
-          <div style="min-width: 60px; text-align: right; font-weight: 900; font-size: 26px;">x${item.quantity}</div>
-        </div>
-      `).join('');
-
-      const dateStr = new Date(order.timestamp).toLocaleDateString('en-GB');
-      const timeStr = new Date(order.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const takerName = order.orderTakerName || latestTicket?.senderName || 'N/A';
-
-      printSection.innerHTML = `
-        <div style="font-family: 'Courier New', Courier, monospace; color: black; background: white; width: 100%; box-sizing: border-box; padding: 10px;">
-          
-          <div style="text-align: center; border-bottom: 4px solid #000; padding-bottom: 10px; margin-bottom: 15px;">
-            <p style="margin: 0; font-size: 16px; letter-spacing: 2px; font-weight: 900;">KITCHEN ORDER</p>
-          </div>
-
-          <div style="margin-bottom: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-            <div style="background: #000; color: #fff; padding: 10px; border-radius: 8px;">
-              <div style="font-size: 14px; font-weight: bold;">ORDER NO:</div>
-              <div style="font-size: 52px; font-weight: 900; line-height: 1;">#${order.orderNumber || '??'}</div>
-            </div>
-            <div>
-              <div style="font-size: 12px; font-weight: bold;">BILL NO:</div>
-              <div style="font-size: 36px; font-weight: 900;">#${order.id.slice(-6).toUpperCase()}</div>
-            </div>
-          </div>
-
-          <div style="margin-bottom: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-            <div>
-              <div style="font-size: 12px; font-weight: bold;">TABLE NO:</div>
-              <div style="font-size: 32px; font-weight: 900;">${order.tableNumber?.toUpperCase() || '---'}</div>
-            </div>
-            <div>
-              <div style="font-size: 12px; font-weight: bold;">DATE:</div>
-              <div style="font-size: 20px; font-weight: 900;">${dateStr}</div>
-              <div style="font-size: 16px; font-weight: 900;">${timeStr}</div>
-            </div>
-          </div>
-
-          <div style="margin-bottom: 15px; border: 2px solid #000; padding: 10px;">
-            <div style="font-size: 12px; font-weight: bold;">CUSTOMER:</div>
-            <div style="font-size: 24px; font-weight: 900; text-transform: uppercase;">${order.customerName}</div>
-          </div>
-
-          <div style="margin-bottom: 20px;">
-            <div style="font-size: 14px; font-weight: 900; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 5px; display: flex; justify-content: space-between;">
-              <span>ITEM</span><span>QTY</span>
-            </div>
-            ${itemsHtml}
-          </div>
-
-          ${order.kitchenNotes ? `
-          <div style="margin-bottom: 15px; border: 3px solid #000; padding: 10px; background: #fffbe6; border-radius: 6px;">
-            <div style="font-size: 11px; font-weight: 900; letter-spacing: 2px; margin-bottom: 4px;">KITCHEN NOTICE / NOTES:</div>
-            <div style="font-size: 22px; font-weight: 900; text-transform: uppercase;">${order.kitchenNotes}</div>
-          </div>
-          ` : ''}
-
-          <div style="border-top: 4px solid #000; padding-top: 15px; text-align: center;">
-            <div style="font-size: 14px; font-weight: bold;">ORDER TAKER:</div>
-            <div style="font-size: 36px; font-weight: 900; text-transform: uppercase;">${takerName}</div>
-          </div>
-
-        </div>
-      `;
-      printSection.style.display = 'block';
-      setTimeout(() => {
-        window.print();
-        printSection.style.display = 'none';
-        notify("Kitchen Ticket Sent to Printer!", "success");
-      }, 300);
-    } catch (e) {
-      notify("Kitchen Print Error: " + (e as Error).message, "error");
-    }
-  };
 
   const handleShareWhatsApp = (order: Order) => {
     try {
@@ -692,7 +498,7 @@ const POS: React.FC<POSProps> = ({
 
       {/* Large Action Buttons */}
       {/* Large Action Buttons - Single Row */}
-      <div className="grid grid-cols-3 gap-2 pb-2">
+      <div className="grid grid-cols-3 gap-3 pb-2">
         {/* Button 1: Ready Orders Modal */}
         <button
           onClick={() => setShowReadyOrders(true)}
@@ -753,7 +559,18 @@ const POS: React.FC<POSProps> = ({
       {/* Item Grid */}
       <motion.div
         layout
-        className="grid grid-cols-2 gap-1.5"
+        className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-5"
+        initial="hidden"
+        animate="visible"
+        variants={{
+          hidden: { opacity: 0 },
+          visible: {
+            opacity: 1,
+            transition: {
+              staggerChildren: 0.1
+            }
+          }
+        }}
       >
         {filteredItems.map(item => {
           const totalQtyInCart = cart
@@ -763,32 +580,54 @@ const POS: React.FC<POSProps> = ({
           return (
             <motion.div
               layout
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
+              variants={{
+                hidden: { opacity: 0, y: 20 },
+                visible: { opacity: 1, y: 0 }
+              }}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.95 }}
               key={item.id}
               onClick={() => setSelectedItemForQty(item)}
-              className={`bg-[var(--bg-card)] rounded-[18px] border overflow-hidden transition-all shadow-lg group relative border-b-4 active:scale-95 border-[var(--border)] hover:border-b-orange-600`}
+              className={`bg-[var(--bg-card)] rounded-[18px] border overflow-hidden transition-all shadow-lg group relative border-b-4 active:scale-95 border-[var(--border)] hover:border-b-orange-600 cursor-pointer`}
             >
               {totalQtyInCart > 0 && (
                 <div className="absolute top-2 left-2 bg-orange-600 text-white min-w-[24px] h-6 px-1.5 rounded-lg flex items-center justify-center text-[10px] font-black z-10 shadow-lg border-2 border-white/10 animate-in zoom-in">
                   {item.unit === 'rs' ? `Rs.${totalQtyInCart}` : totalQtyInCart}
                 </div>
               )}
-              <div className="h-24 bg-[#222]/10 relative overflow-hidden">
-                <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+              <div className="h-20 sm:h-36 md:h-44 lg:h-52 bg-gray-800 relative overflow-hidden rounded-t-[18px]">
+                <picture>
+                  <source srcSet={`${item.image.replace(/\.(jpg|png)$/i, '.webp')}`} type="image/webp" />
+                  <img src={item.image} alt={item.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                </picture>
                 <div className="absolute bottom-1 right-1 bg-black/70 backdrop-blur-md text-white px-2 py-1 rounded-lg text-[9px] font-black border border-white/5">
                   {item.unit === 'rs' ? 'Any' : `Rs.${item.price}`}
                 </div>
               </div>
-              <div className="p-1.5 text-center">
-                <h3 className="text-base font-black uppercase text-[var(--text-main)] leading-none italic tracking-tight truncate">{item.name}</h3>
+              <div className="p-2 text-center">
+                <h3 className="text-[9px] sm:text-base md:text-lg font-black uppercase text-[var(--text-main)] leading-none italic tracking-tight truncate px-1">{item.name}</h3>
               </div>
             </motion.div>
           );
         })}
       </motion.div>
+
+      {/* Order Taker QR Code for Customers */}
+      {activeStaff && (
+        <div className="bg-[var(--bg-card)] rounded-[24px] border border-orange-600/20 p-6 shadow-2xl text-center">
+          <h3 className="text-lg font-black uppercase text-orange-600 mb-4">Scan to Order</h3>
+          <div className="flex justify-center">
+            <QRCodeCanvas
+              value={`${window.location.href.split('?')[0].split('#')[0]}?mode=customer&takerId=${activeStaff.id}&token=${Math.floor(Date.now() / 86400000)}`}
+              size={150}
+              bgColor="#000000"
+              fgColor="#ffffff"
+              level="M"
+            />
+          </div>
+          <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest mt-4">Customers can scan this QR to view menu and place orders</p>
+        </div>
+      )}
 
       {/* Qty Modal */}
       {selectedItemForQty && (
@@ -832,6 +671,7 @@ const POS: React.FC<POSProps> = ({
                 <button
                   onClick={() => { setCart(prev => [...prev, { ...selectedItemForQty, quantity: parseFloat(inputQty) }]); closeQtyModal(); notify("Item added to cart", "success"); }}
                   className="flex-1 bg-orange-600 text-white rounded-[24px] overflow-hidden shadow-xl flex items-center active:scale-95 transition-all group border-b-4 border-orange-800"
+                  aria-label={`Add ${selectedItemForQty?.name} to cart for Rs.${currentItemTotal}`}
                 >
                   <div className="px-4 py-4 bg-black/20 border-r border-white/10 text-left min-w-[90px]">
                     <span className="text-[14px] font-black italic tracking-tighter whitespace-nowrap">Rs.{currentItemTotal.toFixed(0)}</span>
@@ -856,7 +696,12 @@ const POS: React.FC<POSProps> = ({
             className="fixed bottom-24 left-4 right-4 z-[200] flex gap-2"
           >
             <button
-              onClick={() => setIsCheckoutOpen(true)}
+              onClick={() => {
+                setIsCheckoutOpen(true);
+                setCustomerPhone('');
+                setCustomerWhatsApp('');
+                setCustomerName('');
+              }}
               className="flex-1 bg-orange-600 p-6 rounded-[32px] shadow-2xl flex items-center justify-between active:scale-[0.98] transition-all hover:bg-orange-700 border-b-4 border-orange-800"
             >
               <div className="flex items-center gap-3">
@@ -898,18 +743,26 @@ const POS: React.FC<POSProps> = ({
                 <div className="grid grid-cols-2 gap-3">
                   <input
                     type="text"
+                    placeholder="CUSTOMER NAME (OPTIONAL)"
+                    className="w-full p-5 bg-black/40 border-2 border-white/5 rounded-[24px] outline-none font-black text-white text-center uppercase focus:border-orange-600 transition-all text-[10px]"
+                    value={customerName}
+                    onChange={e => setCustomerName(e.target.value)}
+                  />
+                  <input
+                    type="text"
+                    placeholder="WHATSAPP # (OPTIONAL)"
+                    className="w-full p-5 bg-black/40 border-2 border-white/5 rounded-[24px] outline-none font-black text-white text-center uppercase focus:border-orange-600 transition-all text-[10px]"
+                    value={customerWhatsApp}
+                    onChange={e => setCustomerWhatsApp(e.target.value)}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="text"
                     placeholder="TABLE # *"
                     className={`w-full p-5 bg-black/40 border-2 rounded-[24px] outline-none font-black text-white text-center uppercase focus:border-orange-600 transition-all ${!tableNumber.trim() ? 'border-orange-600/30 ring-2 ring-orange-600/5' : 'border-white/5'}`}
                     value={tableNumber}
                     onChange={e => setTableNumber(e.target.value)}
-                  />
-                  <input
-                    type="tel"
-                    placeholder="MOBILE #"
-                    className="w-full p-5 bg-black/40 border-2 border-white/5 rounded-[24px] outline-none font-black text-white text-center tracking-widest focus:border-orange-600 transition-all"
-                    value={customerPhone}
-                    onChange={e => setCustomerPhone(e.target.value)}
-                    onFocus={() => (customerName.length > 0 || customerPhone.length > 0) && setShowSuggestions(filteredCustomers.length > 0)}
                   />
                   <input
                     type="text"
@@ -919,38 +772,6 @@ const POS: React.FC<POSProps> = ({
                     onChange={e => setKitchenNotes(e.target.value)}
                   />
                 </div>
-                <input
-                  type="text"
-                  placeholder="CUSTOMER NAME"
-                  className={`w-full p-5 bg-black/40 border-2 border-white/5 rounded-[24px] outline-none font-black text-white text-center uppercase focus:border-orange-600 transition-all`}
-                  value={customerName}
-                  onChange={e => setCustomerName(e.target.value)}
-                  onFocus={() => (customerName.length > 0 || customerPhone.length > 0) && setShowSuggestions(filteredCustomers.length > 0)}
-                />
-
-                {showSuggestions && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--bg-card)] border border-orange-600/30 rounded-[24px] shadow-2xl z-[3000] overflow-hidden animate-in slide-in-from-top-2 duration-200">
-                    <div className="p-2 bg-orange-600/10 border-b border-orange-600/10">
-                      <p className="text-[9px] font-black text-orange-600 uppercase tracking-widest text-center">Existing Customers Found</p>
-                    </div>
-                    {filteredCustomers.map(c => (
-                      <button
-                        key={c.id}
-                        onClick={() => selectCustomer(c)}
-                        className="w-full p-4 flex items-center justify-between hover:bg-orange-600/10 transition-colors border-b border-white/5 last:border-0"
-                      >
-                        <div className="text-left">
-                          <p className="font-black text-white uppercase text-xs italic">{c.name}</p>
-                          <p className="text-[10px] text-[var(--text-muted)] font-bold">{c.phone}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[9px] font-black text-orange-600 uppercase">Balance</p>
-                          <p className={`text-xs font-black ${c.balance > 0 ? 'text-red-500' : 'text-emerald-500'}`}>Rs.{c.balance}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -1283,21 +1104,23 @@ const POS: React.FC<POSProps> = ({
                       </div>
 
                       <div className="flex gap-2">
-                        <button
-                          onClick={() => {
-                            onUpdateOrder({ 
-                              ...order, 
-                              status: 'served',
-                              statusTimestamps: { ...order.statusTimestamps, served: Date.now() }
-                            });
-                            notify("Order marked as served!", "success");
-                            if (readyOrders.length === 1) setShowReadyOrders(false);
-                          }}
-                          className="flex-[2] py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-emerald-600/20 active:scale-95 transition-all hover:bg-emerald-500 flex items-center justify-center gap-2"
-                        >
-                          {ICONS.CheckCircle}
-                          Serve Order
-                        </button>
+                        {isAdmin && (
+                          <button
+                            onClick={() => {
+                              onUpdateOrder({ 
+                                ...order, 
+                                status: 'served',
+                                statusTimestamps: { ...order.statusTimestamps, served: Date.now() }
+                              });
+                              notify("Order marked as served!", "success");
+                              if (readyOrders.length === 1) setShowReadyOrders(false);
+                            }}
+                            className="flex-[2] py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-emerald-600/20 active:scale-95 transition-all hover:bg-emerald-500 flex items-center justify-center gap-2"
+                          >
+                            {ICONS.CheckCircle}
+                            Serve Order
+                          </button>
+                        )}
                         {isAdmin && (
                           <button
                             onClick={() => {
@@ -1738,9 +1561,6 @@ const POS: React.FC<POSProps> = ({
 
                               onUpdateOrder(updatedOrder);
                               notify("Sent to Kitchen!", "success");
-                              if (settings.isAutoPrintKitchenEnabled) {
-                                handlePrintKitchen(updatedOrder);
-                              }
                               if (pendingOrders.length === 1) setShowPendingOrders(false);
                             }}
                             className="flex-[2] py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"

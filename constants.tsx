@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { Utensils, ShoppingBag, PieChart, Settings, Package, X, Plus, Minus, Search, Trash2, Send, History, LayoutDashboard, ClipboardList, Download, Upload, ShieldCheck, Lock, Mic, QrCode, User, Users, CheckCircle, ChevronDown, ChevronRight, Play, Pause, Check, CreditCard, Image, Loader2, LogOut, Truck, ChefHat, Edit, Menu, Info, PlusCircle, Inbox, Printer, FileText, Smartphone, Monitor } from 'lucide-react';
+import { Utensils, ShoppingBag, PieChart, Settings, Package, X, Plus, Minus, Search, Trash2, Send, History, LayoutDashboard, ClipboardList, Download, Upload, ShieldCheck, Lock, Mic, QrCode, User, Users, CheckCircle, ChevronDown, ChevronRight, Play, Pause, Check, CreditCard, Image, Loader2, LogOut, Truck, ChefHat, Edit, Menu, Info, PlusCircle, Inbox, Printer, FileText, Smartphone, Monitor, Zap, Percent, Bell, RefreshCw } from 'lucide-react';
 
 export const HEADING_CLICKS_REQUIRED = 7;
 
@@ -48,8 +47,59 @@ export const ICONS = {
   FileText: <FileText size={20} />,
   Smartphone: <Smartphone size={20} />,
   Monitor: <Monitor size={20} />,
+  Zap: <Zap size={20} />,
+  Percent: <Percent size={20} />,
+  Bell: <Bell size={20} />,
+  Refresh: <RefreshCw size={20} />,
 };
 
 export const CATEGORIES = ["BBQ", "Fast Food", "Drinks", "Desserts"];
 
 export const INITIAL_ITEMS = [];
+
+export const PRINT_TRANSLATIONS = {
+  english: {
+    invoice: 'INVOICE',
+    orderNo: 'ORDER NO',
+    billNo: 'BILL NO',
+    date: 'DATE',
+    time: 'TIME',
+    customer: 'CUSTOMER',
+    phone: 'PHONE',
+    table: 'TABLE',
+    pay: 'PAY',
+    itemDescription: 'ITEM DESCRIPTION',
+    amount: 'AMOUNT',
+    notes: 'NOTES',
+    subtotal: 'SUBTOTAL',
+    tax: 'TAX',
+    discount: 'DISCOUNT',
+    total: 'TOTAL',
+    thankYou: 'THANK YOU FOR YOUR VISIT!',
+    softwareBy: 'Software by: Smart Order Taker',
+    kitchen: 'KITCHEN',
+    bill: 'BILL'
+  },
+  urdu: {
+    invoice: 'بل',
+    orderNo: 'آرڈر نمبر',
+    billNo: 'بل نمبر',
+    date: 'تاریخ',
+    time: 'وقت',
+    customer: 'کسٹمر',
+    phone: 'فون',
+    table: 'میز',
+    pay: 'ادائیگی',
+    itemDescription: 'آئٹم کی تفصیل',
+    amount: 'رقم',
+    notes: 'نوٹس',
+    subtotal: 'ذیلی کل',
+    tax: 'ٹیکس',
+    discount: 'ڈسکاؤنٹ',
+    total: 'کل',
+    thankYou: 'آپ کے دورے کا شکریہ!',
+    softwareBy: 'سافٹ ویئر: اسمارٹ آرڈر ٹیکر',
+    kitchen: 'کیچن',
+    bill: 'بل'
+  }
+};

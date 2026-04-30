@@ -4,8 +4,8 @@ import { onSnapshot, setDoc, doc, collection, getDocs, deleteDoc, addDoc, update
 import { db, collections } from './firebase';
 
 
-import { MenuItem, Order, Purchase, AppSettings, StockCategory, StockLog, KhataTransaction, ShopAccount, Customer, Supplier, SupplierCategory, StaffMember, CustomerPayment, OrderStatus } from './types';
-import { HEADING_CLICKS_REQUIRED, INITIAL_ITEMS, ICONS } from './constants';
+import { MenuItem, Order, Purchase, AppSettings, StockCategory, StockLog, KhataTransaction, ShopAccount, Customer, Supplier, SupplierCategory, StaffMember, CustomerPayment, OrderStatus, OrderItem, KitchenTicket } from './types';
+import { HEADING_CLICKS_REQUIRED, INITIAL_ITEMS, ICONS, PRINT_TRANSLATIONS } from './constants';
 import { QRCodeCanvas } from 'qrcode.react';
 import POS from './components/POS';
 import AdminDashboard from './components/AdminDashboard';
@@ -167,6 +167,7 @@ const App: React.FC = () => {
 
 
   const [showDataWarning, setShowDataWarning] = useState(false);
+
   const [dataSize, setDataSize] = useState(0);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -287,16 +288,43 @@ const App: React.FC = () => {
     };
   }, [isOnline, settings.notificationSoundUrl]);
 
-  // Handle Master IP for Local Router Sync
+  const handleManualLANSync = async () => {
+    if (!isLocalConnected) return;
+    try {
+      notify("LAN Syncing...", "info");
+      const [ordersArr, customersArr, itemsArr] = await Promise.all([
+        api.getOrders(),
+        api.getCustomers(),
+        api.getItems()
+      ]);
+      
+      if (Array.isArray(ordersArr)) setOrders(ordersArr.sort((a, b) => b.timestamp - a.timestamp));
+      if (Array.isArray(customersArr)) setCustomers(customersArr);
+      if (Array.isArray(itemsArr) && itemsArr.length > 0) setItems(itemsArr);
+      
+      notify("LAN Sync Complete!", "success");
+    } catch (e) {
+      notify("LAN Sync Failed!", "error");
+    }
+  };
+
+  // Handle Master IP and Initial Data Fetch for Local Router Sync
   useEffect(() => {
     if (settings.masterIP) {
       const currentHost = window.location.hostname;
-      if (currentHost !== settings.masterIP && currentHost !== 'localhost' && currentHost !== '127.0.0.1') {
+      const isRemote = currentHost !== settings.masterIP && currentHost !== 'localhost' && currentHost !== '127.0.0.1';
+      
+      if (isRemote) {
         const masterURL = `http://${settings.masterIP}:3000`;
         api.setBaseURL(masterURL);
+        
+        // Fetch fresh data from master server once connected
+        if (isLocalConnected && isDataLoaded) {
+          handleManualLANSync();
+        }
       }
     }
-  }, [settings.masterIP]);
+  }, [settings.masterIP, isLocalConnected, isDataLoaded]);
 
 
   const playNotification = (customerName?: string, orderNumber?: number, status?: OrderStatus) => {
@@ -348,70 +376,236 @@ const App: React.FC = () => {
           playNotification(newOrder.customerName);
         }
 
-        // AUTO-PRINT Logic for Kitchen PC
-        if (isPrinterDevice && settings.isAutoPrintKitchenEnabled && newOrder.id !== lastPrintedOrderIdRef.current) {
-          handlePrintKitchen(newOrder);
-          lastPrintedOrderIdRef.current = newOrder.id;
-        }
+        // AUTO-PRINT Logic for Kitchen PC removed as per user request
       }
     }
     prevOrdersRef.current = orders;
   }, [orders, activeStaff, isAdmin, isPrinterDevice, settings.isAutoPrintKitchenEnabled]);
 
-  const handlePrintKitchen = (order: Order) => {
+
+
+  const handlePrintBill = (order: Order) => {
     try {
-      const printSection = document.getElementById('print-section');
-      if (!printSection) return;
-
-      const dateStr = new Date(order.timestamp).toLocaleDateString('en-GB');
-      const timeStr = new Date(order.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
+      if (settings.enableBillPrinting === false) {
+        console.log("Bill Printing is disabled in Settings!");
+        return;
+      }
+      const language = settings.language || 'english';
+      const t = PRINT_TRANSLATIONS[language];
+      const headerName = settings.businessName;
       const itemsHtml = order.items.map(item => `
-        <div style="display: flex; justify-content: space-between; border-bottom: 2px dashed #ccc; padding: 10px 0;">
-          <div style="flex: 1; font-weight: 900; font-size: 22px;">${item.name.toUpperCase()}</div>
-          <div style="min-width: 60px; text-align: right; font-weight: 900; font-size: 26px;">x${item.quantity}</div>
+        <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #ccc; padding: 6px 0; font-size: 12px; font-family: 'Courier New', Courier, monospace;">
+          <div style="flex: 1; text-align: left; padding-right: 10px;">
+            <div style="font-weight: bold;">${item.name.toUpperCase()}</div>
+            <div style="font-size: 10px; color: #333;">
+              ${item.unit === 'rs' ? `Rs. ${item.quantity}` : `${item.quantity} x Rs. ${item.price}`}
+            </div>
+          </div>
+          <div style="width: 70px; text-align: right; font-weight: bold; align-self: center;">
+            Rs.${(item.price * item.quantity).toFixed(0)}
+          </div>
         </div>
       `).join('');
 
-      printSection.innerHTML = `
-        <div style="font-family: 'Courier New', Courier, monospace; color: black; background: white; width: 100%; padding: 10px;">
-          <div style="text-align: center; border-bottom: 4px solid #000; padding-bottom: 10px; margin-bottom: 15px;">
-            <p style="margin: 0; font-size: 16px; letter-spacing: 2px; font-weight: 900;">KITCHEN ORDER (AUTO)</p>
-          </div>
-          <div style="margin-bottom: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-            <div style="background: #000; color: #fff; padding: 10px; border-radius: 8px;">
-              <div style="font-size: 14px; font-weight: bold;">ORDER NO:</div>
-              <div style="font-size: 52px; font-weight: 900; line-height: 1;">#${order.orderNumber || '??'}</div>
-            </div>
-            <div>
-              <div style="font-size: 12px; font-weight: bold;">TABLE:</div>
-              <div style="font-size: 32px; font-weight: 900;">${order.tableNumber?.toUpperCase() || '---'}</div>
-            </div>
-          </div>
-          <div style="margin-bottom: 15px; border: 2px solid #000; padding: 10px;">
-            <div style="font-size: 12px; font-weight: bold;">CUSTOMER: ${order.customerName}</div>
-          </div>
-          <div style="margin-bottom: 20px;">
-             ${itemsHtml}
-          </div>
-          ${order.kitchenNotes ? `<div style="border: 3px solid #000; padding: 10px; font-size: 22px; font-weight: 900;">NOTES: ${order.kitchenNotes}</div>` : ''}
-          <div style="text-align: center; margin-top: 20px; font-size: 10px;">Time: ${timeStr} | Taker: ${order.orderTakerName || 'N/A'}</div>
-        </div>
-      `;
-      printSection.style.display = 'block';
-      setTimeout(() => {
-        window.print();
-        printSection.style.display = 'none';
+      const printHtml = `
+        <html>
+          <head>
+            <title>Print</title>
+            <style>
+              @page {
+                size: 58mm auto;
+                margin: 0;
+              }
+              @media print {
+                body, body * {
+                  visibility: visible;
+                }
+                body {
+                  -webkit-print-color-adjust: exact;
+                  color-adjust: exact;
+                  margin: 0;
+                  padding: 0;
+                }
+              }
+              body {
+                font-family: 'Courier New', Courier, monospace;
+                color: black;
+                background: white;
+                width: 58mm;
+                margin: 0;
+                padding: 0;
+              }
+            </style>
+          </head>
+          <body>
+            <div style="font-family: 'Courier New', Courier, monospace; color: black; background: white; width: 100%; box-sizing: border-box; padding: 0;">
 
-        // Update status to 'preparing' (Received) if it was 'received'
-        if (order.status === 'received') {
-          handleUpdateOrder({ ...order, status: 'preparing', isPrinted: true });
-        } else {
-          handleUpdateOrder({ ...order, isPrinted: true });
-        }
-      }, 300);
+              <div style="text-align: center; border-bottom: 4px solid #000; padding-bottom: 10px; margin-bottom: 15px;">
+                <p style="margin: 0; font-size: 16px; letter-spacing: 2px; font-weight: 900;">${t.kitchen} ORDER</p>
+              </div>
+
+              <div style="border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 8px 0; margin-bottom: 10px; font-size: 11px; line-height: 1.5;">
+                <div style="display: flex; justify-content: space-between; font-size: 16px; font-weight: 900; background: #eee; padding: 4px; margin-bottom: 5px;">
+                  <span>${t.orderNo}: #${order.orderNumber || '00'}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 4px;">
+                  <span><b>${t.date}:</b> ${new Date(order.timestamp).toLocaleDateString()}</span>
+                  <span><b>${t.time}:</b> ${new Date(order.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+                <div style="margin-top: 4px;">
+                  <b>${t.customer}:</b> ${order.customerName.toUpperCase()}
+                </div>
+                ${order.tableNumber ? `<div><b>${t.table}:</b> ${order.tableNumber.toUpperCase()}</div>` : ''}
+              </div>
+
+              <div style="margin-bottom: 15px;">
+                ${itemsHtml}
+              </div>
+
+              <div style="border-top: 1px solid #000; padding-top: 8px;">
+                <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                  <span>${t.subtotal}:</span>
+                  <span>Rs.${order.subtotal.toFixed(0)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-weight: 900; font-size: 20px; margin-top: 10px; border: 2px solid #000; padding: 8px; text-align: center;">
+                  <span style="flex: 1;">${t.total}:</span>
+                  <span style="flex: 1; text-align: right;">Rs.${order.total.toFixed(0)}</span>
+                </div>
+              </div>
+
+              <div style="text-align: center; margin-top: 25px; border-top: 1px dashed #000; padding-top: 15px;">
+                <p style="margin: 0; font-size: 12px; font-weight: bold;">${t.thankYou}</p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `;
+
+      // Create hidden iframe for silent printing
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+
+      const printDocument = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!printDocument) return;
+
+      printDocument.open();
+      printDocument.write(printHtml);
+      printDocument.close();
+
+      // Print after a short delay
+      setTimeout(() => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        // Remove iframe after printing
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+        }, 1000);
+      }, 500);
     } catch (e) {
-      console.error("Auto-print failed:", e);
+      console.error("Print Bill Error:", e);
+    }
+  };
+
+  const handlePrintKitchenTicket = (order: Order) => {
+    try {
+      const language = settings.language || 'english';
+      const t = PRINT_TRANSLATIONS[language as keyof typeof PRINT_TRANSLATIONS] || PRINT_TRANSLATIONS.english;
+      const itemsHtml = order.items.map(item => `
+        <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #000; padding: 10px 0; font-size: 18px; font-weight: 900; font-family: 'Courier New', Courier, monospace;">
+          <div style="flex: 1; text-align: left;">
+            ${item.name.toUpperCase()}
+          </div>
+          <div style="width: 50px; text-align: right;">
+            x${item.quantity}
+          </div>
+        </div>
+      `).join('');
+
+      const printHtml = `
+        <html>
+          <head>
+            <title>Kitchen Ticket</title>
+            <style>
+              @page { size: 58mm auto; margin: 0; }
+              body { font-family: 'Courier New', Courier, monospace; color: black; background: white; width: 58mm; margin: 0; padding: 0; }
+              .circle-container { display: flex; justify-content: center; margin: 15px 0; }
+              .circle { 
+                width: 48px; 
+                height: 48px; 
+                background: black; 
+                color: white; 
+                border-radius: 50%; 
+                display: flex; 
+                align-items: center; 
+                justify-content: center; 
+                font-weight: 900;
+                border: 2px solid black;
+              }
+              .circle-number { font-size: 24px; line-height: 1; }
+            </style>
+          </head>
+          <body>
+            <div style="padding: 5px; width: 100%; box-sizing: border-box;">
+              <div style="text-align: center; border-bottom: 3px solid #000; padding-bottom: 8px; margin-bottom: 12px;">
+                <h1 style="margin: 0; font-size: 18px; font-weight: 900; letter-spacing: 0px; white-space: nowrap;">AKBER TIKKA KITCHEN</h1>
+                <p style="margin: 4px 0 0; font-size: 16px; font-weight: bold;">Order #${order.orderNumber}</p>
+              </div>
+
+              ${order.tableNumber ? `
+                <div style="text-align: center; margin: 10px 0; font-size: 24px; font-weight: 900; border-bottom: 2px solid #000; padding-bottom: 5px;">
+                  TABLE: ${order.tableNumber.toUpperCase()}
+                </div>
+              ` : `
+                <div style="text-align: center; font-size: 14px; font-weight: bold; border: 2px solid black; padding: 5px; margin: 5px 0; background: #000; color: #fff;">
+                  WALK-IN / TAKEAWAY
+                </div>
+              `}
+
+              <div style="border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 12px; font-size: 12px; font-weight: bold;">
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding-bottom: 4px; margin-bottom: 4px;">
+                   <span>${new Date(order.timestamp).toLocaleDateString()}</span>
+                   <span>${new Date(order.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+                <div style="font-size: 14px; margin-top: 5px;">
+                   <b>CUSTOMER:</b> ${order.customerName.toUpperCase()}
+                </div>
+                ${order.kitchenNotes ? `
+                  <div style="margin-top: 10px; font-size: 18px; background: #000; color: #fff; padding: 10px; border-radius: 8px; text-align: center; border: 2px solid #000; line-height: 1.2;">
+                    <div style="font-size: 10px; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 2px;">!!! INSTRUCTION !!!</div>
+                    ${order.kitchenNotes.toUpperCase()}
+                  </div>
+                ` : ''}
+              </div>
+
+              <div style="margin-bottom: 25px;">
+                ${itemsHtml}
+              </div>
+
+              <div style="text-align: center; border-top: 2px dashed #000; padding-top: 15px;">
+                <p style="margin: 0; font-size: 14px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase;">ORDER TAKER: ${order.orderTakerName || 'OWNER'}</p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `;
+
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+      const doc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (doc) {
+        doc.open();
+        doc.write(printHtml);
+        doc.close();
+        setTimeout(() => {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+          setTimeout(() => document.body.removeChild(iframe), 1000);
+        }, 500);
+      }
+    } catch (e) {
+      console.error("Kitchen Print Error:", e);
     }
   };
 
@@ -495,13 +689,12 @@ const App: React.FC = () => {
                  api.saveSettings(newSettings).catch(() => {});
                  return newSettings;
                });
-            } else if (!settings.masterIP) {
-              // Client device detected master, save it locally for future direct access
-              setSettings(prev => ({ ...prev, masterIP: info.localIP }));
             }
 
             // Auto-set Printer Mode for the Master PC
-            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            const currentHost = window.location.hostname;
+            const isLocal = currentHost === 'localhost' || currentHost === '127.0.0.1' || currentHost === info.localIP;
+            if (isLocal) {
               if (localStorage.getItem('is_printer_device') !== 'true') {
                 localStorage.setItem('is_printer_device', 'true');
                 setIsPrinterDevice(true);
@@ -628,11 +821,11 @@ const App: React.FC = () => {
     };
 
     // Orders Sync - Includes metadata to detect unsynced local changes
-    const unsubOrders = onSnapshot(collections.orders, (snapshot) => {
+    const unsubOrders = onSnapshot(collections.orders, { includeMetadataChanges: true }, (snapshot) => {
       handleMetadata(snapshot);
       const cloudOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
       setOrders(cloudOrders.sort((a, b) => b.timestamp - a.timestamp));
-    }, { includeMetadataChanges: true });
+    });
 
     // Customer sync
     const unsubCustomers = onSnapshot(collections.customers, (snapshot) => {
@@ -718,8 +911,8 @@ const App: React.FC = () => {
       // 1. Notification Sound
       playNotification(newOrder.customerName, newOrder.orderNumber, newOrder.status);
       
-      // 2. Auto-Print vs Queue Logic
-      if (isNewOrder && currentIsPrinter && currentSettings.isAutoPrintKitchenEnabled) {
+      // 2. Auto-Print vs Queue Logic (disabled for printer devices to avoid double printing with modal)
+      if (isNewOrder && !currentIsPrinter && currentSettings.isAutoPrintKitchenEnabled) {
         if (currentSettings.isQueueModeEnabled) {
           // Add to Queue instead of printing
           setKitchenQueue(prev => {
@@ -730,7 +923,7 @@ const App: React.FC = () => {
         } else if (newOrder.id !== lastPrintedOrderIdRef.current) {
           // Direct Auto-Print
           console.log("AUTO-PRINT TRIGGERED for order:", newOrder.orderNumber);
-          handlePrintKitchen(newOrder);
+          // handlePrintKitchen(newOrder); // Removed
           lastPrintedOrderIdRef.current = newOrder.id;
         }
       }
@@ -740,6 +933,8 @@ const App: React.FC = () => {
         notify(`New Local Order: #${newOrder.orderNumber} (${newOrder.customerName})`, "success");
       }
     });
+
+
 
     api.onSync('order_deleted', (deletedId: string) => {
       setOrders(prev => prev.filter(o => o.id !== deletedId));
@@ -753,16 +948,7 @@ const App: React.FC = () => {
       });
     });
 
-    // Update API Base URL for Remote Devices (Mobile)
-    if (settings.masterIP) {
-      const currentHost = window.location.hostname;
-      // If we are a mobile device (not localhost or master IP), connect to the kitchen server
-      if (currentHost !== settings.masterIP && currentHost !== 'localhost' && currentHost !== '127.0.0.1') {
-        const masterURL = `http://${settings.masterIP}:3000`;
-        console.log("Remote Device: Connecting to Master Server at", masterURL);
-        api.setBaseURL(masterURL);
-      }
-    }
+    // Master IP logic moved to dedicated effect for reliability
   }, [isDataLoaded, settings.masterIP]);
 
 
@@ -848,6 +1034,13 @@ const App: React.FC = () => {
         console.log("Cloud sync pending (Offline mode)");
       });
 
+      // 3. Update Local State Immediately (for speed & offline)
+      setOrders(prev => {
+        const exists = prev.find(o => o.id === enrichedOrder.id);
+        if (exists) return prev.map(o => o.id === enrichedOrder.id ? enrichedOrder : o);
+        return [enrichedOrder, ...prev].sort((a, b) => b.timestamp - a.timestamp);
+      });
+
       // Customer record upsert
       if (order.customerPhone && order.customerPhone.trim().length > 5) {
         const existingCustomer = customers.find(c => c.phone === order.customerPhone);
@@ -897,6 +1090,9 @@ const App: React.FC = () => {
       console.log("Cloud sync pending (Update)");
     });
 
+    // 3. Update Local State Immediately
+    setOrders(prev => prev.map(o => o.id === uo.id ? uo : o));
+
     if (statusChanged) {
       playNotification(uo.customerName, uo.orderNumber, uo.status);
     }
@@ -911,6 +1107,36 @@ const App: React.FC = () => {
     setActiveTab('bill');
     setIsCustomerMode(true);
     notify("Logged out successfully", "info");
+  };
+
+  const handlePrint = (order: Order, isFinalBill: boolean = false) => {
+    handlePrintBill(order);
+  };
+
+  const handlePrintKitchen = (order: Order) => {
+    handlePrintKitchenTicket(order);
+  };
+
+  const handleUpdateShop = async (updatedShop: ShopAccount) => {
+    setGlobalAccounts(prev => prev.map(s => s.id === updatedShop.id ? updatedShop : s));
+    try {
+      const settingsRef = doc(db, "settings", "app_settings");
+      const updatedAccounts = globalAccounts.map(s => s.id === updatedShop.id ? updatedShop : s);
+      await updateDoc(settingsRef, { shopAccounts: updatedAccounts });
+      notify("Shop updated successfully", "success");
+    } catch (e) {
+      console.error("Failed to update shop in cloud:", e);
+    }
+  };
+
+  const handleResetData = async () => {
+    if (confirm("Are you sure you want to reset all data? This cannot be undone.")) {
+      localStorage.clear();
+      setOrders([]);
+      setItems(INITIAL_ITEMS);
+      notify("Data reset successfully", "info");
+      window.location.reload();
+    }
   };
 
   const handleCustomerMenuLogin = async (name: string, phone: string) => {
@@ -1146,41 +1372,86 @@ const WELCOME_MESSAGES = [
 
   const handlePrintQR = (taker: StaffMember) => {
     try {
-      const printSection = document.getElementById('print-section');
-      if (!printSection) return;
-
+      const language = settings.language || 'english';
+      const t = PRINT_TRANSLATIONS[language];
       const dailyToken = Math.floor(Date.now() / 86400000);
       const baseUrl = window.location.href.split('?')[0].split('#')[0];
       const qrUrl = `${baseUrl}?mode=customer&takerId=${taker.id}&token=${dailyToken}${qrTableNumber ? `&table=${qrTableNumber}` : ''}`;
-      
+
       // Use a temporary canvas to get QR as image
       const canvas = document.querySelector('canvas');
       const qrImage = canvas ? canvas.toDataURL("image/png") : '';
 
-      printSection.innerHTML = `
-        <div style="font-family: Arial, sans-serif; text-align: center; color: black; background: white; padding: 40px; border: 4px solid #000; border-radius: 20px; width: 300px; margin: auto;">
-          <h1 style="margin: 0; font-size: 24px; font-weight: 900; text-transform: uppercase;">${settings.businessName}</h1>
-          <p style="margin: 5px 0 20px; font-size: 10px; font-weight: bold; letter-spacing: 2px; color: #666;">SCAN TO ORDER / MENU</p>
-          
-          <div style="margin: 20px 0;">
-            <img src="${qrImage}" style="width: 200px; height: 200px; border: 10px solid #fff; box-shadow: 0 0 10px rgba(0,0,0,0.1);" />
-          </div>
+      const printHtml = `
+        <html>
+          <head>
+            <title>Print</title>
+            <style>
+              @page {
+                size: 58mm auto;
+                margin: 0;
+              }
+              @media print {
+                body, body * {
+                  visibility: visible;
+                }
+                body {
+                  -webkit-print-color-adjust: exact;
+                  color-adjust: exact;
+                  margin: 0;
+                  padding: 0;
+                }
+              }
+              body {
+                font-family: Arial, sans-serif;
+                text-align: center;
+                color: black;
+                background: white;
+                margin: 0;
+                padding: 0;
+              }
+            </style>
+          </head>
+          <body onload="window.print()">
+            <div style="font-family: 'Courier New', Courier, monospace; color: black; background: white; width: 100%; box-sizing: border-box; padding: 0;">
+              <div style="text-align: center; margin-bottom: 15px;">
+                <h1 style="margin: 0; font-size: 22px; text-transform: uppercase; font-weight: 900;">${settings.businessName}</h1>
+                <p style="margin: 2px 0; font-size: 10px; letter-spacing: 3px; font-weight: bold;">*** ${t.invoice} ***</p>
+              </div>
 
-          <div style="background: #000; color: #fff; padding: 15px; border-radius: 12px; margin-top: 10px;">
-            <p style="margin: 0; font-size: 12px; font-weight: bold; opacity: 0.7;">TABLE NUMBER</p>
-            <p style="margin: 0; font-size: 42px; font-weight: 900;">${qrTableNumber || 'GEN'}</p>
-          </div>
+              <div style="background: #000; color: #fff; padding: 15px; border-radius: 12px; margin-top: 10px;">
+                <p style="margin: 0; font-size: 12px; font-weight: bold; opacity: 0.7;">${t.table} NUMBER</p>
+                <p style="margin: 0; font-size: 42px; font-weight: 900;">${qrTableNumber || 'GEN'}</p>
+              </div>
 
-          <p style="margin: 20px 0 0; font-size: 9px; font-weight: bold; text-transform: uppercase;">Waiter: ${taker.name}</p>
-          <p style="margin: 5px 0 0; font-size: 8px; color: #888;">Valid for Today Only: ${new Date().toLocaleDateString()}</p>
-        </div>
+              <p style="margin: 20px 0 0; font-size: 9px; font-weight: bold; text-transform: uppercase;">Waiter: ${taker.name}</p>
+              <p style="margin: 5px 0 0; font-size: 8px; color: #888;">Valid for Today Only: ${new Date().toLocaleDateString()}</p>
+            </div>
+          </body>
+        </html>
       `;
-      printSection.style.display = 'block';
+
+      // Create hidden iframe for silent printing
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+
+      const printDocument = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!printDocument) return;
+
+      printDocument.open();
+      printDocument.write(printHtml);
+      printDocument.close();
+
+      // Print after a short delay
       setTimeout(() => {
-        window.print();
-        printSection.style.display = 'none';
-        notify("QR Code printing...", "success");
-      }, 300);
+        iframe.contentWindow?.print();
+        // Remove iframe after printing
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+        }, 1000);
+      }, 500);
+      notify("QR Code printing...", "success");
     } catch (e) {
       notify("Print failed: " + (e as Error).message, "error");
     }
@@ -1269,6 +1540,15 @@ const WELCOME_MESSAGES = [
 
           <div className="flex items-center gap-2">
             <span>{isLocalConnected ? `LAN: ${serverInfo?.localIP}` : 'LAN: Disconnected'}</span>
+            {isLocalConnected && (
+               <button 
+                 onClick={handleManualLANSync}
+                 className="p-1 hover:bg-white/20 rounded-md transition-colors"
+                 title="Force LAN Data Refresh"
+               >
+                 {ICONS.RotateCcw}
+               </button>
+            )}
             <div className={`w-1.5 h-1.5 rounded-full ${isLocalConnected ? 'bg-emerald-400' : 'bg-white/40'} ${isLocalConnected ? 'animate-pulse' : ''}`} />
           </div>
         </div>
@@ -1353,7 +1633,7 @@ const WELCOME_MESSAGES = [
                   className="p-2 bg-emerald-500/10 text-emerald-500 rounded-lg active:scale-90 transition-all border border-emerald-500/20"
                   title="Manual Sync"
                 >
-                  {ICONS.Refresh || '🔄'}
+                  {ICONS.Refresh}
                 </button>
 
                 {isPrinterDevice && (
@@ -1537,9 +1817,14 @@ const WELCOME_MESSAGES = [
                         title: "Cancel Order?",
                         message: "Kya aap waqai is order ko cancel karna chahte hain?",
                         onConfirm: async () => {
-                          setOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'cancelled' } : o));
-                          await setDoc(doc(db, "orders", id), { status: 'cancelled' }, { merge: true });
-                          notify("Order Cancelled", "error");
+                          const orderToCancel = orders.find(o => o.id === id);
+                          if (orderToCancel) {
+                            const updated = { ...orderToCancel, status: 'cancelled' as OrderStatus };
+                            setOrders(prev => prev.map(o => o.id === id ? updated : o));
+                            api.saveOrder(updated).catch(() => {});
+                            await setDoc(doc(db, "orders", id), { status: 'cancelled' }, { merge: true });
+                            notify("Order Cancelled", "error");
+                          }
                         }
                       })}
                       notify={notify}
@@ -1547,6 +1832,8 @@ const WELCOME_MESSAGES = [
                       setIsNavHidden={setIsNavHidden}
                       isAdmin={isAdmin || !!activeShop}
                       initialTableNumber={currentTableNumber}
+                      handlePrint={handlePrint}
+                      handlePrintKitchen={handlePrintKitchen}
                     />
                   )}
                   {activeTab === 'history' && (
@@ -1565,6 +1852,7 @@ const WELCOME_MESSAGES = [
                         message: "Kya aap waqai is order ko delete karna chahte hain?",
                         onConfirm: async () => {
                           setOrders(prev => prev.filter(o => o.id !== id));
+                          api.deleteOrder(id).catch(() => {});
                           await deleteDoc(doc(db, "orders", id));
                           notify("Order Deleted", "error");
                         }
@@ -1765,9 +2053,9 @@ const WELCOME_MESSAGES = [
               />
               <NavTab icon={ICONS.ShoppingBag} label="Order Taker" color="orange" active={activeTab === 'bill'} locked={false} hidden={activeStaff ? activeStaff.role !== 'taker' : (!isAdmin && !activeShop)} onClick={() => navigateTo('bill')} />
               <NavTab icon={ICONS.Zap} label="Cashier" color="emerald" active={activeTab === 'cashier'} locked={!isAdmin && !activeShop && !activeStaff} hidden={activeStaff ? activeStaff.role !== 'cashier' : (!isAdmin && !activeShop)} onClick={() => navigateTo('cashier')} />
-              <NavTab icon={ICONS.User} label="Customer Khata" color="cyan" active={activeTab === 'crm'} locked={!isAdmin && !activeShop && !activeStaff} hidden={activeStaff ? activeStaff.role !== 'cashier' : (!isAdmin && !activeShop)} onClick={() => navigateTo('crm')} />
+              <NavTab icon={ICONS.User} label="Customer Khata" color="cyan" active={activeTab === 'crm'} locked={!isAdmin && !activeShop && !activeStaff} hidden={activeStaff ? true : (!isAdmin && !activeShop)} onClick={() => navigateTo('crm')} />
               <NavTab icon={ICONS.ChefHat} label="Kitchen" color="amber" active={activeTab === 'orders'} locked={!isAdmin && !activeShop && !activeStaff} hidden={activeStaff ? activeStaff.role !== 'kitchen' : (!isAdmin && !activeShop)} onClick={() => navigateTo('orders')} />
-              <NavTab icon={ICONS.History} label="History/Exp" color="emerald" active={activeTab === 'history'} locked={!isAdmin && !activeShop && !activeStaff} hidden={activeStaff ? activeStaff.role !== 'cashier' : (!isAdmin && !activeShop)} onClick={() => navigateTo('history')} />
+              <NavTab icon={ICONS.History} label="History/Exp" color="emerald" active={activeTab === 'history'} locked={!isAdmin && !activeShop && !activeStaff} hidden={activeStaff ? true : (!isAdmin && !activeShop)} onClick={() => navigateTo('history')} />
             </nav>
           )}
         </>
@@ -1804,12 +2092,14 @@ const WELCOME_MESSAGES = [
                 onClick={() => setShowDataWarning(false)}
                 className="w-full py-4 bg-white/5 text-white rounded-2xl font-black uppercase tracking-widest active:scale-95 transition-all text-[10px] border border-white/10"
               >
-                Remind Me Later
+                Later
               </button>
             </div>
           </div>
         </div>
       )}
+
+
 
       {showPinModal && (
         <div className="fixed inset-0 bg-black/95 backdrop-blur-2xl z-[53000] flex items-center justify-center p-6">

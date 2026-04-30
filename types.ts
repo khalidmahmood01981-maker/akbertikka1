@@ -3,6 +3,7 @@ export type UnitType = 'pcs' | 'kg' | 'rs';
 export type AppTheme = 'light' | 'dark' | 'midnight';
 export type FontSize = 'small' | 'medium' | 'large' | 'extra-large';
 export type FontFamily = 'inter' | 'oswald' | 'courier' | 'roboto' | 'serif';
+export type Language = 'english' | 'urdu';
 
 export interface ShopAccount {
   id: string;
@@ -82,6 +83,7 @@ export interface AppSettings {
   isDiscountEnabled: boolean;
   defaultDiscount: number;
   theme: AppTheme;
+  language?: Language;
   fontSize?: FontSize;
   fontSizeNumber?: number; // New granular control
   fontFamily?: FontFamily; // Selected font style
@@ -106,10 +108,12 @@ export interface AppSettings {
   enableVoiceAnnouncement?: boolean;
   isAutoPrintKitchenEnabled?: boolean;
   isAutoPrintBillEnabled?: boolean;
+  isSilentPrintingEnabled?: boolean;
   includeTakerNameOnPrint?: boolean;
   includeBillNoOnPrint?: boolean;
   enableKitchenPrinting?: boolean;
   enableBillPrinting?: boolean;
+  isQueueModeEnabled?: boolean;
   businessDayStartTime?: string; // Format "HH:mm"
   masterIP?: string; // Local IP of the server device
   statsAdjustmentPercentage?: number; // Adjustment for displayed sales/orders

@@ -104,6 +104,10 @@ export class LocalApiService {
       return null;
     }
   }
+
+  emitPrintCommand(data: { type: 'kitchen' | 'bill' | 'qr', order?: any, staff?: any }) {
+    this.socket.emit("print_command", data);
+  }
 }
 
 export const api = new LocalApiService();

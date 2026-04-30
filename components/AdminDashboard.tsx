@@ -116,17 +116,14 @@ const AdminDashboard: React.FC<AdminProps> = ({
 
 
   const handlePrintReceipt = (order: Order) => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
-    const itemHtml = order.items.map(i => `
-      <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-        <span>${i.name} x${i.quantity}</span>
-        <span>Rs.${(i.price * i.quantity).toLocaleString()}</span>
+    // Attempt to open a new window for printing. If blocked, fall back to using a hidden iframe.
+    const itemHtml = order.items.map(item => `
+      <div style="display:flex; justify-content:space-between; margin-bottom:5px; font-size:12px;">
+        <span>${item.quantity}x ${item.name}</span>
+        <span>Rs.${(item.price * item.quantity).toLocaleString()}</span>
       </div>
     `).join('');
-
-    printWindow.document.write(`
+    const printContent = `
       <html>
         <head>
           <title>Receipt #${order.orderNumber}</title>
@@ -138,7 +135,7 @@ const AdminDashboard: React.FC<AdminProps> = ({
             .total { font-weight: bold; font-size: 1.3em; margin-top: 10px; text-align: right; }
           </style>
         </head>
-        <body onload="setTimeout(() => { window.print(); window.close(); }, 500)">
+        <body>
           <h2>${settings.businessName}</h2>
           <p style="text-align:center;">Order #${order.orderNumber}</p>
           <p>Date: ${new Date(order.timestamp).toLocaleString()}</p>
@@ -150,9 +147,26 @@ const AdminDashboard: React.FC<AdminProps> = ({
           <p style="text-align:center; margin-top:30px; font-weight:bold;">${settings.receiptFooterText || 'Shukria!'}</p>
         </body>
       </html>
-    `);
-    printWindow.document.close();
+    `;
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+    const doc = iframe.contentWindow?.document;
+    if (doc) { 
+      doc.open(); 
+      doc.write(printContent); 
+      doc.close(); 
+    }
+    setTimeout(() => { 
+      iframe.contentWindow?.focus(); 
+      iframe.contentWindow?.print(); 
+      document.body.removeChild(iframe); 
+    }, 500);
   };
+
 
   // Purchase State
   const [pItemName, setPItemName] = useState('');
@@ -1177,10 +1191,10 @@ const AdminDashboard: React.FC<AdminProps> = ({
                         <div>
                           <p className="text-[7px] font-black text-[var(--text-muted)] uppercase tracking-widest">Last Visit</p>
                           <p className="text-[10px] font-black text-white">{cust.lastVisit ? new Date(cust.lastVisit).toLocaleDateString() : 'N/A'}</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => setShowCustomerHistoryModal(cust)} className="p-3 bg-white/5 text-blue-500 rounded-xl border border-white/5 active:scale-90 transition-all">{ICONS.History}</button>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setShowCustomerHistoryModal(cust)} className="p-3 bg-white/5 text-blue-500 rounded-xl border border-white/5 active:scale-90 transition-all">{ICONS.History}</button>
                         <button onClick={() => handleShareOffer(cust)} className="p-3 bg-white/5 text-orange-600 rounded-xl border border-white/5 active:scale-90 transition-all">{ICONS.Send}</button>
                         {cust.balance > 0 && (
                           <button onClick={() => setShowCustomerPayModal(cust)} className="p-3 bg-emerald-600 text-white rounded-xl active:scale-90 transition-all shadow-lg">{ICONS.Plus}</button>
@@ -1747,21 +1761,7 @@ const AdminDashboard: React.FC<AdminProps> = ({
               </div>
 
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-black/30 rounded-2xl border border-orange-600/20">
-                  <div className="flex items-center gap-3">
-                    <span className="text-orange-600">{ICONS.Layers}</span>
-                    <div>
-                      <h4 className="text-[10px] font-black text-white uppercase italic">Queue Mode</h4>
-                      <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Hold orders for manual printing</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setSettings({ ...settings, isQueueModeEnabled: !settings.isQueueModeEnabled })}
-                    className={`w-12 h-7 rounded-full p-1 transition-all duration-300 ${settings.isQueueModeEnabled ? 'bg-orange-600' : 'bg-white/10'}`}
-                  >
-                    <div className={`w-5 h-5 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${settings.isQueueModeEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
-                  </button>
-                </div>
+
 
                 <div className="flex items-center justify-between p-4 bg-black/30 rounded-2xl border border-emerald-600/20">
                   <div className="flex items-center gap-3">
@@ -1778,6 +1778,34 @@ const AdminDashboard: React.FC<AdminProps> = ({
                     <div className={`w-5 h-5 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${settings.isAutoPrintKitchenEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
                   </button>
                 </div>
+
+                <div className="flex items-center justify-between p-4 bg-black/30 rounded-2xl border border-cyan-600/20">
+                  <div className="flex items-center gap-3">
+                    <span className="text-cyan-500">{ICONS.Zap}</span>
+                    <div>
+                      <h4 className="text-[10px] font-black text-white uppercase italic">Silent Printing (Skip Dialog)</h4>
+                      <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Skip browser print confirmation</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setSettings({ ...settings, isSilentPrintingEnabled: !settings.isSilentPrintingEnabled })}
+                    className={`w-12 h-7 rounded-full p-1 transition-all duration-300 ${settings.isSilentPrintingEnabled ? 'bg-cyan-600' : 'bg-white/10'}`}
+                  >
+                    <div className={`w-5 h-5 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${settings.isSilentPrintingEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+
+                {settings.isSilentPrintingEnabled && (
+                  <div className="bg-cyan-600/10 border border-cyan-600/20 p-4 rounded-2xl">
+                    <p className="text-[8px] font-black text-cyan-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+                      {ICONS.Info} Configuration Required:
+                    </p>
+                    <p className="text-[7px] text-white/70 leading-relaxed font-bold uppercase">
+                      Silent printing ke liye Chrome shortcut mein <span className="text-cyan-400">--kiosk-printing</span> flag add karein. 
+                      Is se browser print dialog nahi dikhayega aur seedha print karega.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1944,6 +1972,8 @@ const AdminDashboard: React.FC<AdminProps> = ({
                 </button>
               ))}
             </div>
+
+
           </div>
 
           {/* 5. Notifications & Delivery */}
@@ -1960,14 +1990,6 @@ const AdminDashboard: React.FC<AdminProps> = ({
              </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex items-center justify-between p-4 bg-black/30 rounded-2xl border border-white/5">
-                <div className="flex items-center gap-3">
-                  <span className="text-emerald-500">{ICONS.Send}</span>
-                  <div>
-                    <h4 className="text-[10px] font-black text-white uppercase italic">Auto WhatsApp</h4>
-                    <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Send bill automatically</p>
-                  </div>
-                </div>
                 <button
                   onClick={() => setSettings({ ...settings, isAutoWhatsappEnabled: !settings.isAutoWhatsappEnabled })}
                   className={`w-12 h-7 rounded-full p-1 transition-all duration-300 ${settings.isAutoWhatsappEnabled ? 'bg-emerald-600' : 'bg-white/10'}`}
@@ -1991,7 +2013,6 @@ const AdminDashboard: React.FC<AdminProps> = ({
                   <div className={`w-5 h-5 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${settings.enableVoiceAnnouncement ? 'translate-x-5' : 'translate-x-0'}`} />
                 </button>
               </div>
-            </div>
 
             <div className="space-y-4 pt-4 border-t border-white/5">
                <p className="text-[10px] font-black uppercase text-orange-600 tracking-[0.2em] ml-2">Delivery Zones</p>

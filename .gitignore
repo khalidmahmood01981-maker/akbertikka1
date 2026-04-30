@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+*.db
+*.db-shm
+*.db-wal
+.claude/
+tsc_errors.txt

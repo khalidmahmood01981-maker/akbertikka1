@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Order, OrderStatus, StaffMember, AppSettings } from '../types';
-import { ICONS } from '../constants';
+import { ICONS, PRINT_TRANSLATIONS } from '../constants';
 import TimeElapsed from './TimeElapsed';
 
 interface LiveOrdersViewProps {
@@ -28,9 +28,8 @@ const LiveOrdersView: React.FC<LiveOrdersViewProps> = ({
         notify("Kitchen Printing is disabled in Settings!", "error");
         return;
       }
-      const printSection = document.getElementById('print-section');
-      if (!printSection) throw new Error("Print section not found");
-
+      const language = settings.language || 'english';
+      const t = PRINT_TRANSLATIONS[language];
       const headerName = settings.businessName;
       const itemsHtml = order.items.map(item => `
         <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #ccc; padding: 6px 0; font-size: 12px; font-family: 'Courier New', Courier, monospace;">
@@ -46,52 +45,81 @@ const LiveOrdersView: React.FC<LiveOrdersViewProps> = ({
         </div>
       `).join('');
 
-      printSection.innerHTML = `
-        <div style="font-family: 'Courier New', Courier, monospace; color: black; background: white; width: 100%; box-sizing: border-box; padding: 0;">
-          <div style="text-align: center; margin-bottom: 15px;">
-            <h1 style="margin: 0; font-size: 22px; text-transform: uppercase; font-weight: 900;">${headerName}</h1>
-            <p style="margin: 2px 0; font-size: 10px; letter-spacing: 3px; font-weight: bold;">*** KITCHEN ORDER ***</p>
-          </div>
-          
-          <div style="border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 8px 0; margin-bottom: 10px; font-size: 11px; line-height: 1.5;">
-            <div style="display: flex; justify-content: space-between;">
-              <span><b>ORDER ID:</b> ${order.id.slice(-8).toUpperCase()}</span>
-              <span><b>DATE:</b> ${new Date(order.timestamp).toLocaleString()}</span>
-            </div>
-            <div style="margin-top: 4px;">
-              <b>CUSTOMER:</b> ${order.customerName.toUpperCase()}
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-top: 4px;">
-              ${order.tableNumber ? `<span><b>TABLE:</b> ${order.tableNumber.toUpperCase()}</span>` : '<span></span>'}
-              <span><b>NO:</b> #${order.orderNumber || '??'}</span>
-            </div>
-          </div>
-          
-          <div style="margin-bottom: 15px;">
-            <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 10px; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 4px;">
-              <span>ITEM DESCRIPTION</span>
-              <span>QTY</span>
-            </div>
-            ${itemsHtml}
-          </div>
+      const printHtml = `
+        <html>
+          <head>
+            <title>Print</title>
+            <style>
+              @page {
+                size: 58mm auto;
+                margin: 0;
+              }
+              @media print {
+                body, body * {
+                  visibility: visible;
+                }
+                body {
+                  -webkit-print-color-adjust: exact;
+                  color-adjust: exact;
+                }
+              }
+              body {
+                font-family: 'Courier New', Courier, monospace;
+                color: black;
+                background: white;
+                width: 58mm;
+                margin: 0;
+                padding: 0;
+              }
+            </style>
+          </head>
+          <body onload="window.print()">
+            <div style="font-family: 'Courier New', Courier, monospace; color: black; background: white; width: 100%; box-sizing: border-box; padding: 0;">
+              <div style="text-align: center; margin-bottom: 15px;">
+                <h1 style="margin: 0; font-size: 22px; text-transform: uppercase; font-weight: 900;">${headerName}</h1>
+                <p style="margin: 2px 0; font-size: 10px; letter-spacing: 3px; font-weight: bold;">*** ${t.kitchen} ORDER ***</p>
+              </div>
 
-          ${order.kitchenNotes ? `
-            <div style="border: 1px solid #000; padding: 8px; margin-top: 10px; font-size: 12px;">
-              <b>NOTES:</b> ${order.kitchenNotes.toUpperCase()}
+              <div style="border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 8px 0; margin-bottom: 10px; font-size: 11px; line-height: 1.5;">
+                <div style="display: flex; justify-content: space-between;">
+                  <span><b>ORDER ID:</b> ${order.id.slice(-8).toUpperCase()}</span>
+                  <span><b>${t.date}:</b> ${new Date(order.timestamp).toLocaleString()}</span>
+                </div>
+                <div style="margin-top: 4px;">
+                  <b>${t.customer}:</b> ${order.customerName.toUpperCase()}
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 4px;">
+                  ${order.tableNumber ? `<span><b>${t.table}:</b> ${order.tableNumber.toUpperCase()}</span>` : '<span></span>'}
+                  <span><b>NO:</b> #${order.orderNumber || '??'}</span>
+                </div>
+              </div>
+
+              <div style="margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 10px; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 4px;">
+                  <span>ITEM DESCRIPTION</span>
+                  <span>QTY</span>
+                </div>
+                ${itemsHtml}
+              </div>
+
+              ${order.kitchenNotes ? `
+                <div style="border: 1px solid #000; padding: 8px; margin-top: 10px; font-size: 12px;">
+                  <b>NOTES:</b> ${order.kitchenNotes.toUpperCase()}
+                </div>
+              ` : ''}
+
+              <div style="text-align: center; margin-top: 25px; border-top: 1px dashed #000; padding-top: 15px;">
+                <p style="margin: 0; font-size: 9px; color: #666;">Generated by: Smart Order Taker</p>
+              </div>
             </div>
-          ` : ''}
-          
-          <div style="text-align: center; margin-top: 25px; border-top: 1px dashed #000; padding-top: 15px;">
-            <p style="margin: 0; font-size: 9px; color: #666;">Generated by: Smart Order Taker</p>
-          </div>
-        </div>
+          </body>
+        </html>
       `;
-      printSection.style.display = 'block';
-      
-      // Use setTimeout to ensure DOM is updated and printing is stable
-      setTimeout(() => {
-        window.print();
-        printSection.style.display = 'none';
+
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) return;
+      printWindow.document.write(printHtml);
+      printWindow.document.close();
 
         // Update printed status
         // fulfill user request: "jab print ho jay kitchen mein to es ka matlab ahi ka order kitchen ny receve ker lay hai"
@@ -100,8 +128,7 @@ const LiveOrdersView: React.FC<LiveOrdersViewProps> = ({
         } else {
           onUpdateOrder({ ...order, isPrinted: true });
         }
-        notify("Order Printed", "success");
-      }, 300);
+          notify("Order Printed", "success");
     } catch (e) {
       notify("Printing Error: " + (e as Error).message, "error");
     }
@@ -426,9 +453,6 @@ const LiveOrdersView: React.FC<LiveOrdersViewProps> = ({
                     <button 
                       onClick={() => {
                         onUpdateStatus(order, 'preparing');
-                        if (settings.isAutoPrintKitchenEnabled) {
-                          handlePrintOrder(order);
-                        }
                       }}
                       className="flex-1 py-3 sm:py-5 bg-indigo-600 text-white rounded-xl sm:rounded-2xl font-black uppercase text-[10px] sm:text-[12px] tracking-widest active:scale-95 transition-all shadow-xl shadow-indigo-600/20 flex items-center justify-center gap-2"
                     >
