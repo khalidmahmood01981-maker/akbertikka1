@@ -1003,7 +1003,7 @@ const POS: React.FC<POSProps> = ({
               <div className="grid grid-cols-1 gap-2">
                 <button
                   onClick={() => handleCheckout('kitchen')}
-                  className={`w-full ${isCustomerMode ? 'bg-indigo-600 border-indigo-800' : 'bg-orange-600 border-orange-800'} text-white py-6 rounded-[24px] font-black uppercase text-[14px] tracking-widest shadow-2xl active:scale-95 transition-all border-b-8 flex items-center justify-center gap-3`}
+                  className={`w-full ${isCustomerMode ? 'bg-indigo-600 border-indigo-800 animate-pulse ring-4 ring-indigo-500/50' : 'bg-orange-600 border-orange-800'} text-white py-6 rounded-[24px] font-black uppercase text-[14px] tracking-widest shadow-2xl active:scale-95 transition-all border-b-8 flex items-center justify-center gap-3`}
                 >
                   {isCustomerMode ? ICONS.CheckCircle : ICONS.Utensils}
                   {isCustomerMode ? 'SEND TO ORDER TAKER' : (currentOrderId ? 'Update & Send to Kitchen' : 'Send to Kitchen')}
