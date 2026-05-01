@@ -1868,6 +1868,7 @@ const WELCOME_MESSAGES = [
                       initialTableNumber={currentTableNumber}
                       handlePrint={handlePrint}
                       handlePrintKitchen={handlePrintKitchen}
+                      currentOrderTakerId={currentOrderTakerId}
                     />
                   )}
                   {activeTab === 'history' && (

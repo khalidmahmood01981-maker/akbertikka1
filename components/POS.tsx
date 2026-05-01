@@ -29,11 +29,12 @@ interface POSProps {
   handlePrint: (order: Order, isFinalBill?: boolean) => void;
   handlePrintKitchen: (order: Order) => void;
   isCustomerMode?: boolean;
+  currentOrderTakerId?: string | null;
 }
 
 const POS: React.FC<POSProps> = ({ 
   items, customers, settings, shopName, activeStaff, pendingOrders, allOrders, onOrderComplete, onUpdateOrder, onDeleteOrder, notify, orderToEdit, onClearOrderToEdit, triggerConfirm,
-  setIsNavHidden, isAdmin, initialTableNumber, isPrinterDevice, handlePrint, handlePrintKitchen, isCustomerMode
+  setIsNavHidden, isAdmin, initialTableNumber, isPrinterDevice, handlePrint, handlePrintKitchen, isCustomerMode, currentOrderTakerId
 }) => {
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [selectedItemForQty, setSelectedItemForQty] = useState<MenuItem | null>(null);
@@ -344,8 +345,8 @@ const POS: React.FC<POSProps> = ({
           },
           orderNumber: 0,
           kitchenNotes: kitchenNotes.trim() || undefined,
-          orderTakerId: activeStaff?.id,
-          orderTakerName: (activeStaff?.name) || (shopName) || 'OWNER',
+          orderTakerId: activeStaff?.id || currentOrderTakerId || undefined,
+          orderTakerName: (activeStaff?.name) || (isCustomerMode ? 'CUSTOMER_QR' : shopName) || 'OWNER',
           tableNumber: tableNumber.trim() || undefined,
           deliveryFee,
           deliveryZoneId: selectedDeliveryZoneId || undefined,
