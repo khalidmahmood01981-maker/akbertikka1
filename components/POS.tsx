@@ -878,13 +878,26 @@ const POS: React.FC<POSProps> = ({
                 </div>
                 <div className="text-left">
                   <p className="text-white text-lg font-black uppercase leading-none">{cart.length} Items</p>
-                  <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest mt-1 italic">Review & Pay</p>
+                  <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest mt-1 italic">Review Selection</p>
                 </div>
               </div>
               <div className="text-right">
                 <p className="text-white text-2xl font-black italic tracking-tighter">Rs.{finalTotal.toFixed(0)}</p>
               </div>
             </button>
+
+            {isCustomerMode && (
+              <button
+                onClick={() => handleCheckout('kitchen')}
+                className="w-16 sm:w-24 bg-indigo-600 text-white rounded-[28px] sm:rounded-[32px] shadow-2xl flex flex-col items-center justify-center active:scale-90 transition-all border-b-4 border-indigo-800 animate-pulse group"
+                title="Quick Send"
+              >
+                <div className="group-active:translate-x-4 group-active:-translate-y-4 transition-all duration-300">
+                  {ICONS.Send}
+                </div>
+                <span className="text-[7px] font-black uppercase mt-1">Send</span>
+              </button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
