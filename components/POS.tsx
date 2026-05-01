@@ -647,64 +647,64 @@ const POS: React.FC<POSProps> = ({
       </AnimatePresence>
 
       {/* Large Action Buttons */}
-      {/* Large Action Buttons - Single Row */}
-      <div className="grid grid-cols-3 gap-3 pb-2">
-        {/* Button 1: Ready Orders Modal */}
-        <button
-          onClick={() => setShowReadyOrders(true)}
-          className={`relative group p-4 rounded-[24px] shadow-xl active:scale-95 transition-all flex flex-col items-center justify-center gap-2 border-b-4 ${blinkReady ? 'bg-emerald-500 animate-pulse border-emerald-700 ring-4 ring-emerald-500/50' : 'bg-emerald-600 border-emerald-800 text-white'}`}
-        >
-          <div className="p-2 bg-white/20 rounded-xl group-hover:scale-110 transition-transform">
-            {ICONS.Utensils}
-          </div>
-          <div className="text-center">
-            <span className="text-[9px] font-black uppercase tracking-tighter italic">Ready Order</span>
-            {readyOrders.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-white text-emerald-600 text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-emerald-600 shadow-lg animate-bounce">
-                {readyOrders.length}
-              </span>
-            )}
-          </div>
-        </button>
+      {/* Large Action Buttons - Hidden for Customers */}
+      {!isCustomerMode && (
+        <div className="grid grid-cols-3 gap-3 pb-2">
+          {/* Button 1: Ready Orders Modal */}
+          <button
+            onClick={() => setShowReadyOrders(true)}
+            className={`relative group p-4 rounded-[24px] shadow-xl active:scale-95 transition-all flex flex-col items-center justify-center gap-2 border-b-4 ${blinkReady ? 'bg-emerald-500 animate-pulse border-emerald-700 ring-4 ring-emerald-500/50' : 'bg-emerald-600 border-emerald-800 text-white'}`}
+          >
+            <div className="p-2 bg-white/20 rounded-xl group-hover:scale-110 transition-transform">
+              {ICONS.Utensils}
+            </div>
+            <div className="text-center">
+              <span className="text-[9px] font-black uppercase tracking-tighter italic">Ready Order</span>
+              {readyOrders.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-white text-emerald-600 text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-emerald-600 shadow-lg animate-bounce">
+                  {readyOrders.length}
+                </span>
+              )}
+            </div>
+          </button>
 
-        {/* Button 2: Active Orders Modal */}
-        <button
-          onClick={() => setShowActiveOrders(true)}
-          className="relative group p-4 bg-blue-600 text-white rounded-[24px] shadow-xl active:scale-95 transition-all flex flex-col items-center justify-center gap-2 border-b-4 border-blue-800"
-        >
-          <div className="p-2 bg-white/20 rounded-xl group-hover:scale-110 transition-transform">
-            {ICONS.History}
-          </div>
-          <div className="text-center">
-            <span className="text-[9px] font-black uppercase tracking-tighter italic">Active Order</span>
-            {activeOrders.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-white text-blue-600 text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-blue-600 shadow-lg">
-                {activeOrders.length}
-              </span>
-            )}
-          </div>
-        </button>
+          {/* Button 2: Active Orders Modal */}
+          <button
+            onClick={() => setShowActiveOrders(true)}
+            className="relative group p-4 bg-blue-600 text-white rounded-[24px] shadow-xl active:scale-95 transition-all flex flex-col items-center justify-center gap-2 border-b-4 border-blue-800"
+          >
+            <div className="p-2 bg-white/20 rounded-xl group-hover:scale-110 transition-transform">
+              {ICONS.History}
+            </div>
+            <div className="text-center">
+              <span className="text-[9px] font-black uppercase tracking-tighter italic">Active Order</span>
+              {activeOrders.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-white text-blue-600 text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-blue-600 shadow-lg">
+                  {activeOrders.length}
+                </span>
+              )}
+            </div>
+          </button>
 
-        {/* Button 3: New Orders (Pending Customer) Modal */}
-        <button
-          onClick={() => setShowPendingOrders(true)}
-          className={`relative group p-4 rounded-[24px] shadow-xl active:scale-95 transition-all flex flex-col items-center justify-center gap-2 border-b-4 ${blinkPending ? 'bg-indigo-600 animate-pulse border-indigo-800 ring-4 ring-indigo-500/50' : 'bg-indigo-600 border-indigo-800 text-white'}`}
-        >
-          <div className="p-2 bg-white/20 rounded-xl group-hover:scale-110 transition-transform">
-            {ICONS.Inbox}
-          </div>
-          <div className="text-center">
-            <span className="text-[9px] font-black uppercase tracking-tighter italic">New Order</span>
-            {pendingOrders.filter(o => o.status === 'pending_customer').length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-white text-indigo-600 text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-indigo-600 shadow-lg animate-bounce">
-                {pendingOrders.filter(o => o.status === 'pending_customer').length}
-              </span>
-            )}
-          </div>
-        </button>
-
-        <div></div>
-      </div>
+          {/* Button 3: New Orders (Pending Customer) Modal */}
+          <button
+            onClick={() => setShowPendingOrders(true)}
+            className={`relative group p-4 rounded-[24px] shadow-xl active:scale-95 transition-all flex flex-col items-center justify-center gap-2 border-b-4 ${blinkPending ? 'bg-indigo-600 animate-pulse border-indigo-800 ring-4 ring-indigo-500/50' : 'bg-indigo-600 border-indigo-800 text-white'}`}
+          >
+            <div className="p-2 bg-white/20 rounded-xl group-hover:scale-110 transition-transform">
+              {ICONS.Inbox}
+            </div>
+            <div className="text-center">
+              <span className="text-[9px] font-black uppercase tracking-tighter italic">New Order</span>
+              {pendingOrders.filter(o => o.status === 'pending_customer').length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-white text-indigo-600 text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-indigo-600 shadow-lg animate-bounce">
+                  {pendingOrders.filter(o => o.status === 'pending_customer').length}
+                </span>
+              )}
+            </div>
+          </button>
+        </div>
+      )}
 
       {/* Item Grid */}
       <motion.div
@@ -741,11 +741,16 @@ const POS: React.FC<POSProps> = ({
               className="bg-[var(--bg-card)] rounded-[24px] border overflow-hidden transition-all shadow-xl group relative active:scale-95 border-[var(--border)] hover:border-orange-600 cursor-pointer aspect-square"
             >
               {/* Image Container - Now Fills Entire Card */}
-              <div className="absolute inset-0 w-full h-full">
-                <picture>
-                  <source srcSet={`${item.image.replace(/\.(jpg|png)$/i, '.webp')}`} type="image/webp" />
-                  <img src={item.image} alt={item.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                </picture>
+              <div className="absolute inset-0 w-full h-full bg-gray-900/10">
+                <img 
+                  src={item.image} 
+                  alt={item.name} 
+                  loading="lazy" 
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80'; // Fallback
+                  }}
+                />
                 
                 {/* Dark Gradient Overlay for Text Readability */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent" />
