@@ -558,7 +558,14 @@ const POS: React.FC<POSProps> = ({
                   />
                 </div>
 
-                <div className="pt-8">
+                <div className="pt-4">
+                  <div className="bg-indigo-600/10 border border-indigo-600/20 rounded-2xl p-3 inline-block">
+                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1 italic">Scan or Open:</p>
+                    <p className="text-[12px] font-black text-white">{window.location.protocol}//{settings.masterIP || window.location.host}</p>
+                  </div>
+                </div>
+
+                <div className="pt-4">
                   <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest italic">Taker: {activeStaff?.name}</p>
                 </div>
               </div>
