@@ -634,7 +634,7 @@ const POS: React.FC<POSProps> = ({
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-4 bg-[var(--bg-card)] rounded-[24px] border border-orange-600/20 shadow-2xl z-50"
+            className="grid grid-cols-3 gap-2 p-4 bg-[var(--bg-card)] rounded-[24px] border border-orange-600/20 shadow-2xl z-50"
           >
             <button
               onClick={() => { setCategory('All'); setShowCategoryMenu(false); }}
