@@ -867,9 +867,11 @@ const POS: React.FC<POSProps> = ({
             <button
               onClick={() => {
                 setIsCheckoutOpen(true);
-                setCustomerPhone('');
-                setCustomerWhatsApp('');
-                setCustomerName('');
+                if (!isCustomerMode) {
+                  setCustomerPhone('');
+                  setCustomerWhatsApp('');
+                  setCustomerName('');
+                }
               }}
               className="flex-1 bg-orange-600 p-3.5 sm:p-6 rounded-[28px] sm:rounded-[32px] shadow-2xl flex items-center justify-between active:scale-[0.98] transition-all hover:bg-orange-700 border-b-4 border-orange-800"
             >
@@ -998,7 +1000,7 @@ const POS: React.FC<POSProps> = ({
                      Update Bill (No Kitchen)
                    </button>
                 )}
-                {!currentOrderId && (
+                {!currentOrderId && !isCustomerMode && (
                   <button
                     onClick={() => handleCheckout('draft')}
                     className="bg-blue-600/10 text-blue-500 py-2 rounded-[18px] font-black uppercase text-[10px] tracking-widest border border-blue-600/20 active:scale-95 transition-all"
