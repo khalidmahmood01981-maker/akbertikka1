@@ -28,11 +28,12 @@ interface POSProps {
   isPrinterDevice?: boolean;
   handlePrint: (order: Order, isFinalBill?: boolean) => void;
   handlePrintKitchen: (order: Order) => void;
+  isCustomerMode?: boolean;
 }
 
 const POS: React.FC<POSProps> = ({ 
   items, customers, settings, shopName, activeStaff, pendingOrders, allOrders, onOrderComplete, onUpdateOrder, onDeleteOrder, notify, orderToEdit, onClearOrderToEdit, triggerConfirm,
-  setIsNavHidden, isAdmin, initialTableNumber, isPrinterDevice, handlePrint, handlePrintKitchen
+  setIsNavHidden, isAdmin, initialTableNumber, isPrinterDevice, handlePrint, handlePrintKitchen, isCustomerMode
 }) => {
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [selectedItemForQty, setSelectedItemForQty] = useState<MenuItem | null>(null);
@@ -43,10 +44,17 @@ const POS: React.FC<POSProps> = ({
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerWhatsApp, setCustomerWhatsApp] = useState('');
-  const [tableNumber, setTableNumber] = useState('');
+  const [tableNumber, setTableNumber] = useState(initialTableNumber || '');
   const [kitchenNotes, setKitchenNotes] = useState('');
+  const [showCustomerModal, setShowCustomerModal] = useState(!!isCustomerMode);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
+
+  useEffect(() => {
+    if (initialTableNumber) {
+      setTableNumber(initialTableNumber);
+    }
+  }, [initialTableNumber]);
   const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('cash');
@@ -438,7 +446,70 @@ const POS: React.FC<POSProps> = ({
     : 0;
 
   return (
-    <div className={`space-y-4 animate-in fade-in duration-500 pb-20 px-0.5 transition-all`}>
+    <>
+      {/* Customer Details Modal (Auto-open in Customer Mode) */}
+      <AnimatePresence>
+        {showCustomerModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-[var(--bg-card)] w-full max-w-sm rounded-[32px] border border-white/10 shadow-2xl overflow-hidden"
+            >
+              <div className="bg-orange-600 p-6 text-center">
+                <h3 className="font-black text-2xl uppercase tracking-widest text-white italic">Welcome!</h3>
+                <p className="text-white/80 text-[10px] uppercase font-bold tracking-widest mt-1">Please enter your details</p>
+              </div>
+              <div className="p-6 space-y-4">
+                <input
+                  type="text"
+                  placeholder="YOUR NAME *"
+                  className="w-full p-5 bg-black/40 border-2 border-white/5 rounded-[24px] outline-none font-black text-white text-center uppercase focus:border-orange-600 transition-all text-xs"
+                  value={customerName}
+                  onChange={e => setCustomerName(e.target.value)}
+                />
+                <input
+                  type="text"
+                  placeholder="WHATSAPP NUMBER *"
+                  className="w-full p-5 bg-black/40 border-2 border-white/5 rounded-[24px] outline-none font-black text-white text-center uppercase focus:border-orange-600 transition-all text-xs"
+                  value={customerWhatsApp}
+                  onChange={e => {
+                    setCustomerWhatsApp(e.target.value);
+                    setCustomerPhone(e.target.value); // Sync with phone
+                  }}
+                />
+                <input
+                  type="text"
+                  placeholder="TABLE NUMBER *"
+                  className="w-full p-5 bg-black/40 border-2 border-white/5 rounded-[24px] outline-none font-black text-white text-center uppercase focus:border-orange-600 transition-all text-xs"
+                  value={tableNumber}
+                  onChange={e => setTableNumber(e.target.value)}
+                />
+                <button
+                  onClick={() => {
+                    if (!customerName.trim() || !customerWhatsApp.trim() || !tableNumber.trim()) {
+                      notify("Please fill all details", "error");
+                      return;
+                    }
+                    setShowCustomerModal(false);
+                  }}
+                  className="w-full bg-orange-600 text-white py-5 rounded-[24px] font-black uppercase text-[12px] tracking-widest shadow-xl active:scale-95 transition-all mt-4"
+                >
+                  Continue to Menu
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className={`space-y-4 animate-in fade-in duration-500 pb-20 px-0.5 transition-all`}>
       {/* Top Action Bar */}
       <div className="flex items-center justify-between gap-2 mb-4">
         <div className="flex items-center gap-2">
@@ -1759,6 +1830,7 @@ const POS: React.FC<POSProps> = ({
       </AnimatePresence>
 
     </div>
+    </>
   );
 };
 
