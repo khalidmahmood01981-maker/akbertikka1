@@ -975,6 +975,20 @@ const POS: React.FC<POSProps> = ({
                   </div>
                 ))}
               </div>
+
+              {/* Order Taker & Table Info for Customer */}
+              {isCustomerMode && (
+                <div className="bg-indigo-600/10 border border-indigo-600/20 p-5 rounded-[32px] flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <p className="text-[8px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-1">Sending Order To</p>
+                    <p className="text-lg font-black text-white uppercase italic leading-none">{currentOrderTakerId ? `Order Taker #${currentOrderTakerId.substring(0,4)}` : 'Main Counter'}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[8px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-1">At Table</p>
+                    <p className="text-xl font-black text-white italic leading-none">{tableNumber || 'N/A'}</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Combined Final Actions */}
