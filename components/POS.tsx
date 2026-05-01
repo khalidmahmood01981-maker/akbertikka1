@@ -59,6 +59,7 @@ const POS: React.FC<POSProps> = ({
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('cash');
   const [successOrder, setSuccessOrder] = useState<Order | null>(null);
+  const [showQRModal, setShowQRModal] = useState(false);
 
   React.useEffect(() => {
     if (successOrder && settings.isAutoWhatsappEnabled) {
@@ -516,6 +517,55 @@ const POS: React.FC<POSProps> = ({
         )}
       </AnimatePresence>
 
+      {/* QR Code Modal for Customers */}
+      <AnimatePresence>
+        {showQRModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[600] flex items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-[var(--bg-card)] rounded-[48px] border border-white/10 p-10 shadow-2xl text-center max-w-sm w-full relative"
+            >
+              <button 
+                onClick={() => setShowQRModal(false)}
+                className="absolute top-6 right-6 p-3 rounded-2xl bg-white/5 text-white hover:bg-white/10"
+              >
+                {ICONS.X}
+              </button>
+
+              <div className="space-y-6">
+                <div className="w-20 h-20 bg-indigo-600/20 text-indigo-500 rounded-3xl mx-auto flex items-center justify-center mb-4 scale-125">
+                  {ICONS.QrCode}
+                </div>
+                
+                <h3 className="text-2xl font-black uppercase tracking-tighter text-white italic">Scan to Order</h3>
+                <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-[0.2em] mb-8">Customer can scan this QR to see the menu</p>
+
+                <div className="bg-white p-6 rounded-[32px] inline-block shadow-2xl border-4 border-indigo-600/20">
+                  <QRCodeCanvas
+                    value={`${window.location.href.split('?')[0].split('#')[0]}?mode=customer&takerId=${activeStaff?.id}&token=${Math.floor(Date.now() / 86400000)}`}
+                    size={220}
+                    bgColor="#ffffff"
+                    fgColor="#000000"
+                    level="H"
+                  />
+                </div>
+
+                <div className="pt-8">
+                  <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest italic">Taker: {activeStaff?.name}</p>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className={`space-y-4 animate-in fade-in duration-500 pb-20 px-0.5 transition-all`}>
       {/* Top Action Bar */}
       <div className="flex items-center justify-between gap-2 mb-4">
@@ -536,15 +586,28 @@ const POS: React.FC<POSProps> = ({
           {readyOrders.length > 0 && (
             <button
               onClick={() => setShowReadyOrders(true)}
-              className="relative p-4 bg-emerald-600 text-white rounded-[20px] shadow-xl active:scale-90 transition-transform flex items-center justify-center animate-bounce"
+              className="p-4 bg-emerald-600 text-white rounded-[20px] shadow-xl active:scale-90 transition-all flex items-center justify-center relative"
               title="Ready Orders"
             >
-              {ICONS.Utensils}
-              <span className="absolute -top-1 -right-1 bg-white text-emerald-600 text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-emerald-600">
+              {ICONS.Bell}
+              <span className="absolute -top-1 -right-1 bg-white text-emerald-600 text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-emerald-600 animate-bounce">
                 {readyOrders.length}
               </span>
             </button>
           )}
+
+          {activeStaff && (
+            <button
+              onClick={() => setShowQRModal(true)}
+              className="p-4 bg-indigo-600 text-white rounded-[20px] shadow-xl active:scale-90 transition-all flex items-center justify-center gap-2"
+              title="Show QR for Customer"
+            >
+              {ICONS.QrCode}
+              <span className="text-[10px] font-black hidden sm:inline">QR</span>
+            </button>
+          )}
+
+          <div className="relative">
           <button
             onClick={() => setIsScannerOpen(true)}
             className="p-4 bg-[var(--bg-card)] text-orange-600 border border-orange-600/20 rounded-[20px] shadow-xl active:scale-90 transition-transform flex items-center justify-center"
