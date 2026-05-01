@@ -704,8 +704,8 @@ const POS: React.FC<POSProps> = ({
         })}
       </motion.div>
 
-      {/* Order Taker QR Code for Customers */}
-      {activeStaff && (
+      {/* Order Taker QR Code for Customers - Hidden as requested */}
+      {/* {activeStaff && (
         <div className="bg-[var(--bg-card)] rounded-[24px] border border-orange-600/20 p-6 shadow-2xl text-center">
           <h3 className="text-lg font-black uppercase text-orange-600 mb-4">Scan to Order</h3>
           <div className="flex justify-center">
@@ -719,7 +719,7 @@ const POS: React.FC<POSProps> = ({
           </div>
           <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest mt-4">Customers can scan this QR to view menu and place orders</p>
         </div>
-      )}
+      )} */}
 
       {/* Qty Modal */}
       {selectedItemForQty && (
