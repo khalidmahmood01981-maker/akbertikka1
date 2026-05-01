@@ -812,14 +812,24 @@ const App: React.FC = () => {
         setIsCustomerMode(true);
         setCurrentOrderTakerId(takerId);
         setCurrentTableNumber(url.searchParams.get('table') || url.searchParams.get('t') || '');
+        
+        // Persist session so refresh doesn't break customer mode
+        sessionStorage.setItem('isCustomerMode', 'true');
+        sessionStorage.setItem('currentOrderTakerId', takerId || '');
+        sessionStorage.setItem('currentTableNumber', url.searchParams.get('table') || url.searchParams.get('t') || '');
 
-
-
-        // Hide URL parameters to prevent bookmarking/sharing
+        // Hide URL parameters
         window.history.replaceState({}, document.title, window.location.pathname);
       } else {
         notify("QR Code Expired! Please scan fresh QR from Waiter.", "error");
         window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    } else {
+      // Check for persisted session
+      if (sessionStorage.getItem('isCustomerMode') === 'true') {
+        setIsCustomerMode(true);
+        setCurrentOrderTakerId(sessionStorage.getItem('currentOrderTakerId'));
+        setCurrentTableNumber(sessionStorage.getItem('currentTableNumber') || '');
       }
     }
 

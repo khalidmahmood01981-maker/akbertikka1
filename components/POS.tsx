@@ -550,7 +550,7 @@ const POS: React.FC<POSProps> = ({
 
                 <div className="bg-white p-6 rounded-[32px] inline-block shadow-2xl border-4 border-indigo-600/20">
                   <QRCodeCanvas
-                    value={`${window.location.href.split('?')[0].split('#')[0]}?mode=customer&takerId=${activeStaff?.id}&token=${Math.floor(Date.now() / 86400000)}`}
+                    value={`${window.location.protocol}//${window.location.host}${window.location.pathname}?mode=customer&takerId=${activeStaff?.id}&token=${Math.floor(Date.now() / 86400000)}`}
                     size={220}
                     bgColor="#ffffff"
                     fgColor="#000000"
