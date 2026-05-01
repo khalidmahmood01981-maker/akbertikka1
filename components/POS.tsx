@@ -855,12 +855,12 @@ const POS: React.FC<POSProps> = ({
       {/* Cart Summary Trigger */}
       <AnimatePresence>
         {cart.length > 0 && !isCheckoutOpen && !successOrder && (
-          <motion.div
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-24 left-4 right-4 z-[200] flex gap-2"
+          <motion.div 
+            initial={{ y: 100 }} 
+            animate={{ y: 0 }} 
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[1000] w-[95%] max-w-md flex items-center gap-3"
           >
+            {/* Main Review Button */}
             <button
               onClick={() => {
                 setIsCheckoutOpen(true);
@@ -870,35 +870,39 @@ const POS: React.FC<POSProps> = ({
                   setCustomerName('');
                 }
               }}
-              className="flex-1 bg-orange-600 p-3.5 sm:p-6 rounded-[28px] sm:rounded-[32px] shadow-2xl flex items-center justify-between active:scale-[0.98] transition-all hover:bg-orange-700 border-b-4 border-orange-800"
+              className="flex-1 bg-gradient-to-r from-orange-600 to-orange-500 text-white p-6 rounded-[32px] shadow-[0_20px_50px_rgba(234,88,12,0.3)] flex items-center justify-between active:scale-95 transition-all border-b-8 border-orange-800"
             >
-              <div className="flex items-center gap-3">
-                <div className="bg-white/20 p-3 rounded-xl text-white">
+              <div className="flex items-center gap-4">
+                <div className="bg-white/20 p-3 rounded-2xl text-white animate-bounce">
                   {ICONS.ShoppingBag}
                 </div>
                 <div className="text-left">
-                  <p className="text-white text-lg font-black uppercase leading-none">{cart.length} Items</p>
-                  <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest mt-1 italic">Review Selection</p>
+                  <p className="text-white text-xl font-black uppercase leading-none">{cart.length} Items</p>
+                  <p className="text-white/80 text-[10px] font-black uppercase tracking-[0.2em] mt-1 italic">Click to Review</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-white text-2xl font-black italic tracking-tighter">Rs.{finalTotal.toFixed(0)}</p>
+                <p className="text-white text-3xl font-black italic tracking-tighter leading-none">Rs.{finalTotal.toFixed(0)}</p>
               </div>
             </button>
 
+            {/* Quick Send Button (For Customer) */}
             {isCustomerMode && (
               <button
                 onClick={() => handleCheckout('kitchen')}
-                className="w-16 sm:w-24 bg-indigo-600 text-white rounded-[28px] sm:rounded-[32px] shadow-2xl flex flex-col items-center justify-center active:scale-90 transition-all border-b-4 border-indigo-800 animate-pulse group"
-                title="Quick Send"
+                className="w-20 h-20 bg-indigo-600 text-white rounded-[32px] shadow-[0_20px_50px_rgba(79,70,229,0.3)] flex flex-col items-center justify-center active:scale-90 transition-all border-b-8 border-indigo-900 animate-pulse group ring-4 ring-indigo-500/30"
+                title="Send Order Now"
               >
-                <div className="group-active:translate-x-4 group-active:-translate-y-4 transition-all duration-300">
-                  {ICONS.Send}
-                </div>
-                <span className="text-[7px] font-black uppercase mt-1">Send</span>
+                <div className="scale-150 mb-1">{ICONS.Send}</div>
+                <span className="text-[8px] font-black uppercase">Send</span>
               </button>
             )}
           </motion.div>
+          
+          /* Version tag for verification */
+          <div className="fixed bottom-4 left-4 text-[8px] font-black text-white/20 uppercase tracking-widest z-[1001]">
+            v1.2 - New Buttons Active
+          </div>
         )}
       </AnimatePresence>
 
