@@ -256,7 +256,10 @@ const POS: React.FC<POSProps> = ({
         return;
       }
 
-      const status: OrderStatus = mode === 'draft' ? 'draft' : (mode === 'final' ? 'served' : 'received');
+      let status: OrderStatus = mode === 'draft' ? 'draft' : (mode === 'final' ? 'served' : 'received');
+      if (isCustomerMode) {
+        status = 'pending_customer';
+      }
 
       const existingOrder = currentOrderId ? (allOrders || []).find(o => o.id === currentOrderId) : null;
       
@@ -306,13 +309,13 @@ const POS: React.FC<POSProps> = ({
           customerPhone: customerPhone.trim() || '',
           whatsappNumber: customerWhatsApp.trim() || undefined,
           paymentMethod: selectedPaymentMethod,
-          status: mode === 'final' ? 'served' : (mode === 'kitchen' ? 'received' : existingOrder.status),
+          status: mode === 'final' ? 'served' : (isCustomerMode ? 'pending_customer' : (mode === 'kitchen' ? 'received' : existingOrder.status)),
           isPrinted: mode === 'kitchen' ? false : (existingOrder.isPrinted || false),
           kitchenTickets: newKitchenTickets,
           updateCount: newUpdateCount,
           statusTimestamps: mode === 'update' ? existingOrder.statusTimestamps : {
             ...existingOrder.statusTimestamps,
-            [mode === 'final' ? 'served' : (mode === 'kitchen' ? 'received' : existingOrder.status!)]: Date.now()
+            [mode === 'final' ? 'served' : (isCustomerMode ? 'pending_customer' : (mode === 'kitchen' ? 'received' : existingOrder.status!))]: Date.now()
           },
           kitchenNotes: kitchenNotes.trim() || undefined,
           tableNumber: tableNumber.trim() || undefined,
@@ -362,9 +365,13 @@ const POS: React.FC<POSProps> = ({
           handlePrint(newOrder, true);
         }
       } else if (mode === 'kitchen') {
-        notify("Order sent to kitchen!", "success");
-        if (settings.enableKitchenPrinting && settings.isAutoPrintKitchenEnabled && isPrinterDevice) {
-          handlePrintKitchen(newOrder);
+        if (isCustomerMode) {
+          notify("Order sent to Order Taker!", "success");
+        } else {
+          notify("Order sent to kitchen!", "success");
+          if (settings.enableKitchenPrinting && settings.isAutoPrintKitchenEnabled && isPrinterDevice) {
+            handlePrintKitchen(newOrder);
+          }
         }
         resetForNextBill();
       } else if (mode === 'update') {
@@ -906,7 +913,7 @@ const POS: React.FC<POSProps> = ({
                   className="w-full bg-orange-600 text-white py-4 rounded-[18px] font-black uppercase text-[12px] tracking-widest shadow-xl active:scale-95 transition-all border-b-4 border-orange-800 flex items-center justify-center gap-2"
                 >
                   {ICONS.Utensils}
-                  {currentOrderId ? 'Update & Send to Kitchen' : 'Send to Kitchen'}
+                  {isCustomerMode ? 'Send to Order Taker' : (currentOrderId ? 'Update & Send to Kitchen' : 'Send to Kitchen')}
                 </button>
                 {currentOrderId && (
                    <button
