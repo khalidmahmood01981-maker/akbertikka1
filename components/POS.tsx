@@ -608,13 +608,14 @@ const POS: React.FC<POSProps> = ({
           )}
 
           <div className="relative">
-          <button
-            onClick={() => setIsScannerOpen(true)}
-            className="p-4 bg-[var(--bg-card)] text-orange-600 border border-orange-600/20 rounded-[20px] shadow-xl active:scale-90 transition-transform flex items-center justify-center"
-            title="Scan QR Code"
-          >
-            {ICONS.QrCode}
-          </button>
+            <button
+              onClick={() => setIsScannerOpen(true)}
+              className="p-4 bg-[var(--bg-card)] text-orange-600 border border-orange-600/20 rounded-[20px] shadow-xl active:scale-90 transition-transform flex items-center justify-center"
+              title="Scan QR Code"
+            >
+              {ICONS.QrCode}
+            </button>
+          </div>
         </div>
       </div>
 
