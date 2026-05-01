@@ -864,20 +864,20 @@ const POS: React.FC<POSProps> = ({
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => setIsCheckoutOpen(true)}
-                  className="bg-orange-600 text-white p-5 rounded-[32px] shadow-2xl flex flex-col items-center justify-center active:scale-95 transition-all border-b-8 border-orange-800"
+                  className="bg-orange-600 text-white p-4 rounded-[28px] shadow-2xl flex flex-col items-center justify-center active:scale-95 transition-all border-b-8 border-orange-800"
                 >
                   <div className="bg-white/20 p-2 rounded-xl mb-1">{ICONS.ShoppingBag}</div>
-                  <span className="text-[10px] font-black uppercase tracking-widest italic">Review Order</span>
-                  <span className="text-[8px] font-bold opacity-60">({cart.length} ITEMS)</span>
+                  <span className="text-[11px] font-black uppercase tracking-tighter leading-none italic">Items Selected</span>
+                  <p className="text-xl font-black italic mt-1 leading-none">{cart.length}</p>
                 </button>
                 
                 <button
                   onClick={() => handleCheckout('kitchen')}
-                  className="bg-indigo-600 text-white p-5 rounded-[32px] shadow-2xl flex flex-col items-center justify-center active:scale-95 transition-all border-b-8 border-indigo-900 animate-pulse ring-4 ring-indigo-500/20"
+                  className="bg-indigo-600 text-white p-4 rounded-[28px] shadow-2xl flex flex-col items-center justify-center active:scale-95 transition-all border-b-8 border-indigo-900 animate-pulse ring-4 ring-indigo-500/20"
                 >
                   <div className="bg-white/20 p-2 rounded-xl mb-1">{ICONS.Send}</div>
-                  <span className="text-[10px] font-black uppercase tracking-widest italic">Send To Taker</span>
-                  <span className="text-[8px] font-bold opacity-60">RS.{finalTotal.toFixed(0)}</span>
+                  <span className="text-[11px] font-black uppercase tracking-tighter leading-none italic">Send to Taker</span>
+                  <p className="text-[14px] font-black italic mt-1 leading-none">Rs.{finalTotal.toFixed(0)}</p>
                 </button>
               </div>
             ) : (
@@ -897,8 +897,8 @@ const POS: React.FC<POSProps> = ({
                     {ICONS.ShoppingBag}
                   </div>
                   <div className="text-left">
-                    <p className="text-white text-xl font-black uppercase leading-none">{cart.length} Items</p>
-                    <p className="text-white/80 text-[10px] font-black uppercase tracking-[0.2em] mt-1 italic">Click to Review</p>
+                    <p className="text-white text-xl font-black uppercase leading-none">{cart.length} Items Selected</p>
+                    <p className="text-white/80 text-[10px] font-black uppercase tracking-[0.2em] mt-1 italic">Click to Review & Pay</p>
                   </div>
                 </div>
                 <div className="text-right">
@@ -907,10 +907,9 @@ const POS: React.FC<POSProps> = ({
               </button>
             )}
 
-            {/* Version tag for verification */}
             <div className="text-center">
               <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">
-                v1.3 - Customer Dual Buttons Active
+                v1.4 - Optimized Buttons
               </span>
             </div>
           </motion.div>
