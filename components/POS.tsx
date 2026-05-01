@@ -899,7 +899,7 @@ const POS: React.FC<POSProps> = ({
             )}
           </motion.div>
           
-          /* Version tag for verification */
+          {/* Version tag for verification */}
           <div className="fixed bottom-4 left-4 text-[8px] font-black text-white/20 uppercase tracking-widest z-[1001]">
             v1.2 - New Buttons Active
           </div>
