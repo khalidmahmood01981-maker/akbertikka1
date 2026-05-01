@@ -604,16 +604,6 @@ const POS: React.FC<POSProps> = ({
             </button>
           )}
 
-          {activeStaff && (
-            <button
-              onClick={() => setShowQRModal(true)}
-              className="p-4 bg-indigo-600 text-white rounded-[20px] shadow-xl active:scale-90 transition-all flex items-center justify-center gap-2"
-              title="Show QR for Customer"
-            >
-              {ICONS.QrCode}
-              <span className="text-[10px] font-black hidden sm:inline">QR</span>
-            </button>
-          )}
 
           <div className="relative">
             <button

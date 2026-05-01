@@ -2254,6 +2254,49 @@ const WELCOME_MESSAGES = [
         </div>
       )}
 
+      {/* Order Taker QR Modal (Triggered from Corner) */}
+      {showTakerQR && activeStaff && (
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-3xl z-[60000] flex items-center justify-center p-6 animate-in fade-in">
+          <div className="bg-[var(--bg-card)] rounded-[48px] border border-orange-600/20 w-full max-w-sm p-10 space-y-8 shadow-2xl text-center relative border-b-[12px] border-b-orange-600">
+            <button 
+              onClick={() => setShowTakerQR(false)}
+              className="absolute top-6 right-6 p-3 rounded-2xl bg-white/5 text-white"
+            >
+              {ICONS.X}
+            </button>
+            <div className="space-y-4">
+              <div className="w-20 h-20 bg-indigo-600/10 text-indigo-500 rounded-full mx-auto flex items-center justify-center mb-4 ring-8 ring-indigo-500/5">
+                <div className="scale-150">{ICONS.QrCode}</div>
+              </div>
+              <h3 className="text-2xl font-black uppercase tracking-tighter italic text-white leading-none">Scan to <span className="text-orange-600">Order</span></h3>
+              <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Customer can scan this to see menu</p>
+            </div>
+
+            <div className="bg-white p-6 rounded-[32px] inline-block shadow-2xl border-4 border-indigo-600/20">
+              <QRCodeCanvas
+                value={`${window.location.protocol}//${settings.masterIP ? (settings.masterIP.includes(':') ? settings.masterIP : `${settings.masterIP}:3000`) : window.location.host}${window.location.pathname}?mode=customer&takerId=${activeStaff.id}&token=${Math.floor(Date.now() / 86400000)}`}
+                size={220}
+                bgColor="#ffffff"
+                fgColor="#000000"
+                level="H"
+              />
+            </div>
+
+            <div className="bg-indigo-600/10 border border-indigo-600/20 rounded-2xl p-3 inline-block w-full">
+               <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1 italic">Network URL:</p>
+               <p className="text-[12px] font-black text-white">{window.location.protocol}//{settings.masterIP ? (settings.masterIP.includes(':') ? settings.masterIP : `${settings.masterIP}:3000`) : window.location.host}</p>
+            </div>
+
+            <button 
+              onClick={() => setShowTakerQR(false)} 
+              className="w-full py-5 bg-orange-600 text-white rounded-[28px] font-black uppercase text-[12px] shadow-2xl active:scale-95 transition-all tracking-widest"
+            >
+              CLOSE
+            </button>
+          </div>
+        </div>
+      )}
+
       {showLogin && <LoginModal
         onEnterCustomerMode={() => {
           setIsCustomerMode(true);
