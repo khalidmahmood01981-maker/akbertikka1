@@ -1830,6 +1830,7 @@ const WELCOME_MESSAGES = [
                   )}
                   {activeTab === 'bill' && (
                     <POS
+                      isCustomerMode={isCustomerMode}
                       items={items}
                       customers={customers}
                       settings={settings}
