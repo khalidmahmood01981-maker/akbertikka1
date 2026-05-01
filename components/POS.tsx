@@ -895,7 +895,7 @@ const POS: React.FC<POSProps> = ({
       {/* Checkout Full Modal */}
       {isCheckoutOpen && (
         <div className="fixed inset-0 bg-black/98 backdrop-blur-3xl z-[2500] flex flex-col justify-end">
-          <div className="bg-[var(--bg-nav)] rounded-t-[50px] h-[85vh] w-full max-md mx-auto flex flex-col shadow-2xl border-t border-white/5 animate-in slide-in-from-bottom duration-400 overflow-hidden">
+          <div className="bg-[var(--bg-nav)] rounded-t-[50px] h-[85vh] w-full max-w-md mx-auto flex flex-col shadow-2xl border-t border-white/5 animate-in slide-in-from-bottom duration-400 overflow-hidden">
             <div className="p-6 border-b border-white/5 flex justify-between items-center bg-[var(--bg-nav)] z-10 rounded-t-[50px]">
               <h3 className="font-black text-xl uppercase tracking-tighter text-orange-600 italic">Checkout</h3>
               <button onClick={() => setIsCheckoutOpen(false)} className="p-3 rounded-2xl bg-white/5 text-white">{ICONS.X}</button>
@@ -982,10 +982,10 @@ const POS: React.FC<POSProps> = ({
               <div className="grid grid-cols-1 gap-2">
                 <button
                   onClick={() => handleCheckout('kitchen')}
-                  className="w-full bg-orange-600 text-white py-4 rounded-[18px] font-black uppercase text-[12px] tracking-widest shadow-xl active:scale-95 transition-all border-b-4 border-orange-800 flex items-center justify-center gap-2"
+                  className={`w-full ${isCustomerMode ? 'bg-indigo-600 border-indigo-800' : 'bg-orange-600 border-orange-800'} text-white py-6 rounded-[24px] font-black uppercase text-[14px] tracking-widest shadow-2xl active:scale-95 transition-all border-b-8 flex items-center justify-center gap-3`}
                 >
-                  {ICONS.Utensils}
-                  {isCustomerMode ? 'Send to Order Taker' : (currentOrderId ? 'Update & Send to Kitchen' : 'Send to Kitchen')}
+                  {isCustomerMode ? ICONS.CheckCircle : ICONS.Utensils}
+                  {isCustomerMode ? 'SEND TO ORDER TAKER' : (currentOrderId ? 'Update & Send to Kitchen' : 'Send to Kitchen')}
                 </button>
                 {currentOrderId && (
                    <button
