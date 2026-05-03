@@ -473,8 +473,16 @@ const App: React.FC = () => {
             </body>
           </html>`;
       } else if (type === 'qr') {
-        // Simple QR printing logic
-        html = `<html><body><div style="text-align:center"><h2>${data.name}</h2><img src="${data.qrCode}" style="width:200px"/><p>Scan to Login</p></div></body></html>`;
+        // Optimized QR printing for 58mm thermal printers
+        html = `<html><body><div style="text-align:center; font-family: 'Courier New', Courier, monospace; width: 58mm; padding: 5px;">
+          <h2 style="margin: 0; font-size: 18px;">${settings.businessName || 'RECEIPT'}</h2>
+          <h3 style="margin: 10px 0; font-size: 14px; border-top: 1px dashed #000; padding-top: 10px;">SCAN TO ORDER</h3>
+          <img src="${data.qrCode}" style="width:160px; margin: 10px auto;"/>
+          <p style="font-size: 12px; margin: 5px 0;">WAITER: ${data.name.toUpperCase()}</p>
+          <div style="border-top: 1px dashed #000; margin-top: 10px; padding-top: 5px; font-size: 10px;">
+            Scan this code to see our full menu and place your order.
+          </div>
+        </div></body></html>`;
       } else if (type === 'report') {
         // Simple Report printing logic
         html = `<html><body><h1>Daily Report</h1><p>Total Orders: ${data.orders?.length || 0}</p></body></html>`;
@@ -2152,10 +2160,19 @@ const WELCOME_MESSAGES = [
               />
             </div>
 
-            <div className="bg-indigo-600/10 border border-indigo-600/20 rounded-2xl p-3 inline-block w-full">
-               <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1 italic">Network URL:</p>
-               <p className="text-[12px] font-black text-white">{window.location.protocol}//{settings.masterIP ? (settings.masterIP.includes(':') ? settings.masterIP : `${settings.masterIP}:3000`) : window.location.host}</p>
-            </div>
+            <button 
+              onClick={() => {
+                const canvas = document.querySelector('canvas');
+                if (canvas) {
+                  const dataUrl = canvas.toDataURL("image/png");
+                  handlePrint('qr', { name: activeStaff.name, qrCode: dataUrl });
+                }
+              }}
+              className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase text-[12px] tracking-widest shadow-lg shadow-indigo-600/20 active:scale-95 transition-all flex items-center justify-center gap-3 border border-indigo-400/30"
+            >
+              <span>{ICONS.Printer}</span>
+              PRINT QR CODE
+            </button>
 
             <button 
               onClick={() => setShowTakerQR(false)} 
