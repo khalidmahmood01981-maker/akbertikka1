@@ -116,6 +116,18 @@ export class LocalApiService {
     }
   }
 
+  identifyDevice(name: string, role: string) {
+    this.socket.emit("identify", { name, role });
+  }
+
+  onConnectionsUpdate(callback: (list: any[]) => void) {
+    this.socket.on("active_connections", callback);
+  }
+
+  offConnectionsUpdate() {
+    this.socket.off("active_connections");
+  }
+
   emitPrintCommand(data: { type: 'kitchen' | 'bill' | 'qr' | 'report', order?: any, staff?: any, orders?: any, purchases?: any, itemSummary?: any }) {
     this.socket.emit("print_command", data);
   }

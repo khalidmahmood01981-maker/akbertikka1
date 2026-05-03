@@ -53,16 +53,51 @@ async function startServer() {
   app.use(cors());
   app.use(express.json());
 
+  // Track connected devices
+  const connectedDevices = new Map<string, any>();
+
+  const broadcastConnections = () => {
+    const list = Array.from(connectedDevices.values());
+    io.emit("active_connections", list);
+  };
+
   // Socket.io for Real-time Sync
   io.on("connection", (socket) => {
-    console.log("Client connected:", socket.id);
+    const clientIP = socket.handshake.address.replace('::ffff:', '');
+    console.log("Client connected:", socket.id, "from", clientIP);
     
+    // Default entry
+    connectedDevices.set(socket.id, {
+      id: socket.id,
+      ip: clientIP,
+      name: "Unknown Device",
+      role: "guest",
+      lastSeen: Date.now(),
+      userAgent: socket.handshake.headers['user-agent']
+    });
+    
+    broadcastConnections();
+
+    socket.on("identify", (data) => {
+      console.log("Client identified:", socket.id, data.name);
+      connectedDevices.set(socket.id, {
+        ...connectedDevices.get(socket.id),
+        ...data,
+        lastSeen: Date.now()
+      });
+      broadcastConnections();
+    });
+
     socket.on("print_command", (data) => {
       console.log("Print command received:", data.type, "for order:", data.order?.id);
       io.emit("print_command", data);
     });
 
-    socket.on("disconnect", () => console.log("Client disconnected"));
+    socket.on("disconnect", () => {
+      console.log("Client disconnected:", socket.id);
+      connectedDevices.delete(socket.id);
+      broadcastConnections();
+    });
   });
 
   // DB Helper

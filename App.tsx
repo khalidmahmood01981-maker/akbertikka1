@@ -156,6 +156,8 @@ const App: React.FC = () => {
   const [kitchenQueue, setKitchenQueue] = useState<Order[]>([]);
   const [showQueueModal, setShowQueueModal] = useState(false);
   
+  const [activeConnections, setActiveConnections] = useState<any[]>([]);
+  
   const settingsRef = useRef(settings);
   const isPrinterDeviceRef = useRef(isPrinterDevice);
   const ordersRef = useRef(orders);
@@ -489,12 +491,15 @@ const App: React.FC = () => {
       }
 
       // 5. Execute Print via Hidden Iframe
+      // When Silent Printing is ON + Chrome launched with --kiosk-printing, dialog is auto-skipped
       let iframe = document.getElementById('print-engine-iframe') as HTMLIFrameElement;
       if (!iframe) {
         iframe = document.createElement('iframe');
         iframe.id = 'print-engine-iframe';
         iframe.style.position = 'fixed';
         iframe.style.left = '-9999px';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
         document.body.appendChild(iframe);
       }
       
@@ -925,8 +930,29 @@ const App: React.FC = () => {
       });
     });
 
+    api.onConnectionsUpdate((list) => {
+      console.log("Active connections update:", list.length);
+      setActiveConnections(list);
+    });
+
     // Master IP logic moved to dedicated effect for reliability
   }, [isDataLoaded, settings.masterIP]);
+
+  useEffect(() => {
+    if (isLocalConnected) {
+      if (activeStaff) {
+        api.identifyDevice(activeStaff.name, activeStaff.role);
+      } else if (activeShop) {
+        api.identifyDevice(activeShop.shopName, 'owner');
+      } else if (isAdmin) {
+        api.identifyDevice('Admin', 'admin');
+      } else {
+        // Identify as Customer if not staff/admin
+        const name = currentTableNumber ? `Customer (Table ${currentTableNumber})` : 'Guest Customer';
+        api.identifyDevice(name, 'customer');
+      }
+    }
+  }, [activeStaff, activeShop, isAdmin, isLocalConnected, currentTableNumber]);
 
 
 
@@ -1685,6 +1711,7 @@ const WELCOME_MESSAGES = [
                       setShowSecretSlider={setShowSecretSlider}
                       isPrinterDevice={isPrinterDevice}
                       setIsPrinterDevice={setIsPrinterDevice}
+                      activeConnections={activeConnections}
                     />
                   )}
                   {activeTab === 'menu' && (
@@ -1913,6 +1940,7 @@ const WELCOME_MESSAGES = [
                       showSecretSlider={showSecretSlider}
                       setShowSecretSlider={setShowSecretSlider}
                       isCashier={true}
+                      activeConnections={activeConnections}
                     />
                   )}
                 </>

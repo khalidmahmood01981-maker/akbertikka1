@@ -56,6 +56,7 @@ interface AdminProps {
   isCashier?: boolean;
   setIsPrinterDevice?: (val: boolean) => void;
   onPrint?: (type: 'kitchen' | 'bill' | 'qr' | 'report', data: any) => void;
+  activeConnections?: any[];
 }
 
 const AdminDashboard: React.FC<AdminProps> = ({
@@ -63,7 +64,7 @@ const AdminDashboard: React.FC<AdminProps> = ({
   stockCategories, setStockCategories, stockLogs, setStockLogs, khataTransactions, setKhataTransactions, onUpdateOrder, triggerConfirm, onResetHistory, isTotalsUnlocked = false, onUnlockRequest,
   setIsNavHidden, staffMembers = [], setStaffMembers, menuItems = [], setMenuItems, isSyncing, setIsSyncing, menuRequests = [], onUpdateMenuRequest,
   isInstallable, onInstall, showSecretSlider, setShowSecretSlider, isCashier,
-  isPrinterDevice, setIsPrinterDevice, onPrint
+  isPrinterDevice, setIsPrinterDevice, onPrint, activeConnections = []
 }) => {
   // Tab protection helper
   const handleTabChange = (tab: typeof adminTab) => {
@@ -1134,6 +1135,50 @@ const AdminDashboard: React.FC<AdminProps> = ({
             </div>
           </div>
 
+          {/* Active Devices Monitor */}
+          <div className="px-1 space-y-3">
+            <div className="flex justify-between items-center px-2">
+              <h3 className="font-black text-blue-500 uppercase italic text-sm flex items-center gap-2">
+                <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+                Active Devices Monitor
+              </h3>
+              <span className="text-[8px] font-black bg-blue-500/10 text-blue-400 px-2 py-1 rounded-lg uppercase tracking-widest border border-blue-500/20">
+                {activeConnections.length} Online
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              {activeConnections.length === 0 ? (
+                <div className="p-10 text-center border-2 border-dashed border-[var(--border)] rounded-[32px] text-[var(--text-muted)] font-black uppercase text-[8px]">
+                  No connections detected
+                </div>
+              ) : activeConnections.map((conn, idx) => (
+                <div key={conn.id || idx} className="bg-[var(--bg-card)] p-4 rounded-[28px] border border-[var(--border)] flex items-center justify-between shadow-lg group hover:border-blue-500/30 transition-all">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-xl ${conn.role === 'owner' ? 'bg-amber-500/10 text-amber-500' : conn.role === 'admin' ? 'bg-rose-500/10 text-rose-500' : conn.role === 'customer' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-blue-500/10 text-blue-500'}`}>
+                      {conn.role === 'owner' ? ICONS.Shield : conn.role === 'kitchen' ? ICONS.Utensils : conn.role === 'customer' ? ICONS.User : ICONS.Smartphone}
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-black text-white uppercase tracking-tight">{conn.name || 'Anonymous'}</p>
+                      <p className="text-[8px] font-black text-[var(--text-muted)] uppercase tracking-widest mt-0.5">
+                        {conn.role.toUpperCase()} • {conn.ip}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+                      <div className="w-1 h-1 bg-emerald-500 rounded-full animate-ping"></div>
+                      <span className="text-[7px] font-black text-emerald-500 uppercase tracking-widest">LIVE</span>
+                    </div>
+                    <p className="text-[7px] font-black text-[var(--text-muted)] uppercase tracking-widest mt-1.5">
+                      Since {new Date(conn.lastSeen || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
 
 
         </motion.div>
@@ -1844,13 +1889,17 @@ const AdminDashboard: React.FC<AdminProps> = ({
                 </div>
 
                 {settings.isSilentPrintingEnabled && (
-                  <div className="bg-cyan-600/10 border border-cyan-600/20 p-4 rounded-2xl">
-                    <p className="text-[8px] font-black text-cyan-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-                      {ICONS.Info} Configuration Required:
+                  <div className="bg-cyan-600/10 border border-cyan-600/20 p-4 rounded-2xl space-y-2">
+                    <p className="text-[8px] font-black text-cyan-500 uppercase tracking-widest flex items-center gap-2">
+                      {ICONS.Info} Silent Printing Setup:
                     </p>
                     <p className="text-[7px] text-white/70 leading-relaxed font-bold uppercase">
-                      Silent printing ke liye Chrome shortcut mein <span className="text-cyan-400">--kiosk-printing</span> flag add karein. 
-                      Is se browser print dialog nahi dikhayega aur seedha print karega.
+                      1. Tamam Chrome windows band karein<br/>
+                      2. <span className="text-cyan-400">StartSilentPrint.bat</span> se app kholein<br/>
+                      3. Ab print dialog nahi aayega, seedha print ho jayega
+                    </p>
+                    <p className="text-[7px] text-amber-400 font-black uppercase tracking-widest mt-1">
+                      ⚠ Agar normal Chrome se khola hai to print dialog aayega
                     </p>
                   </div>
                 )}
