@@ -19,7 +19,10 @@ interface HistoryProps {
   notify: (message: string, type?: 'success' | 'error' | 'info') => void;
   triggerConfirm: (config: { title: string; message: string; onConfirm: () => void; type?: 'danger' | 'info' }) => void;
   isTotalsUnlocked?: boolean;
+  onUnlockRequest?: () => void;
   customers?: any[];
+  handlePrint: (order: Order) => void;
+  handlePrintDayReport: (orders: Order[], purchases: Purchase[], itemSummary: any[]) => void;
 }
 
 const HistoryView: React.FC<HistoryProps> = ({ 
@@ -37,7 +40,10 @@ const HistoryView: React.FC<HistoryProps> = ({
   isAdmin,
   notify,
   triggerConfirm,
-  isTotalsUnlocked = false
+  isTotalsUnlocked = false,
+  onUnlockRequest,
+  handlePrint,
+  handlePrintDayReport
 }) => {
   const [tab, setTab] = useState<'sales' | 'purchases' | 'items'>('sales');
   
@@ -189,143 +195,13 @@ const HistoryView: React.FC<HistoryProps> = ({
     return `${mins}m ${secs}s`;
   };
 
-  const handlePrint = (order: Order) => {
-    try {
-      const language = settings.language || 'english';
-      const t = PRINT_TRANSLATIONS[language];
-      const headerName = settings.businessName;
-      const itemsHtml = order.items.map(item => `
-        <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #ccc; padding: 6px 0; font-size: 12px; font-family: 'Courier New', Courier, monospace;">
-          <div style="flex: 1; text-align: left; padding-right: 10px;">
-            <div style="font-weight: bold;">${item.name.toUpperCase()}</div>
-            <div style="font-size: 10px; color: #333;">
-              ${item.unit === 'rs' ? `Rs. ${item.quantity}` : `${item.quantity} x Rs. ${item.price}`}
-            </div>
-          </div>
-          <div style="width: 70px; text-align: right; font-weight: bold; align-self: center;">
-            Rs.${(item.price * item.quantity).toFixed(0)}
-          </div>
-        </div>
-      `).join('');
+  const onPrintDayReport = () => {
+    handlePrintDayReport(filteredOrders, filteredPurchases, itemSummary);
+  };
 
-      const printHtml = `
-        <html>
-          <head>
-            <title>Print</title>
-            <style>
-              @page {
-                size: 58mm auto;
-                margin: 0;
-              }
-              @media print {
-                body, body * {
-                  visibility: visible;
-                }
-                body {
-                  -webkit-print-color-adjust: exact;
-                  color-adjust: exact;
-                }
-              }
-              body {
-                font-family: 'Courier New', Courier, monospace;
-                color: black;
-                background: white;
-                width: 58mm;
-                margin: 0;
-                padding: 0;
-              }
-            </style>
-          </head>
-          <body onload="window.print()">
-            <div style="font-family: 'Courier New', Courier, monospace; color: black; background: white; width: 100%; box-sizing: border-box; padding: 0;">
-              <div style="text-align: center; margin-bottom: 15px;">
-                <h1 style="margin: 0; font-size: 22px; text-transform: uppercase; font-weight: 900;">${headerName}</h1>
-                <p style="margin: 2px 0; font-size: 10px; letter-spacing: 3px; font-weight: bold;">*** ${t.invoice} ***</p>
-              </div>
-
-              <div style="border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 8px 0; margin-bottom: 10px; font-size: 11px; line-height: 1.5;">
-                <div style="display: flex; justify-content: space-between; font-size: 16px; font-weight: 900; background: #eee; padding: 4px; margin-bottom: 5px;">
-                  <span>${t.orderNo}: #${order.orderNumber || '??'}</span>
-                  <span>${t.billNo}: #${order.id.slice(-6).toUpperCase()}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; margin-top: 4px;">
-                  <span><b>${t.date}:</b> ${new Date(order.timestamp).toLocaleDateString()}</span>
-                  <span></span>
-                </div>
-                <div style="margin-top: 4px;">
-                  <b>${t.customer}:</b> ${order.customerName.toUpperCase()}
-                </div>
-                ${order.customerPhone ? `<div><b>${t.phone}:</b> ${order.customerPhone}</div>` : ''}
-                <div style="display: flex; justify-content: space-between; margin-top: 4px;">
-                  ${order.tableNumber ? `<span><b>${t.table}:</b> ${order.tableNumber.toUpperCase()}</span>` : '<span></span>'}
-                  ${order.paymentMethod ? `<span><b>${t.pay}:</b> ${order.paymentMethod.toUpperCase()}</span>` : ''}
-                </div>
-                ${order.orderTakerName ? `<div style="margin-top: 4px;"><b>WAITER:</b> ${order.orderTakerName.toUpperCase()}</div>` : ''}
-              </div>
-
-              <div style="margin-bottom: 15px;">
-                <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 10px; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 4px;">
-                  <span>${t.itemDescription}</span>
-                  <span>${t.amount}</span>
-                </div>
-                ${itemsHtml}
-              </div>
-
-                ${order.kitchenNotes ? `
-                  <div style="margin-top: 10px; padding: 5px; border: 1px dashed #000; font-size: 10px; font-style: italic;">
-                    <b>${t.notes}:</b> ${order.kitchenNotes.toUpperCase()}
-                  </div>
-                ` : ''}
-              </div>
-
-              <div style="border-top: 1px solid #000; padding-top: 8px; space-y: 4px;">
-                <div style="display: flex; justify-content: space-between; font-size: 12px;">
-                  <span>${t.subtotal}:</span>
-                  <span>Rs.${order.subtotal.toFixed(0)}</span>
-                </div>
-                ${order.tax && order.tax > 0 ? `
-                  <div style="display: flex; justify-content: space-between; font-size: 12px;">
-                    <span>${t.tax}:</span>
-                    <span>Rs.${order.tax.toFixed(0)}</span>
-                  </div>
-                ` : ''}
-                ${order.discount && order.discount > 0 ? `
-                  <div style="display: flex; justify-content: space-between; font-size: 12px;">
-                    <span>${t.discount}:</span>
-                    <span>-Rs.${order.discount.toFixed(0)}</span>
-                  </div>
-                ` : ''}
-                ${order.deliveryFee && order.deliveryFee > 0 ? `
-                  <div style="display: flex; justify-content: space-between; font-size: 12px;">
-                    <span>DELIVERY FEE:</span>
-                    <span>Rs.${order.deliveryFee.toFixed(0)}</span>
-                  </div>
-                ` : ''}
-                <div style="display: flex; justify-content: space-between; font-weight: 900; font-size: 20px; margin-top: 10px; border: 2px solid #000; padding: 8px; text-align: center;">
-                  <span style="flex: 1;">${t.total}:</span>
-                  <span style="flex: 1; text-align: right;">Rs.${order.total.toFixed(0)}</span>
-                </div>
-              </div>
-
-              <div style="text-align: center; margin-top: 25px; border-top: 1px dashed #000; padding-top: 15px;">
-                <p style="margin: 0; font-size: 12px; font-weight: bold;">${t.thankYou}</p>
-                <p style="margin: 5px 0 0 0; font-size: 9px; color: #666;">${t.softwareBy}</p>
-              </div>
-            </div>
-          </body>
-        </html>
-      `;
-
-      const printWindow = window.open('', '_blank');
-      if (!printWindow) return;
-      printWindow.document.write(printHtml);
-      printWindow.document.close();
-
-        // Automatically close the view after printing
-          setSelectedInvoice(null);
-    } catch (e) {
-      console.error("Print failed:", e);
-    }
+  const onPrint = (order: Order) => {
+    handlePrint(order);
+    setSelectedInvoice(null);
   };
 
   const startEditing = () => {
@@ -364,17 +240,27 @@ const HistoryView: React.FC<HistoryProps> = ({
             <span className="text-[10px] font-black uppercase text-orange-600 tracking-[0.2em]">History For Date</span>
             <div className="flex items-center gap-2">
               {isAdmin && (
-                <button 
-                  onClick={() => triggerConfirm({
-                    title: "Clear History?",
-                    message: "Kya aap waqai poori history clear karna chahte hain? Yeh amal wapas nahi ho sakta.",
-                    onConfirm: onResetHistory,
-                    type: 'danger'
-                  })}
-                  className="px-3 py-1 bg-red-600/10 text-red-500 text-[8px] font-black uppercase rounded-full border border-red-600/20 active:scale-95 transition-all"
-                >
-                  Clear All
-                </button>
+                <div className="flex gap-2">
+                  {isTotalsUnlocked && (
+                    <button 
+                      onClick={onPrintDayReport}
+                      className="px-3 py-1 bg-emerald-600/10 text-emerald-500 text-[8px] font-black uppercase rounded-full border border-emerald-600/20 active:scale-95 transition-all flex items-center gap-1"
+                    >
+                      {ICONS.Printer} Report
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => triggerConfirm({
+                      title: "Clear History?",
+                      message: "Kya aap waqai poori history clear karna chahte hain? Yeh amal wapas nahi ho sakta.",
+                      onConfirm: onResetHistory,
+                      type: 'danger'
+                    })}
+                    className="px-3 py-1 bg-red-600/10 text-red-500 text-[8px] font-black uppercase rounded-full border border-red-600/20 active:scale-95 transition-all"
+                  >
+                    Clear All
+                  </button>
+                </div>
               )}
               {isToday && <span className="px-3 py-1 bg-orange-600 text-white text-[8px] font-black uppercase rounded-full glow-accent">TODAY</span>}
             </div>
@@ -446,12 +332,20 @@ const HistoryView: React.FC<HistoryProps> = ({
                 <div className="bg-white/20 p-3 rounded-2xl text-white">{ICONS.ShoppingBag}</div>
               </div>
               {filteredOrders.map((order, idx) => (
-                <div key={order.id} onClick={() => { setSelectedInvoice(order); setIsEditingInfo(false); }} className={`bg-[var(--bg-card)] p-3 rounded-[18px] border border-[var(--border)] border-l-4 ${borderColors[idx % 4]} flex justify-between items-center active:scale-[0.98] transition-all cursor-pointer shadow-lg`}>
+                <div key={order.id} onClick={() => { setSelectedInvoice(order); setIsEditingInfo(false); }} className={`bg-[var(--bg-card)] p-3 rounded-[18px] border border-[var(--border)] border-l-4 ${borderColors[idx % 4]} flex justify-between items-center active:scale-[0.98] transition-all cursor-pointer shadow-lg group`}>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <h3 className="font-black uppercase text-sm truncate leading-none text-white">{order.customerName}</h3>
                     </div>
-                    <p className={`text-[11px] font-black mt-2 ${textColors[idx % 4]}`}>{amt(order.total)}</p>
+                    <div className="flex items-center gap-3 mt-2">
+                      <p className={`text-[11px] font-black ${textColors[idx % 4]}`}>{amt(order.total)}</p>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handlePrint(order); }}
+                        className="opacity-0 group-hover:opacity-100 p-2 bg-emerald-600 text-white rounded-lg shadow-lg active:scale-90 transition-all"
+                      >
+                        {ICONS.Printer}
+                      </button>
+                    </div>
                   </div>
                   <div className="text-right">
                     <p className="text-[9px] font-black text-[var(--text-muted)] uppercase">{new Date(order.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
@@ -677,7 +571,7 @@ const HistoryView: React.FC<HistoryProps> = ({
                     Delete
                   </button>
                 )}
-                <button onClick={() => handlePrint(selectedInvoice)} className="flex-1 py-4 bg-white/10 text-white rounded-2xl text-[9px] font-black uppercase flex items-center justify-center gap-2 border border-white/5">Print Receipt</button>
+                <button onClick={() => onPrint(selectedInvoice)} className="flex-1 py-4 bg-white/10 text-white rounded-2xl text-[9px] font-black uppercase flex items-center justify-center gap-2 border border-white/5">Print Receipt</button>
               </div>
               <button onClick={() => handleShareWhatsApp(selectedInvoice)} className="w-full py-4 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase flex items-center justify-center gap-2 shadow-lg">{ICONS.Send} Share via WhatsApp</button>
             </div>

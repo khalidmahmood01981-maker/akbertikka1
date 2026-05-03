@@ -30,11 +30,12 @@ interface POSProps {
   handlePrintKitchen: (order: Order) => void;
   isCustomerMode?: boolean;
   currentOrderTakerId?: string | null;
+  handlePrintQR?: (taker: StaffMember) => void;
 }
 
 const POS: React.FC<POSProps> = ({ 
   items, customers, settings, shopName, activeStaff, pendingOrders, allOrders, onOrderComplete, onUpdateOrder, onDeleteOrder, notify, orderToEdit, onClearOrderToEdit, triggerConfirm,
-  setIsNavHidden, isAdmin, initialTableNumber, isPrinterDevice, handlePrint, handlePrintKitchen, isCustomerMode, currentOrderTakerId
+  setIsNavHidden, isAdmin, initialTableNumber, isPrinterDevice, handlePrint, handlePrintKitchen, isCustomerMode, currentOrderTakerId, handlePrintQR
 }) => {
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [selectedItemForQty, setSelectedItemForQty] = useState<MenuItem | null>(null);
@@ -84,9 +85,9 @@ const POS: React.FC<POSProps> = ({
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
   useEffect(() => {
-    const isAnyModalOpen = isScannerOpen || showPendingOrders || showReadyOrders || showServedOrders || showActiveOrders || isCheckoutOpen || !!selectedItemForQty || !!successOrder || showMenuPicker || !!itemToRemove;
+    const isAnyModalOpen = isScannerOpen || showPendingOrders || showReadyOrders || showServedOrders || showActiveOrders || isCheckoutOpen || !!selectedItemForQty || !!successOrder || showMenuPicker || !!itemToRemove || cart.length > 0;
     setIsNavHidden?.(isAnyModalOpen);
-  }, [isScannerOpen, showPendingOrders, showReadyOrders, showServedOrders, showActiveOrders, isCheckoutOpen, selectedItemForQty, successOrder, showMenuPicker, itemToRemove, setIsNavHidden]);
+  }, [isScannerOpen, showPendingOrders, showReadyOrders, showServedOrders, showActiveOrders, isCheckoutOpen, selectedItemForQty, successOrder, showMenuPicker, itemToRemove, cart.length, setIsNavHidden]);
 
   const filteredItems = category === 'All' ? items : items.filter(i => i.category === category);
 
@@ -192,6 +193,14 @@ const POS: React.FC<POSProps> = ({
       setCustomerPhone(customer.phone);
       setIsCheckoutOpen(true);
       notify(`Customer Found: ${customer.name}`, "success");
+      return;
+    }
+
+    // Check if it's an Order ID (for Order Taker printing)
+    const order = allOrders.find(o => o.id === decodedText || (o.orderNumber && o.orderNumber.toString() === decodedText));
+    if (order) {
+      handlePrint(order);
+      notify(`Order Found: #${order.orderNumber}. Printing...`, "success");
       return;
     }
 
@@ -363,24 +372,15 @@ const POS: React.FC<POSProps> = ({
 
       if (mode === 'final') {
         setSuccessOrder(newOrder);
-        if (settings.enableBillPrinting && settings.isAutoPrintBillEnabled && isPrinterDevice) {
-          handlePrint(newOrder, true);
-        }
       } else if (mode === 'kitchen') {
         if (isCustomerMode) {
           notify("Order sent to Order Taker!", "success");
         } else {
           notify("Order sent to kitchen!", "success");
-          if (settings.enableKitchenPrinting && settings.isAutoPrintKitchenEnabled && isPrinterDevice) {
-            handlePrintKitchen(newOrder);
-          }
         }
         resetForNextBill();
       } else if (mode === 'update') {
         notify("Bill updated successfully!", "success");
-        if (settings.enableKitchenPrinting && settings.isAutoPrintKitchenEnabled && isPrinterDevice) {
-          handlePrintKitchen(newOrder);
-        }
         resetForNextBill();
       } else if (mode === 'draft') {
         notify("Order saved as draft!", "info");
@@ -568,6 +568,15 @@ const POS: React.FC<POSProps> = ({
                 <div className="pt-4">
                   <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest italic">Taker: {activeStaff?.name}</p>
                 </div>
+
+                {handlePrintQR && activeStaff && (
+                  <button
+                    onClick={() => handlePrintQR(activeStaff)}
+                    className="w-full mt-4 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 active:scale-95 transition-all"
+                  >
+                    {ICONS.Printer} Print QR Code
+                  </button>
+                )}
               </div>
             </motion.div>
           </motion.div>
@@ -708,7 +717,7 @@ const POS: React.FC<POSProps> = ({
       {/* Item Grid */}
       <motion.div
         layout
-        className="grid grid-cols-3 gap-1.5 sm:gap-3 md:gap-4 lg:gap-6"
+        className="grid grid-cols-2 sm:grid-cols-3 md:gap-4 lg:gap-6 gap-3"
         initial="hidden"
         animate="visible"
         variants={{
@@ -856,30 +865,28 @@ const POS: React.FC<POSProps> = ({
       <AnimatePresence>
         {cart.length > 0 && !isCheckoutOpen && !successOrder && (
           <motion.div 
-            initial={{ scale: 0, x: '-50%', y: '-50%' }} 
-            animate={{ scale: 1, x: '-50%', y: '-50%' }} 
-            className="fixed top-1/2 left-1/2 z-[1000] w-[80%] max-w-xs flex flex-col gap-4"
+            initial={{ y: 100 }} 
+            animate={{ y: 0 }} 
+            className="fixed bottom-0 left-0 right-0 z-[1000] bg-[var(--bg-nav)]/95 backdrop-blur-2xl border-t border-white/10 flex flex-col items-center p-4 pb-safe rounded-t-[32px] shadow-[0_-20px_50px_rgba(0,0,0,0.5)]"
           >
             {isCustomerMode ? (
-              <>
+              <div className="flex flex-col items-center gap-2 w-full">
                 <button
                   onClick={() => setIsCheckoutOpen(true)}
-                  className="bg-orange-600 text-white p-6 rounded-[40px] shadow-[0_20px_60px_rgba(234,88,12,0.4)] flex flex-col items-center justify-center active:scale-95 transition-all border-b-8 border-orange-800"
+                  className="w-full max-w-md bg-orange-600 text-white p-3 rounded-[24px] shadow-2xl flex items-center justify-center gap-4 active:scale-95 transition-all border-b-4 border-orange-800"
                 >
-                  <div className="bg-white/20 p-3 rounded-2xl mb-2">{ICONS.ShoppingBag}</div>
-                  <span className="text-sm font-black uppercase tracking-tighter italic">Review Selection</span>
-                  <p className="text-2xl font-black italic mt-1">{cart.length} Items</p>
+                  <div className="bg-white/20 p-2 rounded-xl">{ICONS.ShoppingBag}</div>
+                  <p className="text-xl font-black italic leading-none">{cart.length} Items</p>
                 </button>
                 
                 <button
                   onClick={() => handleCheckout('kitchen')}
-                  className="bg-indigo-600 text-white p-8 rounded-[40px] shadow-[0_20px_60px_rgba(79,70,229,0.4)] flex flex-col items-center justify-center active:scale-95 transition-all border-b-8 border-indigo-900 animate-pulse ring-8 ring-indigo-500/20"
+                  className="w-full max-w-md bg-indigo-600 text-white p-3 rounded-[24px] shadow-2xl flex items-center justify-center gap-4 active:scale-95 transition-all border-b-4 border-indigo-900 animate-pulse"
                 >
-                  <div className="bg-white/20 p-4 rounded-2xl mb-2 scale-150">{ICONS.Send}</div>
-                  <span className="text-sm font-black uppercase tracking-tighter italic">Send to Taker</span>
-                  <p className="text-lg font-black italic mt-1">Rs.{finalTotal.toFixed(0)}</p>
+                  <div className="bg-white/20 p-2 rounded-xl">{ICONS.Send}</div>
+                  <p className="text-lg font-black italic leading-none">Send: Rs.{finalTotal.toFixed(0)}</p>
                 </button>
-              </>
+              </div>
             ) : (
               <button
                 onClick={() => {
@@ -890,25 +897,22 @@ const POS: React.FC<POSProps> = ({
                     setCustomerName('');
                   }
                 }}
-                className="w-full bg-gradient-to-r from-orange-600 to-orange-500 text-white p-6 rounded-[32px] shadow-2xl flex items-center justify-between active:scale-95 transition-all border-b-8 border-orange-800"
+                className="w-full max-w-md bg-gradient-to-r from-orange-600 to-orange-500 text-white p-4 rounded-[24px] shadow-2xl flex items-center justify-center active:scale-95 transition-all border-b-4 border-orange-800 gap-4"
               >
-                <div className="flex items-center gap-4">
-                  <div className="bg-white/20 p-3 rounded-2xl text-white">
-                    {ICONS.ShoppingBag}
-                  </div>
-                  <div className="text-left">
-                    <p className="text-white text-xl font-black uppercase leading-none">{cart.length} Items</p>
-                  </div>
+                <div className="bg-white/20 p-2 rounded-xl text-white">
+                  {ICONS.ShoppingBag}
                 </div>
-                <div className="text-right">
-                  <p className="text-white text-3xl font-black italic tracking-tighter leading-none">Rs.{finalTotal.toFixed(0)}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-white text-xl font-black italic leading-none">{cart.length} Items</p>
+                  <span className="text-white/40">|</span>
+                  <p className="text-white text-2xl font-black italic tracking-tighter leading-none">Rs.{finalTotal.toFixed(0)}</p>
                 </div>
               </button>
             )}
 
             <div className="text-center">
-              <span className="text-[8px] font-black text-white/40 uppercase tracking-widest bg-black/20 px-3 py-1 rounded-full">
-                v1.5 - Centered Controls
+              <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">
+                v1.6 - Phone Optional & Bottom Position
               </span>
             </div>
           </motion.div>
@@ -1022,14 +1026,12 @@ const POS: React.FC<POSProps> = ({
                   className={`w-full ${isCustomerMode ? 'bg-indigo-600 border-indigo-800 animate-pulse ring-4 ring-indigo-500/50' : 'bg-orange-600 border-orange-800'} text-white py-6 rounded-[24px] font-black uppercase text-[14px] tracking-widest shadow-2xl active:scale-95 transition-all border-b-8 flex items-center justify-center gap-3`}
                 >
                   {isCustomerMode ? ICONS.CheckCircle : ICONS.Utensils}
-                  {isCustomerMode ? 'SEND TO ORDER TAKER' : (currentOrderId ? 'Update & Send to Kitchen' : 'Send to Kitchen')}
+                  {isCustomerMode ? 'SEND ORDER' : (currentOrderId ? 'Update & Kitchen' : 'Kitchen')}
                 </button>
                 {currentOrderId && (
                    <button
                      onClick={() => {
-                        handleCheckout('kitchen'); // Uses 'kitchen' logic which updates order but keeps current status
-                        // BUT we don't want the kitchen notification to play again if they just want to update bill.
-                        // Actually wait, we should pass a new mode 'update' to handleCheckout to avoid kitchen notification.
+                        handleCheckout('update');
                      }}
                      className="w-full bg-emerald-600 text-white py-4 rounded-[18px] font-black uppercase text-[12px] tracking-widest shadow-xl active:scale-95 transition-all border-b-4 border-emerald-800 flex items-center justify-center gap-2"
                    >
@@ -1182,6 +1184,16 @@ const POS: React.FC<POSProps> = ({
                             </div>
 
                             <div className="flex gap-2">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePrintKitchen(order);
+                                }}
+                                className="p-3 bg-blue-600/10 text-blue-500 rounded-2xl active:scale-95 transition-all border border-blue-600/20"
+                                title="Print KOT"
+                              >
+                                {ICONS.Printer}
+                              </button>
                               {order.status === 'ready' && (
                                 <button
                                   onClick={(e) => {
@@ -1218,7 +1230,7 @@ const POS: React.FC<POSProps> = ({
                                   className="px-4 py-2 bg-blue-500/10 text-blue-500 rounded-2xl active:scale-75 transition-all hover:bg-blue-500/20 flex items-center gap-2 border border-blue-500/20"
                                 >
                                   {ICONS.Edit}
-                                  <span className="text-[10px] font-black uppercase tracking-widest">Edit / Update Bill</span>
+                                  <span className="text-[10px] font-black uppercase tracking-widest">Edit</span>
                                 </button>
                               )}
                             </div>
@@ -1304,6 +1316,12 @@ const POS: React.FC<POSProps> = ({
                       </div>
 
                       <div className="flex gap-2">
+                        <button 
+                          onClick={() => handlePrintKitchen(order)}
+                          className="p-4 bg-blue-600/10 text-blue-500 rounded-2xl border border-blue-600/20 active:scale-95 transition-all"
+                        >
+                          {ICONS.Printer}
+                        </button>
                         {isAdmin && (
                           <button
                             onClick={() => {
@@ -1318,7 +1336,7 @@ const POS: React.FC<POSProps> = ({
                             className="flex-[2] py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-emerald-600/20 active:scale-95 transition-all hover:bg-emerald-500 flex items-center justify-center gap-2"
                           >
                             {ICONS.CheckCircle}
-                            Serve Order
+                            Serve
                           </button>
                         )}
                         {isAdmin && (
@@ -1339,7 +1357,7 @@ const POS: React.FC<POSProps> = ({
                             }}
                             className="flex-1 py-4 bg-blue-600/10 text-blue-500 rounded-2xl border border-blue-600/20 font-black uppercase text-[10px] transition-all active:scale-95 flex items-center justify-center gap-2"
                           >
-                            {ICONS.Edit} Edit
+                            {ICONS.Edit}
                           </button>
                         )}
                       </div>
@@ -1569,6 +1587,14 @@ const POS: React.FC<POSProps> = ({
                       </div>
 
                         <div className="flex gap-2 pt-2">
+                          <button
+                            onClick={() => handlePrint(order)}
+                            className="p-4 bg-blue-600 text-white rounded-2xl active:scale-95 transition-all shadow-lg flex items-center justify-center"
+                            title="Print Bill"
+                          >
+                            {ICONS.Printer}
+                          </button>
+
                           {isAdmin && (
                             <button
                               onClick={() => {
@@ -1588,7 +1614,7 @@ const POS: React.FC<POSProps> = ({
                               className="flex-1 py-4 bg-white/5 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest border border-white/10 active:scale-95 transition-all hover:bg-white/10 flex items-center justify-center gap-2"
                             >
                               {ICONS.Edit}
-                              Edit / Update Bill
+                              Update Bill
                             </button>
                           )}
 
@@ -1797,12 +1823,16 @@ const POS: React.FC<POSProps> = ({
               <p className="text-[12px] font-black text-[var(--text-muted)] uppercase tracking-widest leading-relaxed">Bill Total: Rs.{successOrder.total.toFixed(0)}</p>
             </div>
             <div className="grid grid-cols-1 gap-4">
-            {settings.enableBillPrinting && (
+            <div className="grid grid-cols-2 gap-4">
               <button onClick={() => handlePrint(successOrder, true)} className="w-full py-6 bg-white/5 rounded-[32px] font-black uppercase text-[10px] text-white flex flex-col items-center gap-3 border border-white/10 hover:bg-white/15 transition-all active:scale-95">
-                <div className="scale-150 text-orange-600">{ICONS.Inventory}</div>
+                <div className="scale-150 text-orange-600">{ICONS.Printer}</div>
                 Print Receipt
               </button>
-            )}
+              <button onClick={() => handlePrintKitchen(successOrder)} className="w-full py-6 bg-white/5 rounded-[32px] font-black uppercase text-[10px] text-white flex flex-col items-center gap-3 border border-white/10 hover:bg-white/15 transition-all active:scale-95">
+                <div className="scale-150 text-blue-500">{ICONS.ChefHat}</div>
+                Print KOT
+              </button>
+            </div>
             </div>
             <button onClick={resetForNextBill} className="w-full py-6 bg-orange-600 text-white rounded-[32px] font-black uppercase text-[14px] shadow-2xl active:scale-95 transition-all tracking-tighter hover:bg-orange-700">DONE / NEXT BILL</button>
           </div>

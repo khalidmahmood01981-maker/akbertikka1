@@ -35,6 +35,17 @@ export class LocalApiService {
     this.socket.on(event, callback);
   }
 
+  offSync(event: string, callback?: (data: any) => void) {
+    if (!this.listeners[event]) return;
+    if (callback) {
+      this.listeners[event] = this.listeners[event].filter(cb => cb !== callback);
+      this.socket.off(event, callback);
+    } else {
+      this.listeners[event].forEach(cb => this.socket.off(event, cb));
+      this.listeners[event] = [];
+    }
+  }
+
   // Orders
   async getOrders() {
     const res = await fetch(`${API_BASE}/api/orders`);
@@ -105,7 +116,7 @@ export class LocalApiService {
     }
   }
 
-  emitPrintCommand(data: { type: 'kitchen' | 'bill' | 'qr', order?: any, staff?: any }) {
+  emitPrintCommand(data: { type: 'kitchen' | 'bill' | 'qr' | 'report', order?: any, staff?: any, orders?: any, purchases?: any, itemSummary?: any }) {
     this.socket.emit("print_command", data);
   }
 }

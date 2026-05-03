@@ -54,8 +54,8 @@ interface AdminProps {
   showSecretSlider: boolean;
   setShowSecretSlider: (val: boolean) => void;
   isCashier?: boolean;
-  isPrinterDevice?: boolean;
   setIsPrinterDevice?: (val: boolean) => void;
+  onPrint?: (type: 'kitchen' | 'bill' | 'qr' | 'report', data: any) => void;
 }
 
 const AdminDashboard: React.FC<AdminProps> = ({
@@ -63,7 +63,7 @@ const AdminDashboard: React.FC<AdminProps> = ({
   stockCategories, setStockCategories, stockLogs, setStockLogs, khataTransactions, setKhataTransactions, onUpdateOrder, triggerConfirm, onResetHistory, isTotalsUnlocked = false, onUnlockRequest,
   setIsNavHidden, staffMembers = [], setStaffMembers, menuItems = [], setMenuItems, isSyncing, setIsSyncing, menuRequests = [], onUpdateMenuRequest,
   isInstallable, onInstall, showSecretSlider, setShowSecretSlider, isCashier,
-  isPrinterDevice, setIsPrinterDevice
+  isPrinterDevice, setIsPrinterDevice, onPrint
 }) => {
   // Tab protection helper
   const handleTabChange = (tab: typeof adminTab) => {
@@ -98,6 +98,7 @@ const AdminDashboard: React.FC<AdminProps> = ({
   const [viewOrder, setViewOrder] = useState<Order | null>(null);
 
   const [ownerClickCount, setOwnerClickCount] = useState(0);
+  const [manualOrderNum, setManualOrderNum] = useState('');
 
   const handleOwnerClick = () => {
     const newCount = ownerClickCount + 1;
@@ -1731,36 +1732,83 @@ const AdminDashboard: React.FC<AdminProps> = ({
                       <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Enable printing on this device</p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => {
-                      const newVal = !isPrinterDevice;
-                      setIsPrinterDevice?.(newVal);
-                      localStorage.setItem('is_printer_device', newVal ? 'true' : 'false');
-                    }}
-                    className={`w-12 h-7 rounded-full p-1 transition-all duration-300 ${isPrinterDevice ? 'bg-blue-600' : 'bg-white/10'}`}
-                  >
-                    <div className={`w-5 h-5 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${isPrinterDevice ? 'translate-x-5' : 'translate-x-0'}`} />
-                  </button>
+                  <div className="flex flex-col gap-2">
+                    <button
+                      onClick={() => {
+                        const newVal = !isPrinterDevice;
+                        setIsPrinterDevice?.(newVal);
+                        localStorage.setItem('is_printer_device', newVal ? 'true' : 'false');
+                      }}
+                      className={`w-12 h-7 rounded-full p-1 transition-all duration-300 ${isPrinterDevice ? 'bg-blue-600' : 'bg-white/10'}`}
+                    >
+                      <div className={`w-5 h-5 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${isPrinterDevice ? 'translate-x-5' : 'translate-x-0'}`} />
+                    </button>
+                    {isPrinterDevice && (
+                      <button 
+                        onClick={() => {
+                          const testOrder = { 
+                            id: 'test', 
+                            customerName: 'TEST PRINT', 
+                            subtotal: 0,
+                            total: 0, 
+                            discount: 0,
+                            items: [], 
+                            timestamp: Date.now(), 
+                            status: 'delivered', 
+                            orderNumber: '000' 
+                          };
+                          handlePrintReceipt(testOrder as any);
+                        }}
+                        className="px-3 py-1 bg-white/5 text-blue-500 rounded-lg text-[8px] font-black uppercase tracking-widest border border-blue-500/20 active:scale-95"
+                      >
+                        Test Print
+                      </button>
+                    )}
+                  </div>
                 </div>
-
-                <div className="flex items-center justify-between p-4 bg-black/30 rounded-2xl border border-white/5">
-                  <div className="flex items-center gap-3">
-                    <span className="text-indigo-500">{ICONS.ChefHat}</span>
-                    <div>
-                      <h4 className="text-[10px] font-black text-white uppercase italic">Enable Kitchen Prints</h4>
-                      <p className="text-[7px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Global kitchen printing switch</p>
+                {/* Manual Print Tool (NEW) */}
+                <div className="bg-black/30 p-5 rounded-2xl border border-orange-600/20 space-y-4 mt-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-orange-500">🖨️</span>
+                    <h4 className="text-[10px] font-black text-white uppercase italic">Manual Print Tool</h4>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Order #"
+                      className="flex-1 p-3 bg-black/50 border border-white/10 rounded-xl text-white font-bold text-xs outline-none focus:border-orange-600"
+                      value={manualOrderNum}
+                      onChange={(e) => setManualOrderNum(e.target.value)}
+                    />
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => {
+                          const order = orders.find(o => String(o.orderNumber) === manualOrderNum);
+                          if (order && onPrint) onPrint('kitchen', order);
+                          else alert("Order not found!");
+                        }}
+                        className="px-3 py-2 bg-indigo-600 text-white rounded-xl text-[8px] font-black uppercase tracking-widest active:scale-95"
+                      >
+                        KITCHEN
+                      </button>
+                      <button
+                        onClick={() => {
+                          const order = orders.find(o => String(o.orderNumber) === manualOrderNum);
+                          if (order && onPrint) onPrint('bill', order);
+                          else alert("Order not found!");
+                        }}
+                        className="px-3 py-2 bg-emerald-600 text-white rounded-xl text-[8px] font-black uppercase tracking-widest active:scale-95"
+                      >
+                        BILL
+                      </button>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setSettings({ ...settings, enableKitchenPrinting: !settings.enableKitchenPrinting })}
-                    className={`w-12 h-7 rounded-full p-1 transition-all duration-300 ${settings.enableKitchenPrinting ? 'bg-indigo-600' : 'bg-white/10'}`}
-                  >
-                    <div className={`w-5 h-5 bg-white rounded-full shadow-lg transform transition-transform duration-300 ${settings.enableKitchenPrinting ? 'translate-x-5' : 'translate-x-0'}`} />
-                  </button>
                 </div>
               </div>
 
               <div className="space-y-4">
+
+
 
 
                 <div className="flex items-center justify-between p-4 bg-black/30 rounded-2xl border border-emerald-600/20">

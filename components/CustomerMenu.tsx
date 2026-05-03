@@ -476,9 +476,12 @@ const CustomerMenu: React.FC<CustomerMenuProps> = ({ items, businessName, custom
                     <p className="text-2xl font-black text-white italic tracking-tighter">Rs.{total}</p>
                   </div>
                   <div className="grid grid-cols-1 gap-3">
-                    <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest text-center py-4 bg-orange-600/5 rounded-2xl border border-orange-600/10 mb-3">
-                      View Only Mode: Please place your order at the counter or with a waiter.
-                    </p>
+                    <button
+                      onClick={handleSendOrder}
+                      className="w-full py-5 bg-orange-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3 border-b-4 border-orange-800"
+                    >
+                      {ICONS.Send} SEND ORDER TO WAITER
+                    </button>
                     <div className="bg-black/40 border border-white/10 rounded-2xl p-4 flex justify-between items-center">
                        <span className="text-[10px] font-black text-white/40 uppercase">Table Number</span>
                        <input 
@@ -497,16 +500,15 @@ const CustomerMenu: React.FC<CustomerMenuProps> = ({ items, businessName, custom
         )}
       </AnimatePresence>
 
-      {/* Floating Cart Button for Mobile */}
       {cart.length > 0 && !showCart && (
         <motion.div 
           initial={{ y: 100 }}
           animate={{ y: 0 }}
-          className="fixed bottom-6 left-6 right-6 z-40"
+          className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 w-[95%] max-w-md"
         >
           <button 
             onClick={() => setShowCart(true)}
-            className="w-full bg-orange-600 text-white p-5 rounded-3xl font-black uppercase tracking-widest shadow-2xl shadow-orange-600/40 flex items-center justify-between"
+            className="w-full bg-orange-600 text-white p-5 rounded-3xl font-black uppercase tracking-widest shadow-2xl shadow-orange-600/40 flex items-center justify-center gap-6 border-b-8 border-orange-800"
           >
             <div className="flex items-center gap-3">
               <div className="bg-white/20 p-2 rounded-xl">{ICONS.ShoppingBag}</div>

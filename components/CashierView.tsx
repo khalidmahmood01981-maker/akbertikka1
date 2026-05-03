@@ -11,10 +11,12 @@ interface CashierViewProps {
   triggerConfirm: (config: { title: string; message: string; onConfirm: () => void; type?: 'danger' | 'info' }) => void;
   isAdmin?: boolean;
   activeStaff?: StaffMember | null;
+  handlePrint: (order: Order) => void;
+  handlePrintKitchen: (order: Order) => void;
 }
 
 const CashierView: React.FC<CashierViewProps> = ({ 
-  orders, onUpdateOrder, settings, notify, triggerConfirm, isAdmin, activeStaff 
+  orders, onUpdateOrder, settings, notify, triggerConfirm, isAdmin, activeStaff, handlePrint, handlePrintKitchen
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -199,8 +201,19 @@ const CashierView: React.FC<CashierViewProps> = ({
                       <p className="text-[7px] font-black text-orange-600 uppercase mt-1">Saved: Rs.{order.discount.toFixed(0)}</p>
                     )}
                   </div>
-                  <div className="p-3 bg-emerald-600 rounded-xl text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-lg shadow-emerald-600/20">
-                    {ICONS.CheckCircle}
+                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handlePrintKitchen(order); }}
+                      className="p-3 bg-blue-600/10 text-blue-500 rounded-xl shadow-lg border border-blue-600/20"
+                    >
+                      {ICONS.ChefHat}
+                    </button>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handlePrint(order); }}
+                      className="p-3 bg-emerald-600 text-white rounded-xl shadow-lg shadow-emerald-600/20"
+                    >
+                      {ICONS.Printer}
+                    </button>
                   </div>
                 </div>
               </motion.div>
@@ -299,14 +312,21 @@ const CashierView: React.FC<CashierViewProps> = ({
             </div>
 
             <div className="p-6 pt-0 space-y-2">
-              <button
-                onClick={handleCompletePayment}
-                disabled={!receivedAmount}
-                className="w-full py-6 bg-emerald-600 text-white rounded-[24px] text-[12px] font-black uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-emerald-600/20 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale disabled:scale-100"
-              >
-                {ICONS.CheckCircle}
-                Finalize & Collect
-              </button>
+                <button
+                  onClick={handleCompletePayment}
+                  disabled={!receivedAmount}
+                  className="flex-[2] py-6 bg-emerald-600 text-white rounded-[24px] text-[12px] font-black uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-emerald-600/20 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale disabled:scale-100"
+                >
+                  {ICONS.CheckCircle}
+                  Finalize & Collect
+                </button>
+                <button
+                  onClick={() => handlePrint(selectedOrder)}
+                  className="flex-1 py-6 bg-white/5 text-white border border-white/10 rounded-[24px] text-[10px] font-black uppercase tracking-widest flex flex-col items-center justify-center gap-1 active:scale-95 transition-all"
+                >
+                  {ICONS.Printer}
+                  <span>Print</span>
+                </button>
             </div>
           </div>
         </div>

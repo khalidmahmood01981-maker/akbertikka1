@@ -181,6 +181,7 @@ export interface Order {
   total: number;
   customerName: string;
   customerPhone: string;
+  whatsappNumber?: string;
   paymentMethod?: string; // 'cash', 'khata', etc.
   paymentStatus?: 'pending' | 'paid' | 'failed';
   stripeSessionId?: string;
