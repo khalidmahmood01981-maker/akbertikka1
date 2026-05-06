@@ -13,14 +13,24 @@ interface CashierViewProps {
   activeStaff?: StaffMember | null;
   handlePrint: (order: Order) => void;
   handlePrintKitchen: (order: Order) => void;
+  onNavigate?: (tab: 'dashboard' | 'menu' | 'bill' | 'history' | 'inventory' | 'orders' | 'cashier' | 'crm') => void;
 }
 
 const CashierView: React.FC<CashierViewProps> = ({ 
-  orders, onUpdateOrder, settings, notify, triggerConfirm, isAdmin, activeStaff, handlePrint, handlePrintKitchen
+  orders, onUpdateOrder, settings, notify, triggerConfirm, isAdmin, activeStaff, handlePrint, handlePrintKitchen, onNavigate
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [receivedAmount, setReceivedAmount] = useState<string>('');
+  
+  const handleNewTakeaway = () => {
+    localStorage.removeItem('pos_cart');
+    localStorage.setItem('pos_order_type', 'Take Away');
+    localStorage.setItem('pos_table_number', 'Take Away');
+    if (onNavigate) {
+      onNavigate('bill');
+    }
+  };
 
   // Filter orders that are active but not yet collected/paid
   const pendingOrders = useMemo(() => {
@@ -128,6 +138,13 @@ const CashierView: React.FC<CashierViewProps> = ({
               <p className="text-[8px] font-black text-[var(--text-muted)] uppercase tracking-widest">Pending</p>
               <p className="text-xl font-black text-emerald-500 italic leading-none">Rs. {totalPendingAmount.toFixed(0)}</p>
             </div>
+            <button 
+              onClick={handleNewTakeaway}
+              className="bg-orange-600 px-4 py-2 rounded-2xl text-white shadow-lg shadow-orange-600/20 flex flex-col items-center justify-center active:scale-95 transition-all"
+            >
+              <p className="text-[12px] font-black uppercase leading-none">New</p>
+              <p className="text-[8px] font-black uppercase tracking-widest mt-1 opacity-80">Takeaway</p>
+            </button>
           </div>
         </div>
 

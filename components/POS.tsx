@@ -37,30 +37,57 @@ const POS: React.FC<POSProps> = ({
   items, customers, settings, shopName, activeStaff, pendingOrders, allOrders, onOrderComplete, onUpdateOrder, onDeleteOrder, notify, orderToEdit, onClearOrderToEdit, triggerConfirm,
   setIsNavHidden, isAdmin, initialTableNumber, isPrinterDevice, handlePrint, handlePrintKitchen, isCustomerMode, currentOrderTakerId, handlePrintQR
 }) => {
-  const [cart, setCart] = useState<OrderItem[]>([]);
+  const canSettlePayment = isAdmin || !activeStaff || activeStaff.role === 'cashier';
+  const printedOrderIds = useRef<Set<string>>(new Set());
+
+  const [cart, setCart] = useState<OrderItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('pos_cart');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error("Cart recovery failed", e);
+      return [];
+    }
+  });
   const [selectedItemForQty, setSelectedItemForQty] = useState<MenuItem | null>(null);
   const [isClosingQty, setIsClosingQty] = useState(false);
   const [itemToRemove, setItemToRemove] = useState<OrderItem | null>(null);
   const [inputQty, setInputQty] = useState<string>('1');
   const [category, setCategory] = useState<string>('All');
-  const [customerName, setCustomerName] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
-  const [customerWhatsApp, setCustomerWhatsApp] = useState('');
-  const [tableNumber, setTableNumber] = useState(initialTableNumber || '');
-  const [kitchenNotes, setKitchenNotes] = useState('');
+  const [customerName, setCustomerName] = useState(() => localStorage.getItem('pos_customer_name') || '');
+  const [customerPhone, setCustomerPhone] = useState(() => localStorage.getItem('pos_customer_phone') || '');
+  const [customerWhatsApp, setCustomerWhatsApp] = useState(() => localStorage.getItem('pos_customer_whatsapp') || '');
+  const [tableNumber, setTableNumber] = useState(() => localStorage.getItem('pos_table_number') || initialTableNumber || '');
+  const [kitchenNotes, setKitchenNotes] = useState(() => localStorage.getItem('pos_kitchen_notes') || '');
+  const [orderType, setOrderType] = useState(() => localStorage.getItem('pos_order_type') || 'Dine In');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('cash');
   const [showCustomerModal, setShowCustomerModal] = useState(!!isCustomerMode);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
 
+  // Persistence Effects
   useEffect(() => {
-    if (initialTableNumber) {
+    localStorage.setItem('pos_cart', JSON.stringify(cart));
+  }, [cart]);
+
+  useEffect(() => {
+    localStorage.setItem('pos_customer_name', customerName);
+    localStorage.setItem('pos_customer_phone', customerPhone);
+    localStorage.setItem('pos_customer_whatsapp', customerWhatsApp);
+    localStorage.setItem('pos_table_number', tableNumber);
+    localStorage.setItem('pos_kitchen_notes', kitchenNotes);
+    localStorage.setItem('pos_order_type', orderType);
+  }, [customerName, customerPhone, customerWhatsApp, tableNumber, kitchenNotes, orderType]);
+
+  useEffect(() => {
+    if (initialTableNumber && !localStorage.getItem('pos_table_number')) {
       setTableNumber(initialTableNumber);
     }
   }, [initialTableNumber]);
   const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('cash');
   const [successOrder, setSuccessOrder] = useState<Order | null>(null);
+  const [receivedAmount, setReceivedAmount] = useState('');
   const [showQRModal, setShowQRModal] = useState(false);
 
   React.useEffect(() => {
@@ -117,12 +144,36 @@ const POS: React.FC<POSProps> = ({
     prevReadyCount.current = readyOrders.length;
   }, [readyOrders.length]);
 
+  // Sync Table Number with Order Type
+  useEffect(() => {
+    if (!canSettlePayment && orderType !== 'Dine In') {
+      setOrderType('Dine In');
+      return;
+    }
+    
+    if (orderType === 'Take Away') {
+      setTableNumber('Take Away');
+    } else if (orderType === 'Home Delivery') {
+      setTableNumber('Home Delivery');
+    } else if (orderType === 'Dine In' && (tableNumber === 'Take Away' || tableNumber === 'Home Delivery')) {
+      setTableNumber('');
+    }
+  }, [orderType, canSettlePayment]);
+
   const servedOrders = (allOrders || [])
-    .filter(o => o.status === 'served')
+    .filter(o => {
+      const isPaid = (o.receivedAmount || 0) >= (o.total || 0);
+      if (o.orderType && o.orderType !== 'Dine In' && isPaid) return false;
+      return o.status === 'served';
+    })
     .sort((a, b) => a.timestamp - b.timestamp);
 
   const activeOrders = (allOrders || [])
-    .filter(o => o.status && ['received', 'accepted', 'preparing', 'ready', 'served'].includes(o.status) && new Date(o.timestamp).toDateString() === new Date().toDateString())
+    .filter(o => {
+      const isPaid = (o.receivedAmount || 0) >= (o.total || 0);
+      if (o.orderType && o.orderType !== 'Dine In' && isPaid) return false;
+      return o.status && ['received', 'accepted', 'preparing', 'ready', 'served'].includes(o.status) && new Date(o.timestamp).toDateString() === new Date().toDateString();
+    })
     .sort((a, b) => {
       // Show 'served' (generated bills that are unpaid) at the very top
       if (a.status === 'served' && b.status !== 'served') return -1;
@@ -235,7 +286,14 @@ const POS: React.FC<POSProps> = ({
     if (selectedItemForQty && qtyInputRef.current) {
       qtyInputRef.current.focus();
       qtyInputRef.current.select();
-      setInputQty(selectedItemForQty.unit === 'rs' ? '100' : '1');
+      
+      // Pre-fill with current cart quantity if it exists
+      const existing = cart.find(i => i.id === selectedItemForQty.id);
+      if (existing) {
+        setInputQty(existing.quantity.toString());
+      } else {
+        setInputQty(selectedItemForQty.unit === 'rs' ? '100' : '1');
+      }
     }
   }, [selectedItemForQty]);
 
@@ -258,6 +316,14 @@ const POS: React.FC<POSProps> = ({
         if (!tableNumber.trim()) {
            notify("Table number ya 'Takeaway' likhna zaroori hai!", "error");
            return;
+        }
+        
+        if (!isCustomerMode && orderType !== 'Dine In' && canSettlePayment) {
+          const isPaid = (Number(receivedAmount) || 0) >= (finalTotal || 0);
+          if (!isPaid) {
+            notify(`Pehle bill pay karein (Total: Rs.${(finalTotal || 0).toFixed(0)})`, "error");
+            return;
+          }
         }
       }
 
@@ -320,6 +386,7 @@ const POS: React.FC<POSProps> = ({
           customerPhone: customerPhone.trim() || '',
           whatsappNumber: customerWhatsApp.trim() || undefined,
           paymentMethod: selectedPaymentMethod,
+          orderType: orderType,
           status: mode === 'final' ? 'served' : (isCustomerMode ? 'pending_customer' : (mode === 'kitchen' ? 'received' : existingOrder.status)),
           isPrinted: mode === 'kitchen' ? false : (existingOrder.isPrinted || false),
           kitchenTickets: newKitchenTickets,
@@ -346,6 +413,9 @@ const POS: React.FC<POSProps> = ({
           customerPhone: customerPhone.trim() || '',
           whatsappNumber: customerWhatsApp.trim() || undefined,
           paymentMethod: selectedPaymentMethod,
+          receivedAmount: receivedAmount ? parseFloat(receivedAmount) : 0,
+          balance: (finalTotal - (receivedAmount ? parseFloat(receivedAmount) : 0)),
+          orderType: orderType,
           status,
           kitchenTickets: newKitchenTickets,
           updateCount: newUpdateCount,
@@ -376,7 +446,20 @@ const POS: React.FC<POSProps> = ({
         if (isCustomerMode) {
           notify("Order sent to Order Taker!", "success");
         } else {
-          notify("Order sent to kitchen!", "success");
+          // Conditional Printing based on Order Type
+          if (orderType === 'Dine In') {
+            handlePrintKitchen(newOrder);
+          } else {
+            // Only print if payment is fully received for Take Away/Delivery
+            const isPaid = (Number(receivedAmount) || 0) >= (finalTotal || 0);
+            if (isPaid) {
+              handlePrint(newOrder, true);
+              notify("Bill Printed!", "success");
+            } else {
+              notify("Payment pending: Bill print nahi kiya gaya", "info");
+            }
+          }
+          notify("Order processed!", "success");
         }
         resetForNextBill();
       } else if (mode === 'update') {
@@ -394,13 +477,21 @@ const POS: React.FC<POSProps> = ({
 
   const resetForNextBill = () => {
     try {
+      localStorage.removeItem('pos_cart');
+      localStorage.removeItem('pos_customer_name');
+      localStorage.removeItem('pos_customer_phone');
+      localStorage.removeItem('pos_customer_whatsapp');
+      localStorage.removeItem('pos_table_number');
+      localStorage.removeItem('pos_kitchen_notes');
       setCart([]);
       setCustomerName('');
       setCustomerPhone('');
-      setTableNumber('');
+      setCustomerWhatsApp('');
+      setTableNumber(initialTableNumber || '');
       setKitchenNotes('');
       setSuccessOrder(null);
       setCurrentOrderId(null);
+      setReceivedAmount('');
       setSelectedDeliveryZoneId(null);
       notify("New Bill Started!", "success");
     } catch (e) {
@@ -484,13 +575,15 @@ const POS: React.FC<POSProps> = ({
                   onChange={e => setCustomerName(e.target.value)}
                 />
                 <input
-                  type="text"
+                  type="tel"
+                  inputMode="numeric"
                   placeholder="WHATSAPP NUMBER *"
                   className="w-full p-5 bg-black/40 border-2 border-white/5 rounded-[24px] outline-none font-black text-white text-center uppercase focus:border-orange-600 transition-all text-xs"
                   value={customerWhatsApp}
                   onChange={e => {
-                    setCustomerWhatsApp(e.target.value);
-                    setCustomerPhone(e.target.value); // Sync with phone
+                    const val = e.target.value.replace(/\D/g, '');
+                    setCustomerWhatsApp(val);
+                    setCustomerPhone(val); // Sync with phone
                   }}
                 />
                 <input
@@ -594,9 +687,27 @@ const POS: React.FC<POSProps> = ({
           >
             {ICONS.Menu}
           </button>
-          <div className="hidden sm:block">
-            <h2 className="text-xl font-black uppercase italic tracking-tighter text-[var(--text-main)]">Menu <span className="text-orange-600">Categories</span></h2>
-          </div>
+          
+          <button
+            onClick={() => {
+              if (cart.length > 0) {
+                triggerConfirm({
+                  title: "New Order?",
+                  message: "Current items will be cleared. Continue?",
+                  onConfirm: resetForNextBill,
+                  type: 'danger'
+                });
+              } else {
+                resetForNextBill();
+              }
+            }}
+            className="px-4 py-4 bg-white/5 border border-white/10 text-orange-600 rounded-[20px] shadow-lg active:scale-90 transition-all flex items-center justify-center gap-2 group"
+          >
+            <div className="bg-orange-600 text-white p-1 rounded-lg group-active:rotate-180 transition-transform">
+              {ICONS.Plus}
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest hidden xs:block">New Order</span>
+          </button>
         </div>
 
         <div className="flex items-center gap-2">
@@ -806,54 +917,71 @@ const POS: React.FC<POSProps> = ({
 
       {/* Qty Modal */}
       {selectedItemForQty && (
-        <div className={`fixed inset-0 bg-black/90 backdrop-blur-xl z-[500] flex items-center justify-center p-6 ${isClosingQty ? 'animate-out fade-out' : 'animate-in fade-in'}`}>
-          <div className={`bg-[var(--bg-card)] rounded-[44px] border border-white/5 w-full max-w-[340px] max-h-[90vh] overflow-hidden shadow-2xl border-b-8 border-b-orange-600 flex flex-col ${isClosingQty ? 'animate-out zoom-out' : 'animate-in zoom-in'}`}>
-            <div className="p-8 text-center space-y-6">
-              <div className="flex flex-col items-center gap-4 text-center">
-                <div className="w-24 h-24 rounded-3xl overflow-hidden border-4 border-orange-600/10 shadow-2xl shrink-0">
-                  <img src={selectedItemForQty.image} className="w-full h-full object-cover" />
-                </div>
-                <div className="min-w-0 flex flex-col items-center">
-                  <h3 className="text-3xl font-black uppercase tracking-tighter text-white leading-tight italic">{selectedItemForQty.name}</h3>
-                  <p className="text-[14px] font-black text-orange-600 uppercase mt-2">{selectedItemForQty.unit === 'rs' ? 'Flexible Amount' : `Rate: Rs.${selectedItemForQty.price}`}</p>
-                </div>
+        <div className={`fixed inset-0 bg-black/95 backdrop-blur-2xl z-[5000] flex items-start justify-center p-4 pt-20 ${isClosingQty ? 'animate-out fade-out' : 'animate-in fade-in'}`}>
+          <div className={`bg-[var(--bg-card)] rounded-[40px] border border-white/10 w-full max-w-[320px] shadow-2xl border-b-8 border-b-orange-600 flex flex-col ${isClosingQty ? 'animate-out zoom-out' : 'animate-in zoom-in'}`}>
+            <div className="p-6 text-center space-y-4">
+              <div className="space-y-1">
+                <h3 className="text-2xl font-black uppercase tracking-tighter text-white italic">{selectedItemForQty.name}</h3>
+                <p className="text-[12px] font-black text-orange-600 uppercase">{selectedItemForQty.unit === 'rs' ? 'Flexible Amount' : `Rate: Rs.${selectedItemForQty.price}`}</p>
               </div>
 
-              <div className="space-y-3">
-                <p className="text-[10px] font-black uppercase text-[var(--text-muted)] tracking-widest text-center">Enter Quantity</p>
-                <div className="flex items-center justify-center gap-3">
-                  <button onClick={() => setInputQty(prev => Math.max(selectedItemForQty.unit === 'rs' ? 10 : 1, (parseFloat(prev) || 0) - (selectedItemForQty.unit === 'rs' ? 50 : 1)).toString())} className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center text-orange-600 active:scale-90 transition-all border border-white/5">{ICONS.Minus}</button>
+              <div className="space-y-2">
+                <p className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest text-center">Add Quantity</p>
+                <div className="flex items-center justify-center gap-2">
+                  <button onClick={() => setInputQty(prev => Math.max(selectedItemForQty.unit === 'rs' ? 10 : 1, (parseFloat(prev) || 0) - (selectedItemForQty.unit === 'rs' ? 50 : 1)).toString())} className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center text-orange-600 active:scale-90 transition-all border border-white/5">{ICONS.Minus}</button>
                   <input
                     ref={qtyInputRef}
                     type="number"
-                    className="w-32 py-4 bg-black/40 border-2 border-orange-600/20 rounded-[24px] text-center text-3xl font-black text-white outline-none focus:border-orange-600 transition-all shadow-inner"
+                    inputMode="decimal"
+                    className="w-24 py-3 bg-black/40 border-2 border-orange-600/20 rounded-2xl text-center text-2xl font-black text-white outline-none focus:border-orange-600 transition-all"
                     value={inputQty}
                     onChange={e => setInputQty(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && (setCart(prev => [...prev, { ...selectedItemForQty, quantity: parseFloat(inputQty) }]), closeQtyModal())}
                   />
-                  <button onClick={() => setInputQty(prev => ((parseFloat(prev) || 0) + (selectedItemForQty.unit === 'rs' ? 50 : 1)).toString())} className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center text-orange-600 active:scale-90 transition-all border border-white/5">{ICONS.Plus}</button>
+                  <button onClick={() => setInputQty(prev => ((parseFloat(prev) || 0) + (selectedItemForQty.unit === 'rs' ? 50 : 1)).toString())} className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center text-orange-600 active:scale-90 transition-all border border-white/5">{ICONS.Plus}</button>
                 </div>
               </div>
 
-              <div className="flex flex-wrap justify-center gap-2">
+              <div className="flex flex-wrap justify-center gap-1.5">
                 {quickQtys.map(num => (
-                  <button key={num} onClick={() => setInputQty(num.toString())} className={`py-3 min-w-[54px] rounded-xl text-[10px] font-black border transition-all active:scale-95 ${inputQty === num.toString() ? 'bg-orange-600 border-orange-600 text-white shadow-md' : 'bg-white/5 border-white/10 text-[var(--text-muted)]'}`}>{num}</button>
+                  <button key={num} onClick={() => setInputQty(num.toString())} className={`py-2 px-4 rounded-lg text-[10px] font-black border transition-all active:scale-95 ${inputQty === num.toString() ? 'bg-orange-600 border-orange-600 text-white' : 'bg-white/5 border-white/10 text-[var(--text-muted)]'}`}>{num}</button>
                 ))}
               </div>
 
               <div className="flex gap-2 pt-4 border-t border-white/5 items-center">
-                <button onClick={closeQtyModal} className="px-4 py-4 text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest hover:text-white transition-colors">Cancel</button>
+                <button onClick={closeQtyModal} className="px-2 py-3 text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Cancel</button>
+                {cart.find(i => i.id === selectedItemForQty.id) && (
+                  <button 
+                    onClick={() => {
+                      setCart(prev => prev.filter(i => i.id !== selectedItemForQty.id));
+                      closeQtyModal();
+                      notify("Item removed", "info");
+                    }}
+                    className="p-3 bg-red-600/10 text-red-500 rounded-xl active:scale-90 transition-all border border-red-500/20"
+                  >
+                    {ICONS.Trash2}
+                  </button>
+                )}
                 <button
-                  onClick={() => { setCart(prev => [...prev, { ...selectedItemForQty, quantity: parseFloat(inputQty) }]); closeQtyModal(); notify("Item added to cart", "success"); }}
-                  className="flex-1 bg-orange-600 text-white rounded-[24px] overflow-hidden shadow-xl flex items-center active:scale-95 transition-all group border-b-4 border-orange-800"
-                  aria-label={`Add ${selectedItemForQty?.name} to cart for Rs.${currentItemTotal}`}
+                  onClick={() => { 
+                    const qty = parseFloat(inputQty);
+                    if (isNaN(qty) || qty <= 0) {
+                      notify("Sahi quantity likhen", "error");
+                      return;
+                    }
+                    setCart(prev => {
+                      const exists = prev.find(i => i.id === selectedItemForQty.id);
+                      if (exists) {
+                        return prev.map(i => i.id === selectedItemForQty.id ? { ...i, quantity: qty } : i);
+                      }
+                      return [...prev, { ...selectedItemForQty, quantity: qty }];
+                    }); 
+                    closeQtyModal(); 
+                    notify("Item updated", "success"); 
+                  }}
+                  className="flex-1 bg-orange-600 text-white rounded-2xl py-4 font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all border-b-4 border-orange-800"
                 >
-                  <div className="px-4 py-4 bg-black/20 border-r border-white/10 text-left min-w-[90px]">
-                    <span className="text-[14px] font-black italic tracking-tighter whitespace-nowrap">Rs.{currentItemTotal.toFixed(0)}</span>
-                  </div>
-                  <div className="flex-1 py-4 px-2 text-center font-black uppercase text-[10px] tracking-widest whitespace-nowrap">
-                    Add To Cart
-                  </div>
+                  Confirm Rs.{(currentItemTotal || 0).toFixed(0)}
                 </button>
               </div>
             </div>
@@ -863,7 +991,7 @@ const POS: React.FC<POSProps> = ({
 
       {/* Cart Summary Trigger */}
       <AnimatePresence>
-        {cart.length > 0 && !isCheckoutOpen && !successOrder && (
+        {cart.length > 0 && !isCheckoutOpen && !successOrder && !selectedItemForQty && (
           <motion.div 
             initial={{ y: 100 }} 
             animate={{ y: 0 }} 
@@ -930,6 +1058,25 @@ const POS: React.FC<POSProps> = ({
 
             <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-20">
               <div className="relative space-y-3">
+                {/* Order Type Dropdown at the top */}
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest ml-4">Order Type</p>
+                  <select 
+                    value={orderType}
+                    onChange={e => setOrderType(e.target.value)}
+                    className="w-full p-5 bg-black/40 border-2 border-white/5 rounded-[24px] outline-none font-black text-orange-600 text-center uppercase focus:border-orange-600 transition-all text-xs appearance-none"
+                  >
+                    <option value="Dine In">Dine In 🍽️</option>
+                    {canSettlePayment && (
+                      <>
+                        <option value="Take Away">Take Away 🥡</option>
+                        <option value="Home Delivery">Home Delivery 🛵</option>
+                        <option value="Other">Other 📦</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   <input
                     type="text"
@@ -939,60 +1086,82 @@ const POS: React.FC<POSProps> = ({
                     onChange={e => setCustomerName(e.target.value)}
                   />
                   <input
-                    type="text"
+                    type="tel"
+                    inputMode="numeric"
                     placeholder="WHATSAPP # (OPTIONAL)"
                     className="w-full p-5 bg-black/40 border-2 border-white/5 rounded-[24px] outline-none font-black text-white text-center uppercase focus:border-orange-600 transition-all text-[10px]"
                     value={customerWhatsApp}
-                    onChange={e => setCustomerWhatsApp(e.target.value)}
+                    onChange={e => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setCustomerWhatsApp(val);
+                      setCustomerPhone(val);
+                    }}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <input
-                    type="text"
-                    placeholder="TABLE # *"
-                    className={`w-full p-5 bg-black/40 border-2 rounded-[24px] outline-none font-black text-white text-center uppercase focus:border-orange-600 transition-all ${!tableNumber.trim() ? 'border-orange-600/30 ring-2 ring-orange-600/5' : 'border-white/5'}`}
-                    value={tableNumber}
-                    onChange={e => setTableNumber(e.target.value)}
-                  />
-                  <input
-                    type="text"
-                    placeholder="KITCHEN NOTES (E.G. NO SPICY)"
-                    className="w-full p-5 bg-black/40 border-2 border-white/5 rounded-[24px] outline-none font-black text-amber-500 text-center uppercase focus:border-amber-600 transition-all text-[10px]"
-                    value={kitchenNotes}
-                    onChange={e => setKitchenNotes(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                {settings.paymentMethods?.filter(m => m.isEnabled).map(method => (
-                  <button key={method.id} onClick={() => setSelectedPaymentMethod(method.id)} className={`py-3 rounded-[18px] border-2 font-black uppercase text-[11px] transition-all ${selectedPaymentMethod === method.id ? 'bg-orange-600 border-orange-600 text-white' : 'bg-black/30 border-white/5 text-[var(--text-muted)]'}`}>
-                    {method.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Delivery Zone Selection */}
-              <div className="space-y-3">
-                <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest ml-4">Delivery Zone (Optional)</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setSelectedDeliveryZoneId(null)}
-                    className={`py-4 rounded-2xl border transition-all text-[10px] font-black uppercase ${!selectedDeliveryZoneId ? 'bg-emerald-600/20 border-emerald-600 text-emerald-500' : 'bg-black/20 border-white/5 text-[var(--text-muted)]'}`}
-                  >
-                    Dine-In / Takeaway
-                  </button>
-                  {settings.deliveryZones?.map(zone => (
-                    <button
-                      key={zone.id}
-                      onClick={() => setSelectedDeliveryZoneId(zone.id)}
-                      className={`py-4 rounded-2xl border transition-all text-[10px] font-black uppercase ${selectedDeliveryZoneId === zone.id ? 'bg-orange-600/20 border-orange-600 text-orange-500' : 'bg-black/20 border-white/5 text-[var(--text-muted)]'}`}
+                  <div className="space-y-1">
+                    <input
+                      type="text"
+                      placeholder="TABLE # / BUZZER *"
+                      className={`w-full p-5 bg-black/40 border-2 rounded-[24px] outline-none font-black text-white text-center uppercase focus:border-orange-600 transition-all ${!tableNumber.trim() ? 'border-orange-600/30 ring-2 ring-orange-600/5' : 'border-white/5'}`}
+                      value={tableNumber}
+                      onChange={e => setTableNumber(e.target.value)}
+                    />
+                  </div>
+                  
+                  {/* Payment Method Dropdown where Kitchen Notes was */}
+                  <div className="space-y-1">
+                    <select 
+                      value={selectedPaymentMethod}
+                      onChange={e => setSelectedPaymentMethod(e.target.value)}
+                      className="w-full p-5 bg-black/40 border-2 border-white/5 rounded-[24px] outline-none font-black text-emerald-500 text-center uppercase focus:border-emerald-600 transition-all text-[10px] appearance-none"
                     >
-                      {zone.name} (Rs.{zone.fee})
-                    </button>
-                  ))}
+                      {settings.paymentMethods?.filter(m => m.isEnabled).map(method => (
+                        <option key={method.id} value={method.id}>{method.label.toUpperCase()}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
+
+
+
+              {/* Payment Settlement for Take Away / Home Delivery / Other */}
+              {orderType !== 'Dine In' && canSettlePayment && (
+                <div className="p-6 bg-black/30 rounded-[32px] border-2 border-emerald-600/20 space-y-4 shadow-inner">
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="text-[11px] font-black text-emerald-500 uppercase tracking-[0.2em] italic">Settlement <span className="text-white">(Bill Pay)</span></h4>
+                    <div className="px-3 py-1 bg-emerald-600/10 rounded-full border border-emerald-600/20">
+                      <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Total: Rs.{finalTotal.toFixed(0)}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <p className="text-[9px] font-black text-white/40 uppercase tracking-widest ml-3">Received</p>
+                      <input 
+                        type="number"
+                        placeholder="0.00"
+                        className="w-full p-4 bg-black/40 border-2 border-white/5 rounded-2xl outline-none font-black text-emerald-400 text-center focus:border-emerald-600 transition-all text-lg"
+                        value={receivedAmount}
+                        onChange={e => setReceivedAmount(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <p className="text-[9px] font-black text-white/40 uppercase tracking-widest ml-3">Change (Baqi)</p>
+                      <div className="w-full p-4 bg-emerald-600/10 border-2 border-emerald-600/20 rounded-2xl font-black text-white text-center text-lg flex items-center justify-center italic">
+                        Rs.{(Math.max(0, (Number(receivedAmount) || 0) - (finalTotal || 0))).toFixed(0)}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {(Number(receivedAmount) || 0) < (finalTotal || 0) && (
+                    <p className="text-[8px] font-black text-orange-600 uppercase text-center tracking-widest animate-pulse">
+                      Pending Balance: Rs.{ ((finalTotal || 0) - (Number(receivedAmount) || 0)).toFixed(0) }
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="space-y-2">
                 {cart.map(item => (
@@ -1215,24 +1384,22 @@ const POS: React.FC<POSProps> = ({
                                   Finish
                                 </button>
                               )}
-                              {isAdmin && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setCart(order.items);
-                                    setCustomerName(order.customerName);
-                                    setCustomerPhone(order.customerPhone);
-                                    setTableNumber(order.tableNumber || '');
-                                    setCurrentOrderId(order.id);
-                                    setShowActiveOrders(false);
-                                    notify("Order loaded for editing", "info");
-                                  }}
-                                  className="px-4 py-2 bg-blue-500/10 text-blue-500 rounded-2xl active:scale-75 transition-all hover:bg-blue-500/20 flex items-center gap-2 border border-blue-500/20"
-                                >
-                                  {ICONS.Edit}
-                                  <span className="text-[10px] font-black uppercase tracking-widest">Edit</span>
-                                </button>
-                              )}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setCart(order.items);
+                                  setCustomerName(order.customerName);
+                                  setCustomerPhone(order.customerPhone);
+                                  setTableNumber(order.tableNumber || '');
+                                  setCurrentOrderId(order.id);
+                                  setShowActiveOrders(false);
+                                  notify("Order loaded for editing", "info");
+                                }}
+                                className="px-4 py-2 bg-blue-500/10 text-blue-500 rounded-2xl active:scale-75 transition-all hover:bg-blue-500/20 flex items-center gap-2 border border-blue-500/20"
+                              >
+                                {ICONS.Edit}
+                                <span className="text-[10px] font-black uppercase tracking-widest">Edit</span>
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -1339,7 +1506,6 @@ const POS: React.FC<POSProps> = ({
                             Serve
                           </button>
                         )}
-                        {isAdmin && (
                           <button
                             onClick={() => {
                               setCart(order.items);
@@ -1358,8 +1524,8 @@ const POS: React.FC<POSProps> = ({
                             className="flex-1 py-4 bg-blue-600/10 text-blue-500 rounded-2xl border border-blue-600/20 font-black uppercase text-[10px] transition-all active:scale-95 flex items-center justify-center gap-2"
                           >
                             {ICONS.Edit}
+                            <span className="text-[10px] font-black uppercase tracking-widest">Edit</span>
                           </button>
-                        )}
                       </div>
                     </div>
                   ))}
@@ -1595,7 +1761,6 @@ const POS: React.FC<POSProps> = ({
                             {ICONS.Printer}
                           </button>
 
-                          {isAdmin && (
                             <button
                               onClick={() => {
                                 setCart(order.items);
@@ -1616,7 +1781,6 @@ const POS: React.FC<POSProps> = ({
                               {ICONS.Edit}
                               Update Bill
                             </button>
-                          )}
 
                         <button
                           onClick={() => {

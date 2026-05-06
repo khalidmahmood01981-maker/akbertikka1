@@ -355,7 +355,7 @@ const AdminDashboard: React.FC<AdminProps> = ({
     if (file) {
       setIsCompressing(true);
       try {
-        const base64 = await compressImage(file, 100, 0.4);
+        const base64 = await compressImage(file, 200, 0.6);
         setSettings({ ...settings, businessLogo: base64 });
       } catch (err) {
         console.error("Logo compression failed", err);
@@ -467,7 +467,7 @@ const AdminDashboard: React.FC<AdminProps> = ({
     if (file) {
       setIsCompressingPromo(true);
       try {
-        const base64 = await compressImage(file, 100, 0.4);
+        const base64 = await compressImage(file, 600, 0.7);
         setPromoImage(base64);
       } catch (err) {
         console.error("Promo compression failed", err);
@@ -576,7 +576,7 @@ const AdminDashboard: React.FC<AdminProps> = ({
       for (const item of menuItems) {
         if (item.image && item.image.startsWith('data:image')) {
           try {
-            const compressed = await compressImage(item.image, 80, 0.3);
+            const compressed = await compressImage(item.image, 200, 0.8);
             if (compressed.length < item.image.length) {
               await setDoc(doc(db, "items", item.id), { ...item, image: compressed });
               optimizedCount++;

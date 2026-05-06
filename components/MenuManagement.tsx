@@ -5,6 +5,7 @@ import { CATEGORIES, ICONS } from '../constants';
 import { compressImage } from '../utils/imageCompression';
 import { db } from '../firebase';
 import { doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { api } from '../utils/api';
 
 interface MenuProps {
   items: MenuItem[];
@@ -24,7 +25,8 @@ const MenuManagement: React.FC<MenuProps> = ({ items, setItems, isAdmin, onClose
     if (file) {
       setIsCompressing(true);
       try {
-        const compressedBase64 = await compressImage(file, 80, 0.3);
+        // Adjusted to 200px as per user request
+        const compressedBase64 = await compressImage(file, 200, 0.8);
         setNewItem(prev => ({ ...prev, image: compressedBase64 }));
       } catch (err) {
         console.error("Image compression failed", err);
@@ -50,6 +52,9 @@ const MenuManagement: React.FC<MenuProps> = ({ items, setItems, isAdmin, onClose
         };
         // Write to Firestore — listener in App.tsx updates all devices
         await setDoc(doc(db, "items", editingId), updatedData);
+        // Also update local server immediately for LAN-only operation
+        const updatedList = items.map(i => i.id === editingId ? updatedData : i);
+        api.saveItems(updatedList).catch(() => {});
         alert("Dish Updated!");
     } else {
         const newId = Math.random().toString(36).substr(2, 9);
@@ -62,6 +67,8 @@ const MenuManagement: React.FC<MenuProps> = ({ items, setItems, isAdmin, onClose
           image: newItem.image || 'https://images.unsplash.com/photo-1544025162-d76694265947?w=300&h=300&fit=crop'
         };
         await setDoc(doc(db, "items", newId), newItemData);
+        // Also update local server immediately for LAN-only operation
+        api.saveItems([...items, newItemData]).catch(() => {});
         alert("Dish Added!");
     }
     
@@ -211,6 +218,8 @@ const MenuManagement: React.FC<MenuProps> = ({ items, setItems, isAdmin, onClose
                         onClick={async () => { 
                           if(confirm(`Delete ${item.name}?`)) {
                             await deleteDoc(doc(db, "items", item.id));
+                            // Also update local server
+                            api.saveItems(items.filter(i => i.id !== item.id)).catch(() => {});
                           }
                         }}
                         className="p-3 bg-red-500/10 text-red-500 rounded-xl active:scale-90 transition-all"

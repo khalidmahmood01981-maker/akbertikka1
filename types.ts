@@ -201,6 +201,7 @@ export interface Order {
   isPrinted?: boolean;
   kitchenTickets?: KitchenTicket[];
   updateCount?: number;
+  orderType?: string;
   feedback?: {
     rating: number;
     comment: string;

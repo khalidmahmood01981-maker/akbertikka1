@@ -131,6 +131,10 @@ export class LocalApiService {
   emitPrintCommand(data: { type: 'kitchen' | 'bill' | 'qr' | 'report', order?: any, staff?: any, orders?: any, purchases?: any, itemSummary?: any }) {
     this.socket.emit("print_command", data);
   }
+
+  async resetAllData() {
+    return fetch(`${API_BASE}/api/reset`, { method: "DELETE" });
+  }
 }
 
 export const api = new LocalApiService();

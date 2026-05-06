@@ -18,14 +18,26 @@ interface CustomerMenuProps {
 const CustomerMenu: React.FC<CustomerMenuProps> = ({ items, businessName, customerName, customerPhone, customerOrders, onSendOrder, onUpdateOrder, onLogout, tableNumber }) => {
   const [dismissBill, setDismissBill] = useState(false);
   const [activeCategory, setActiveCategory] = useState('ALL');
-  const [cart, setCart] = useState<OrderItem[]>([]);
+  const [cart, setCart] = useState<OrderItem[]>(() => {
+    const saved = localStorage.getItem('cust_cart');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [showCart, setShowCart] = useState(false);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [selectedQty, setSelectedQty] = useState(1);
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackComment, setFeedbackComment] = useState('');
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
-  const [localTableNumber, setLocalTableNumber] = useState(tableNumber || '');
+  const [localTableNumber, setLocalTableNumber] = useState(() => localStorage.getItem('cust_table_number') || tableNumber || '');
+
+  // Persistence Effects
+  React.useEffect(() => {
+    localStorage.setItem('cust_cart', JSON.stringify(cart));
+  }, [cart]);
+
+  React.useEffect(() => {
+    localStorage.setItem('cust_table_number', localTableNumber);
+  }, [localTableNumber]);
 
   const activeOrders = customerOrders.filter(o => o.status && ['pending_customer', 'received', 'preparing', 'ready', 'accepted'].includes(o.status));
   const servedOrders = customerOrders.filter(o => 
@@ -63,7 +75,7 @@ const CustomerMenu: React.FC<CustomerMenuProps> = ({ items, businessName, custom
     setCart(prev => {
       const existing = prev.find(i => i.id === selectedItem.id);
       if (existing) {
-        return prev.map(i => i.id === selectedItem.id ? { ...i, quantity: i.quantity + selectedQty } : i);
+        return prev.map(i => i.id === selectedItem.id ? { ...i, quantity: selectedQty } : i);
       }
       return [...prev, { ...selectedItem, quantity: selectedQty }];
     });
@@ -111,6 +123,7 @@ const CustomerMenu: React.FC<CustomerMenuProps> = ({ items, businessName, custom
 
     onSendOrder(order);
     setCart([]);
+    localStorage.removeItem('cust_cart');
     setShowCart(false);
   };
 
@@ -343,7 +356,11 @@ const CustomerMenu: React.FC<CustomerMenuProps> = ({ items, businessName, custom
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
                 key={item.id} 
-                onClick={() => setSelectedItem(item)}
+                onClick={() => {
+                  setSelectedItem(item);
+                  const existing = cart.find(i => i.id === item.id);
+                  setSelectedQty(existing ? existing.quantity : 1);
+                }}
                 className="bg-[var(--bg-card)] rounded-[24px] border border-[var(--border)] overflow-hidden shadow-lg flex flex-col group active:scale-95 transition-all relative"
               >
                 {quantity > 0 && (
@@ -381,44 +398,56 @@ const CustomerMenu: React.FC<CustomerMenuProps> = ({ items, businessName, custom
       {/* Quantity Popup */}
       <AnimatePresence>
         {selectedItem && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
+          <div className="fixed inset-0 z-[5000] flex items-start justify-center p-6 pt-20">
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setSelectedItem(null)}
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              className="absolute inset-0 bg-black/95 backdrop-blur-2xl"
             />
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
               className="relative w-full max-w-xs bg-[var(--bg-card)] rounded-[40px] border border-[var(--border)] p-8 shadow-2xl text-center space-y-6"
             >
-              <div className="space-y-2">
-                <img src={selectedItem.image} className="w-24 h-24 rounded-3xl mx-auto object-cover border-2 border-orange-600/20" alt="" />
-                <h3 className="text-xl font-black text-white uppercase italic">{selectedItem.name}</h3>
-                <p className="text-orange-600 font-black">Rs.{selectedItem.price}</p>
+              <div className="space-y-1">
+                <h3 className="text-2xl font-black text-white uppercase italic">{selectedItem.name}</h3>
+                <p className="text-orange-600 font-black text-sm uppercase">Rate: Rs.{selectedItem.price}</p>
               </div>
 
               <div className="flex items-center justify-center gap-6">
                 <button 
                   onClick={() => setSelectedQty(prev => Math.max(1, prev - 1))}
-                  className="w-12 h-12 rounded-2xl bg-white/5 text-white flex items-center justify-center text-xl active:scale-90 transition-all"
+                  className="w-12 h-12 rounded-2xl bg-white/5 text-white flex items-center justify-center text-xl active:scale-90 transition-all border border-white/5"
                 >
                   {ICONS.Minus}
                 </button>
                 <span className="text-3xl font-black text-white w-12">{selectedQty}</span>
                 <button 
                   onClick={() => setSelectedQty(prev => prev + 1)}
-                  className="w-12 h-12 rounded-2xl bg-white/5 text-white flex items-center justify-center text-xl active:scale-90 transition-all"
+                  className="w-12 h-12 rounded-2xl bg-white/5 text-white flex items-center justify-center text-xl active:scale-90 transition-all border border-white/5"
                 >
                   {ICONS.Plus}
                 </button>
               </div>
 
-              <button 
-                onClick={handleAddToCart}
-                className="w-full py-5 bg-orange-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all"
-              >
-                Add to Selection
-              </button>
+              <div className="flex gap-2">
+                {cart.find(i => i.id === selectedItem.id) && (
+                  <button 
+                    onClick={() => {
+                      removeFromCart(selectedItem.id);
+                      setSelectedItem(null);
+                    }}
+                    className="p-5 bg-red-600/10 text-red-500 rounded-2xl border border-red-500/20 active:scale-95 transition-all"
+                  >
+                    {ICONS.Trash2}
+                  </button>
+                )}
+                <button 
+                  onClick={handleAddToCart}
+                  className="flex-1 py-5 bg-orange-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all border-b-4 border-orange-800"
+                >
+                  Confirm Selection
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

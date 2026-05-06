@@ -90,7 +90,7 @@ async function startServer() {
 
     socket.on("print_command", (data) => {
       console.log("Print command received:", data.type, "for order:", data.order?.id);
-      io.emit("print_command", data);
+      socket.broadcast.emit("print_command", data);
     });
 
     socket.on("disconnect", () => {
@@ -115,6 +115,19 @@ async function startServer() {
     });
   });
   
+  app.delete("/api/reset", (req, res) => {
+    try {
+      db.transaction(() => {
+        db.prepare("DELETE FROM orders").run();
+        db.prepare("DELETE FROM customers").run();
+        db.prepare("DELETE FROM staff").run();
+      })();
+      res.json({ success: true, message: "Local database cleared" });
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
   // Orders
   app.get("/api/orders", (req, res) => {
     const orders = db.prepare("SELECT data FROM orders ORDER BY timestamp DESC").all();
@@ -123,6 +136,13 @@ async function startServer() {
 
   app.post("/api/orders", (req, res) => {
     const order = req.body;
+    const existing = db.prepare("SELECT data FROM orders WHERE id = ?").get(order.id);
+    
+    // Skip broadcast if order data is identical
+    if (existing && (existing as any).data === JSON.stringify(order)) {
+      return res.json({ success: true, message: "Order unchanged" });
+    }
+
     db.prepare("INSERT OR REPLACE INTO orders (id, data, timestamp) VALUES (?, ?, ?)")
       .run(order.id, JSON.stringify(order), order.timestamp || Date.now());
     broadcast("order_sync", order);

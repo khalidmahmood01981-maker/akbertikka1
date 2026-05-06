@@ -23,6 +23,9 @@ export const initDB = (): Promise<IDBDatabase> => {
       if (!db.objectStoreNames.contains('orders_cache')) {
         db.createObjectStore('orders_cache', { keyPath: 'id' });
       }
+      if (!db.objectStoreNames.contains('items_cache')) {
+        db.createObjectStore('items_cache', { keyPath: 'id' });
+      }
     };
 
     request.onsuccess = () => resolve(request.result);
@@ -79,6 +82,31 @@ export const getCachedOrders = async (): Promise<Order[]> => {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction('orders_cache', 'readonly');
     const store = transaction.objectStore('orders_cache');
+    const request = store.getAll();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+};
+
+export const cacheItems = async (items: any[]) => {
+  const db = await initDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction('items_cache', 'readwrite');
+    const store = transaction.objectStore('items_cache');
+    store.clear();
+    for (const item of items) {
+      store.put(item);
+    }
+    transaction.oncomplete = () => resolve(true);
+    transaction.onerror = () => reject(transaction.error);
+  });
+};
+
+export const getCachedItems = async (): Promise<any[]> => {
+  const db = await initDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction('items_cache', 'readonly');
+    const store = transaction.objectStore('items_cache');
     const request = store.getAll();
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);

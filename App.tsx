@@ -395,25 +395,39 @@ const App: React.FC = () => {
         return;
       }
 
-      // 3. Duplicate Prevention (Signature Check)
+      // 3. Duplicate Prevention (Signature Check + Global Set)
       let signature = '';
       if (type === 'kitchen' || type === 'bill') {
         const order = data as Order;
         const itemsStr = order.items.map(i => `${i.id}x${i.quantity}`).sort().join('|');
-        signature = `${type}_${order.orderNumber}_${order.tableNumber || 'WALK'}_${itemsStr}_${order.status}`;
+        signature = `${type}_${order.orderNumber}_${order.tableNumber || 'WALK'}_${itemsStr}_${order.status}_${order.updateCount || 0}`;
       } else if (type === 'qr') {
         signature = `qr_${data.id}`;
       }
 
       const now = Date.now();
       if (!(window as any).printLog) (window as any).printLog = {};
+      if (!(window as any).printedSet) (window as any).printedSet = new Set();
       
-      // Strict Check: Block if exact same signature printed in last 60 seconds
-      if (signature && (window as any).printLog[signature] && (now - (window as any).printLog[signature] < 60000)) {
-        console.log("SHIELD ACTIVE: Blocking duplicate print request for:", signature);
+      // Block if exact same signature printed in last 10 seconds
+      if (signature && (window as any).printLog[signature] && (now - (window as any).printLog[signature] < 10000)) {
+        console.log("SHIELD: Blocking duplicate (timer) for:", signature);
         return;
       }
-      if (signature) (window as any).printLog[signature] = now;
+      // Also block if this exact signature was already printed this session
+      if (signature && (window as any).printedSet.has(signature)) {
+        const lastTime = (window as any).printLog[signature] || 0;
+        if (now - lastTime < 30000) {
+          console.log("SHIELD: Blocking duplicate (set) for:", signature);
+          return;
+        }
+      }
+      if (signature) {
+        (window as any).printLog[signature] = now;
+        (window as any).printedSet.add(signature);
+        // Clean old entries after 60s
+        setTimeout(() => (window as any).printedSet.delete(signature), 60000);
+      }
 
       // 4. Generate HTML Content
       let html = '';
@@ -422,12 +436,36 @@ const App: React.FC = () => {
 
       if (type === 'kitchen') {
         const order = data as Order;
-        const itemsHtml = order.items.map(item => `
-          <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #000; padding: 10px 0; font-size: 18px; font-weight: 900;">
-            <div style="flex: 1;">${item.name.toUpperCase()}</div>
-            <div style="width: 50px; text-align: right;">x${item.quantity}</div>
-          </div>
-        `).join('');
+        
+        let itemsHtml = '';
+        if (order.kitchenTickets && order.kitchenTickets.length > 0) {
+          // Display items grouped by rounds (Initial vs Updates)
+          itemsHtml = order.kitchenTickets.map((ticket, idx) => `
+            <div style="margin-top: 15px; border-top: 2px solid #000; padding-top: 5px;">
+              <div style="background: #000; color: #fff; text-align: center; font-size: 14px; font-weight: 900; padding: 2px; margin-bottom: 5px;">
+                ${idx === 0 ? 'INITIAL ORDER' : `UPDATE ROUND #${ticket.round}`}
+              </div>
+              ${ticket.items.map(item => `
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #000; padding: 8px 0; font-size: 20px; font-weight: 900;">
+                  <div style="flex: 1;">${item.name.toUpperCase()}</div>
+                  <div style="width: 50px; text-align: right;">x${item.quantity}</div>
+                </div>
+              `).join('')}
+              <div style="text-align: right; font-size: 10px; margin-top: 2px;">
+                Sent by: ${ticket.senderName || 'Staff'} • ${new Date(ticket.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </div>
+            </div>
+          `).join('');
+        } else {
+          // Fallback if no tickets exist
+          itemsHtml = order.items.map(item => `
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #000; padding: 10px 0; font-size: 20px; font-weight: 900;">
+              <div style="flex: 1;">${item.name.toUpperCase()}</div>
+              <div style="width: 50px; text-align: right;">x${item.quantity}</div>
+            </div>
+          `).join('');
+        }
+
         html = `
           <html>
             <body>
@@ -445,6 +483,12 @@ const App: React.FC = () => {
                 </div>
                 ${order.kitchenNotes ? `<div style="border: 2px solid #000; padding: 10px; margin-bottom: 15px; font-weight: 900; text-align: center;">${order.kitchenNotes.toUpperCase()}</div>` : ''}
                 <div>${itemsHtml}</div>
+                <div style="margin-top: 20px; border-top: 2px solid #000; padding-top: 10px; text-align: center; font-size: 12px;">
+                  Total Items: ${order.items.reduce((acc, i) => acc + i.quantity, 0)}
+                </div>
+                <div style="margin-top: 10px; border-top: 1px dashed #000; padding-top: 8px; text-align: center; font-size: 14px; font-weight: 900;">
+                  ORDER BY: ${(order.orderTakerName || 'OWNER').toUpperCase()}
+                </div>
               </div>
             </body>
           </html>`;
@@ -490,33 +534,43 @@ const App: React.FC = () => {
         html = `<html><body><h1>Daily Report</h1><p>Total Orders: ${data.orders?.length || 0}</p></body></html>`;
       }
 
-      // 5. Execute Print via Hidden Iframe
-      // When Silent Printing is ON + Chrome launched with --kiosk-printing, dialog is auto-skipped
-      let iframe = document.getElementById('print-engine-iframe') as HTMLIFrameElement;
-      if (!iframe) {
-        iframe = document.createElement('iframe');
-        iframe.id = 'print-engine-iframe';
-        iframe.style.position = 'fixed';
-        iframe.style.left = '-9999px';
-        iframe.style.width = '0';
-        iframe.style.height = '0';
-        document.body.appendChild(iframe);
-      }
+      console.log(`PRINT: Executing ${type} print...`);
+
+      // 5. Execute Print via Hidden Iframe (Reliable approach)
+      const oldIframe = document.getElementById('print-engine-iframe');
+      if (oldIframe) oldIframe.remove();
+
+      const iframe = document.createElement('iframe');
+      iframe.id = 'print-engine-iframe';
+      iframe.style.position = 'fixed';
+      iframe.style.left = '-9999px';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      document.body.appendChild(iframe);
       
-      const doc = iframe.contentWindow?.document;
-      if (doc) {
-        doc.open();
-        doc.write(html);
-        doc.close();
+      const iframeDoc = iframe.contentWindow?.document;
+      if (iframeDoc) {
+        iframeDoc.open();
+        iframeDoc.write(html);
+        iframeDoc.close();
         
-        const checkReady = setInterval(() => {
-          if (iframe.contentWindow?.document.readyState === 'complete') {
-            clearInterval(checkReady);
-            iframe.contentWindow.focus();
-            iframe.contentWindow.print();
+        // Wait for content to load then print
+        setTimeout(() => {
+          try {
+            iframe.contentWindow?.focus();
+            iframe.contentWindow?.print();
+          } catch (e) {
+            console.error("Iframe print failed, using fallback:", e);
+            const printWindow = window.open('', '_blank', 'width=400,height=600');
+            if (printWindow) {
+              printWindow.document.write(html);
+              printWindow.document.close();
+              printWindow.focus();
+              printWindow.print();
+              setTimeout(() => printWindow.close(), 3000);
+            }
           }
-        }, 100);
-        setTimeout(() => clearInterval(checkReady), 5000);
+        }, 300);
       }
     } catch (err) {
       console.error("Print Error:", err);
@@ -527,6 +581,7 @@ const App: React.FC = () => {
   // Re-map old functions to the new unified handler for compatibility
   const handlePrintKitchen = (order: Order) => handlePrint('kitchen', order);
   const handlePrintBill = (order: Order) => handlePrint('bill', order);
+  const handlePrintForPOS = (order: Order, isFinalBill?: boolean) => handlePrint(isFinalBill ? 'bill' : 'bill', order);
   const handlePrintQR = (staff: StaffMember) => handlePrint('qr', staff);
   const handlePrintDayReport = (orders: Order[], purchases: Purchase[], itemSummary: any) => handlePrint('report', { orders, purchases, itemSummary });
   const handleSimplePrint = (html: string, title: string) => { /* Legacy, handled inside handlePrint now */ };
@@ -553,6 +608,12 @@ const App: React.FC = () => {
       try {
         const parsed = JSON.parse(localData);
         setItems(parsed.items || INITIAL_ITEMS);
+        
+        // Cache initial items from localStorage into IndexedDB for better offline support
+        if (parsed.items) {
+          offlineDB.cacheItems(parsed.items).catch(() => {});
+        }
+
         setOrders(parsed.orders || []);
         setPurchases(parsed.purchases || []);
         setCustomers(parsed.customers || []);
@@ -571,6 +632,13 @@ const App: React.FC = () => {
         offlineDB.getCachedOrders().then(cachedOrders => {
           if (cachedOrders.length > 0) {
             setOrders(cachedOrders.sort((a, b) => b.timestamp - a.timestamp));
+          }
+        });
+
+        // Load cached items from IndexedDB
+        offlineDB.getCachedItems().then(cachedItems => {
+          if (cachedItems.length > 0) {
+            setItems(cachedItems);
           }
         });
 
@@ -659,6 +727,7 @@ const App: React.FC = () => {
             setItems(prev => {
               if (prev.length === 0) {
                  console.log("Loaded Items from Local Server:", data.length);
+                 offlineDB.cacheItems(data).catch(() => {});
                  return data;
               }
               return prev;
@@ -827,6 +896,7 @@ const App: React.FC = () => {
       if (cloudItems.length > 0) {
         // Firebase always wins — update state with the authoritative cloud list
         setItems(cloudItems);
+        offlineDB.cacheItems(cloudItems).catch(() => {});
 
         // Backup to local server if we are connected (Master PC)
         if (isLocalConnected) {
@@ -884,21 +954,30 @@ const App: React.FC = () => {
     api.onSync('order_sync', (newOrder: Order) => {
       const currentOrders = ordersRef.current;
       const currentSettings = settingsRef.current;
-      const isNew = !currentOrders.find(o => o.id === newOrder.id);
+      const prev = currentOrders.find(o => o.id === newOrder.id);
+
+      // 1. Skip if absolutely identical to what we already have in memory
+      if (prev && JSON.stringify(prev) === JSON.stringify(newOrder)) return;
       
-      setOrders(prev => {
-        const exists = prev.find(o => o.id === newOrder.id);
-        if (exists && JSON.stringify(exists) === JSON.stringify(newOrder)) return prev;
-        return exists ? prev.map(o => o.id === newOrder.id ? newOrder : o) : [newOrder, ...prev].sort((a,b) => b.timestamp - a.timestamp);
+      const isNew = !prev;
+      
+      setOrders(prevOrders => {
+        const exists = prevOrders.find(o => o.id === newOrder.id);
+        if (exists && JSON.stringify(exists) === JSON.stringify(newOrder)) return prevOrders;
+        return exists ? prevOrders.map(o => o.id === newOrder.id ? newOrder : o) : [newOrder, ...prevOrders].sort((a,b) => b.timestamp - a.timestamp);
       });
 
-      playNotification(newOrder.customerName, newOrder.orderNumber, newOrder.status);
+      // 2. Play notification only for NEW orders or STATUS changes
+      if (isNew || (prev && prev.status !== newOrder.status)) {
+        playNotification(newOrder.customerName, newOrder.orderNumber, newOrder.status);
+      }
       
+      // 3. Auto-Printing Logic (Only for Printer Device)
+      // Disabled because printing is now explicitly handled by POS.tsx checkout flows
+      // to support conditional printing (e.g. Take Away vs Dine In logic)
+      /*
       if (isPrinterDeviceRef.current) {
-        const prev = currentOrders.find(o => o.id === newOrder.id);
-        
-        // Auto-Print Kitchen: New 'received' or Approved or Updated
-        const shouldKitchen = (!prev && newOrder.status === 'received') || 
+        const shouldKitchen = (isNew && newOrder.status === 'received') || 
                              (prev && prev.status !== 'received' && newOrder.status === 'received') ||
                              (prev && prev.status === 'received' && JSON.stringify(prev.items) !== JSON.stringify(newOrder.items));
 
@@ -906,17 +985,21 @@ const App: React.FC = () => {
           handlePrint('kitchen', newOrder);
         }
 
-        // Auto-Print Bill: Status becomes 'served' or 'delivered'
         const shouldBill = (newOrder.status === 'served' || newOrder.status === 'delivered') && (!prev || (prev.status !== 'served' && prev.status !== 'delivered'));
         if (shouldBill && currentSettings.enableBillPrinting && currentSettings.isAutoPrintBillEnabled) {
           handlePrint('bill', newOrder);
         }
       }
+      */
 
       if (isNew) notify(`New Order: #${newOrder.orderNumber}`, "success");
     });
 
-    api.onSync('print_command', (data: any) => handlePrint(data.type, data.order || data.staff || data));
+    api.onSync('print_command', (data: any) => {
+      if (isPrinterDeviceRef.current) {
+        handlePrint(data.type, data.order || data.staff || data);
+      }
+    });
 
     api.onSync('order_deleted', (deletedId: string) => {
       setOrders(prev => prev.filter(o => o.id !== deletedId));
@@ -926,6 +1009,7 @@ const App: React.FC = () => {
       console.log("Local Items Received (Sync):", newItems.length);
       setItems(prev => {
         if (JSON.stringify(prev) === JSON.stringify(newItems)) return prev;
+        offlineDB.cacheItems(newItems).catch(() => {});
         return newItems;
       });
     });
@@ -1353,11 +1437,11 @@ const WELCOME_MESSAGES = [
         return;
       }
       if (activeStaff.role === 'cashier') {
-        const allowed = ['cashier', 'orders'];
+        const allowed = ['bill', 'cashier', 'orders'];
         if (allowed.includes(tab)) {
           setActiveTab(tab);
         } else {
-          notify("Cashier sirf Payment aur Orders dekh sakte hain", "error");
+          notify("Cashier sirf Bill, Payment aur Orders dekh sakte hain", "error");
         }
         return;
       }
@@ -1398,6 +1482,7 @@ const WELCOME_MESSAGES = [
 
             <div className="bg-white p-6 rounded-[32px] inline-block shadow-inner">
               <QRCodeCanvas
+                id="taker-qr-canvas"
                 value={`${window.location.href.split('?')[0].split('#')[0]}?mode=customer&takerId=${activeStaff.id}&token=${Math.floor(Date.now() / 86400000)}${qrTableNumber ? `&table=${qrTableNumber}` : ''}`}
                 size={200}
                 level="H"
@@ -1433,7 +1518,11 @@ const WELCOME_MESSAGES = [
                   Close
                 </button>
                 <button
-                  onClick={() => handlePrintQR(activeStaff)}
+                  onClick={() => {
+                    const canvas = document.getElementById('taker-qr-canvas') as HTMLCanvasElement;
+                    const qrCodeDataUrl = canvas ? canvas.toDataURL("image/png") : "";
+                    handlePrintQR({ ...activeStaff, qrCode: qrCodeDataUrl } as any);
+                  }}
                   className="flex-[2] py-5 bg-orange-600 text-white rounded-2xl font-black uppercase tracking-widest active:scale-95 transition-all shadow-xl shadow-orange-600/20 flex items-center justify-center gap-2 text-[10px]"
                 >
                   {ICONS.Printer} Print QR Code
@@ -1663,22 +1752,26 @@ const WELCOME_MESSAGES = [
                                 await deleteDoc(doc(db, collName, d.id));
                               }
                             }
-
-                            // Clear Local State
-                            setOrders([]);
-                            setPurchases([]);
-                            setStockLogs([]);
-                            setKhataTransactions([]);
-                            setCustomerPayments([]);
-
-                            notify("Cloud Data Cleared! Quota reset ho gaya.", "success");
-                          } catch (e) {
-                            console.error("Reset failed:", e);
-                            notify("Reset failed: " + (e as Error).message, "error");
-                          } finally {
-                            setIsSyncing(false);
-                          }
-                        }
+                               // 3. Clear Local Server (SQLite)
+                             await api.resetAllData();
+ 
+                             // 4. Clear Local State
+                             setOrders([]);
+                             setPurchases([]);
+                             setStockLogs([]);
+                             setKhataTransactions([]);
+                             setCustomerPayments([]);
+                             setCustomers([]);
+ 
+                             notify("Mubarak Ho! Tamam data clear ho gaya.", "success");
+                             setTimeout(() => window.location.reload(), 1500); // Reload to ensure clean state
+                           } catch (e) {
+                             console.error("Reset failed:", e);
+                             notify("Reset failed: " + (e as Error).message, "error");
+                           } finally {
+                             setIsSyncing(false);
+                           }
+                         }
                       })}
                       onResetHistory={async () => {
                         setIsSyncing(true);
@@ -1761,7 +1854,7 @@ const WELCOME_MESSAGES = [
                       setIsNavHidden={setIsNavHidden}
                       isAdmin={isAdmin || !!activeShop}
                       initialTableNumber={currentTableNumber}
-                      handlePrint={handlePrint}
+                      handlePrint={handlePrintForPOS}
                       handlePrintKitchen={handlePrintKitchen}
                       handlePrintQR={handlePrintQR}
                       currentOrderTakerId={currentOrderTakerId}
@@ -1832,7 +1925,7 @@ const WELCOME_MESSAGES = [
                       isTotalsUnlocked={isTotalsUnlocked}
                       onUnlockRequest={() => setShowPinModal(true)}
                       staffMembers={staffMembers}
-                      handlePrint={handlePrint}
+                      handlePrint={handlePrintForPOS}
                       handlePrintDayReport={handlePrintDayReport}
                     />
                   )}
@@ -1890,8 +1983,9 @@ const WELCOME_MESSAGES = [
                       triggerConfirm={triggerConfirm}
                       isAdmin={isAdmin || !!activeShop}
                       activeStaff={activeStaff}
-                      handlePrint={handlePrint}
+                      handlePrint={handlePrintForPOS}
                       handlePrintKitchen={handlePrintKitchen}
+                      onNavigate={(tab) => setActiveTab(tab)}
                     />
                   )}
                   {activeTab === 'crm' && (
@@ -2003,11 +2097,11 @@ const WELCOME_MESSAGES = [
               <div className="relative -mt-8">
                 <NavTab 
                   icon={<div className="scale-150 p-2">{ICONS.ShoppingBag}</div>} 
-                  label="ORDER TAKER" 
+                  label={activeStaff?.role === 'cashier' ? "NEW ORDER" : "ORDER TAKER"} 
                   color="orange" 
                   active={activeTab === 'bill'} 
                   locked={false} 
-                  hidden={activeStaff ? activeStaff.role !== 'taker' : (!isAdmin && !activeShop)} 
+                  hidden={activeStaff ? (activeStaff.role !== 'taker' && activeStaff.role !== 'cashier') : (!isAdmin && !activeShop)} 
                   onClick={() => navigateTo('bill')} 
                 />
               </div>
@@ -2225,6 +2319,7 @@ const WELCOME_MESSAGES = [
           
           if (p === settings.adminSecretKey || p === datePin || p === '111222') {
             setIsAdmin(true);
+            setIsCustomerMode(false);
             setShowLogin(false);
             setActiveTab('bill');
             notify("Master Admin Access Granted", "success");
@@ -2235,6 +2330,7 @@ const WELCOME_MESSAGES = [
           const acc = globalAccounts.find(a => a.password === p);
           if (acc) {
             setActiveShop(acc);
+            setIsCustomerMode(false);
             localStorage.setItem('shop_session', JSON.stringify(acc));
             setShowLogin(false);
             setActiveTab('bill');
@@ -2246,6 +2342,7 @@ const WELCOME_MESSAGES = [
           const staff = staffMembers.find(s => s.password === p);
           if (staff) {
             setActiveStaff(staff);
+            setIsCustomerMode(false);
             localStorage.setItem('taker_session', JSON.stringify(staff));
             setShowLogin(false);
             if (staff.role === 'kitchen') {

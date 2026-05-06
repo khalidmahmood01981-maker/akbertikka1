@@ -53,7 +53,7 @@ export const ICONS = {
   Refresh: <RefreshCw size={20} />,
 };
 
-export const CATEGORIES = ["BBQ", "Fast Food", "Drinks", "Desserts"];
+export const CATEGORIES = ["BBQ", "Drinks", "Karahi", "Raita"];
 
 export const INITIAL_ITEMS = [];
 
