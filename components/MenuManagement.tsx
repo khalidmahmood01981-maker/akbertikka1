@@ -11,11 +11,12 @@ interface MenuProps {
   items: MenuItem[];
   setItems: (items: MenuItem[]) => void;
   isAdmin: boolean;
+  isMasterAdmin: boolean;
   onClose: () => void;
   setIsNavHidden?: (hidden: boolean) => void;
 }
 
-const MenuManagement: React.FC<MenuProps> = ({ items, setItems, isAdmin, onClose, setIsNavHidden }) => {
+const MenuManagement: React.FC<MenuProps> = ({ items, setItems, isAdmin, isMasterAdmin, onClose, setIsNavHidden }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newItem, setNewItem] = useState<Partial<MenuItem>>({ category: 'BBQ', unit: 'pcs' });
   const [isCompressing, setIsCompressing] = useState(false);
@@ -220,7 +221,7 @@ const MenuManagement: React.FC<MenuProps> = ({ items, setItems, isAdmin, onClose
                         {ICONS.Settings}
                       </button>
                     )}
-                    {isAdmin && (
+                    {isMasterAdmin && (
                       <button 
                         onClick={async () => { 
                           if(confirm(`Delete ${item.name}?`)) {

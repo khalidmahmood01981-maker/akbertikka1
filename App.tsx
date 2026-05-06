@@ -1815,6 +1815,7 @@ const WELCOME_MESSAGES = [
                       items={items} 
                       setItems={setItems} 
                       isAdmin={isAdmin || !!activeShop} 
+                      isMasterAdmin={isAdmin}
                       onClose={() => setActiveTab('dashboard')}
                       setIsNavHidden={setIsNavHidden}
                     />
