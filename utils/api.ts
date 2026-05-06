@@ -135,6 +135,22 @@ export class LocalApiService {
   async resetAllData() {
     return fetch(`${API_BASE}/api/reset`, { method: "DELETE" });
   }
+
+  async uploadImage(id: string, base64Image: string) {
+    const res = await fetch(`${API_BASE}/api/upload-image`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, image: base64Image })
+    });
+    return res.json();
+  }
+
+  getImageUrl(path: string) {
+    if (!path) return "";
+    if (path.startsWith('http') || path.startsWith('data:')) return path;
+    if (path.startsWith('/')) return `${API_BASE}${path}`;
+    return path;
+  }
 }
 
 export const api = new LocalApiService();

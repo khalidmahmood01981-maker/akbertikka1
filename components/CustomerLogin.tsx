@@ -6,9 +6,10 @@ interface CustomerLoginProps {
   onLogin: (name: string, phone: string) => void;
   onExit: () => void;
   onStaffLogin: () => void;
+  logo?: string;
 }
 
-const CustomerLogin: React.FC<CustomerLoginProps> = ({ onLogin, onExit, onStaffLogin }) => {
+const CustomerLogin: React.FC<CustomerLoginProps> = ({ onLogin, onExit, onStaffLogin, logo }) => {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
 
@@ -28,7 +29,7 @@ const CustomerLogin: React.FC<CustomerLoginProps> = ({ onLogin, onExit, onStaffL
       >
         <div className="text-center space-y-2">
           <div className="w-[200px] h-[200px] bg-white/5 rounded-3xl flex items-center justify-center mx-auto border border-white/10 shadow-lg overflow-hidden p-2">
-            <img src="/logo.png" className="w-full h-full object-contain" alt="Logo" />
+            <img src={logo || "/logo.png"} className="w-full h-full object-contain" alt="Logo" />
           </div>
           <h2 className="text-2xl font-black uppercase italic tracking-tighter text-white">Akbar <span className="text-orange-600">Tikka</span></h2>
           <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Please enter your details to continue</p>

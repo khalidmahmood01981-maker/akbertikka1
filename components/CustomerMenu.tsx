@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MenuItem, Order, OrderItem } from '../types';
 import { ICONS, CATEGORIES } from '../constants';
+import { api } from '../utils/api';
 
 interface CustomerMenuProps {
   items: MenuItem[];
@@ -380,7 +381,7 @@ const CustomerMenu: React.FC<CustomerMenuProps> = ({ items, businessName, custom
                   </div>
                 )}
                 <div className="h-32 bg-black/20 relative overflow-hidden">
-                  <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                  <img src={api.getImageUrl(item.image)} alt={item.name} className="w-full h-full object-cover" />
                   <div className="absolute bottom-2 right-2 bg-black/70 backdrop-blur-md px-2 py-1 rounded-lg border border-white/10">
                     <p className="text-white font-black text-xs italic">Rs.{item.price}</p>
                   </div>
@@ -483,7 +484,7 @@ const CustomerMenu: React.FC<CustomerMenuProps> = ({ items, businessName, custom
                 ) : (
                   cart.map(item => (
                     <div key={item.id} className="flex items-center gap-4 bg-white/5 p-4 rounded-3xl border border-white/5">
-                      <img src={item.image} className="w-16 h-16 rounded-2xl object-cover" alt="" />
+                      <img src={api.getImageUrl(item.image)} className="w-16 h-16 rounded-2xl object-cover" alt="" />
                       <div className="flex-1">
                         <h4 className="text-sm font-black text-white uppercase italic">{item.name}</h4>
                         <p className="text-[10px] font-black text-orange-600">Rs.{item.price}</p>

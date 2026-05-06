@@ -1326,6 +1326,7 @@ const App: React.FC = () => {
               setIsCustomerMode(false);
               setShowLogin(true);
             }}
+            logo={settings.businessLogo}
           />
         ) : (
           <CustomerMenu
@@ -1588,7 +1589,7 @@ const WELCOME_MESSAGES = [
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="text-center space-y-6 animate-in fade-in zoom-in duration-700">
             <div className="w-[200px] h-[200px] bg-white/5 rounded-[40px] mx-auto flex items-center justify-center mb-4 border border-white/10 shadow-2xl overflow-hidden p-3 bg-gradient-to-br from-orange-600/10 to-transparent">
-              <img src="/logo.png" className="w-full h-full object-contain" alt="Akbar Tikka" />
+              <img src={settings.businessLogo || "/logo.png"} className="w-full h-full object-contain" alt="Akbar Tikka" />
             </div>
             <h2 className="text-3xl font-black uppercase italic tracking-tighter text-white underline decoration-orange-600 underline-offset-8">Welcome</h2>
             <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-[0.3em]">Please login to access the system</p>
@@ -1618,7 +1619,7 @@ const WELCOME_MESSAGES = [
 
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-white/5 rounded-xl p-1 border border-white/10 shadow-inner overflow-hidden">
-                  <img src="/logo.png" className="w-full h-full object-contain" alt="Logo" />
+                  <img src={settings.businessLogo || "/logo.png"} className="w-full h-full object-contain" alt="Logo" />
                 </div>
                 <h1
                   className="text-xl font-black cursor-pointer select-none tracking-tighter uppercase italic"

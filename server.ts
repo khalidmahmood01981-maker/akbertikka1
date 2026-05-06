@@ -51,7 +51,36 @@ async function startServer() {
   const PORT = 3000;
 
   app.use(cors());
-  app.use(express.json());
+  app.use(express.json({ limit: '50mb' }));
+
+  // Ensure images directory exists
+  const uploadDir = path.join(__dirname, "public", "items");
+  try {
+    await fs.mkdir(uploadDir, { recursive: true });
+  } catch (e) {}
+
+  app.use("/items", express.static(uploadDir));
+
+  // Image Upload API
+  app.post("/api/upload-image", async (req, res) => {
+    try {
+      const { id, image } = req.body;
+      if (!id || !image) return res.status(400).json({ error: "Missing data" });
+
+      // Handle Base64
+      const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
+      const buffer = Buffer.from(base64Data, 'base64');
+      const filename = `${id}.png`;
+      const filePath = path.join(uploadDir, filename);
+
+      await fs.writeFile(filePath, buffer);
+      
+      const imageURL = `/items/${filename}`;
+      res.json({ success: true, url: imageURL });
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
 
   // Track connected devices
   const connectedDevices = new Map<string, any>();

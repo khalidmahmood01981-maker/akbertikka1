@@ -862,7 +862,7 @@ const POS: React.FC<POSProps> = ({
               {/* Image Container - Now Fills Entire Card */}
               <div className="absolute inset-0 w-full h-full bg-gray-900/10">
                 <img 
-                  src={item.image} 
+                  src={api.getImageUrl(item.image)} 
                   alt={item.name} 
                   loading="lazy" 
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 

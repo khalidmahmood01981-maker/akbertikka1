@@ -40,40 +40,47 @@ const MenuManagement: React.FC<MenuProps> = ({ items, setItems, isAdmin, onClose
     if (!newItem.name || (!newItem.price && newItem.unit !== 'rs')) return alert("Name and Rate required!");
     
     const itemPrice = newItem.unit === 'rs' ? 1 : Number(newItem.price);
+    const itemId = editingId || Math.random().toString(36).substr(2, 9);
+    
+    let finalImageUrl = newItem.image || '';
+
+    // If there's a new Base64 image, upload it to the local server
+    if (newItem.image && newItem.image.startsWith('data:image')) {
+      try {
+        const uploadRes = await api.uploadImage(itemId, newItem.image);
+        if (uploadRes && uploadRes.url) {
+          finalImageUrl = uploadRes.url; // Use the server-hosted URL (e.g., /items/id.png)
+        }
+      } catch (e) {
+        console.error("Server upload failed, keeping base64 as fallback", e);
+      }
+    }
+
+    const itemData = {
+      id: itemId,
+      name: newItem.name!.toUpperCase(),
+      price: itemPrice,
+      category: newItem.category!,
+      unit: newItem.unit as UnitType,
+      image: finalImageUrl
+    };
 
     if (editingId) {
-        const updatedData = {
-          id: editingId,
-          name: newItem.name!.toUpperCase(),
-          price: itemPrice,
-          category: newItem.category!,
-          unit: newItem.unit as UnitType,
-          image: newItem.image || items.find(i => i.id === editingId)?.image || ''
-        };
         // Write to Firestore — listener in App.tsx updates all devices
-        await setDoc(doc(db, "items", editingId), updatedData);
+        await setDoc(doc(db, "items", editingId), itemData);
         // Also update local server immediately for LAN-only operation
-        const updatedList = items.map(i => i.id === editingId ? updatedData : i);
+        const updatedList = items.map(i => i.id === editingId ? itemData : i);
         api.saveItems(updatedList).catch(() => {});
         alert("Dish Updated!");
     } else {
-        const newId = Math.random().toString(36).substr(2, 9);
-        const newItemData = {
-          id: newId,
-          name: newItem.name!.toUpperCase(),
-          price: itemPrice,
-          category: newItem.category!,
-          unit: newItem.unit as UnitType,
-          image: newItem.image || 'https://images.unsplash.com/photo-1544025162-d76694265947?w=300&h=300&fit=crop'
-        };
-        await setDoc(doc(db, "items", newId), newItemData);
+        await setDoc(doc(db, "items", itemId), itemData);
         // Also update local server immediately for LAN-only operation
-        api.saveItems([...items, newItemData]).catch(() => {});
+        api.saveItems([...items, itemData]).catch(() => {});
         alert("Dish Added!");
     }
     
     setEditingId(null);
-    setNewItem({ category: 'BBQ', unit: 'pcs' });
+    setNewItem({ category: 'BBQ', unit: 'pcs', image: '' });
   };
 
   const openEdit = (item: MenuItem) => {
@@ -145,7 +152,7 @@ const MenuManagement: React.FC<MenuProps> = ({ items, setItems, isAdmin, onClose
 
               <div className="flex items-center gap-4 bg-black/20 p-3 rounded-2xl border border-white/5">
                 <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center overflow-hidden border border-white/10 shrink-0">
-                  {newItem.image ? <img src={newItem.image} className="w-full h-full object-cover" /> : ICONS.Package}
+                  {newItem.image ? <img src={api.getImageUrl(newItem.image)} className="w-full h-full object-cover" /> : ICONS.Package}
                 </div>
                 <div className="flex-1">
                   <input type="file" id="menu-img-inline" accept="image/*" onChange={handleImage} className="hidden" />
@@ -191,7 +198,7 @@ const MenuManagement: React.FC<MenuProps> = ({ items, setItems, isAdmin, onClose
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-4 min-w-0 flex-1">
                     <div className="w-14 h-14 rounded-2xl bg-[var(--bg-main)] shrink-0 overflow-hidden border border-[var(--border)]">
-                      <img src={item.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                      <img src={api.getImageUrl(item.image)} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
