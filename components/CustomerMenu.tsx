@@ -294,24 +294,6 @@ const CustomerMenu: React.FC<CustomerMenuProps> = ({ items, businessName, custom
         </button>
       </div>
 
-      {/* Categories */}
-      <div className="flex gap-3 overflow-x-auto p-6 no-scrollbar sticky top-[73px] z-40 bg-[var(--bg-main)]/80 backdrop-blur-xl">
-        <button 
-          onClick={() => setActiveCategory('ALL')}
-          className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeCategory === 'ALL' ? 'bg-orange-600 text-white shadow-lg' : 'bg-white/5 text-[var(--text-muted)]'}`}
-        >
-          ALL
-        </button>
-        {CATEGORIES.map(cat => (
-          <button 
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
-            className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeCategory === cat ? 'bg-orange-600 text-white shadow-lg' : 'bg-white/5 text-[var(--text-muted)]'}`}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
 
       {/* Active Orders Status */}
       <AnimatePresence>
@@ -388,7 +370,7 @@ const CustomerMenu: React.FC<CustomerMenuProps> = ({ items, businessName, custom
                 </div>
                 <div className="p-3">
                   <p className="text-[7px] font-black text-orange-600 uppercase tracking-widest mb-0.5">{item.category}</p>
-                  <h3 className="text-xs font-black uppercase text-white leading-tight italic truncate">{item.name}</h3>
+                  <h3 className="text-xs font-black uppercase text-white leading-tight italic">{item.name}</h3>
                 </div>
               </motion.div>
             );
@@ -530,11 +512,30 @@ const CustomerMenu: React.FC<CustomerMenuProps> = ({ items, businessName, custom
         )}
       </AnimatePresence>
 
+      {/* Sticky Bottom Category Bar */}
+      <div className="fixed bottom-0 left-0 right-0 bg-[var(--bg-nav)]/90 backdrop-blur-2xl border-t border-white/5 p-4 flex gap-3 overflow-x-auto no-scrollbar z-[100] shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+        <button 
+          onClick={() => setActiveCategory('ALL')}
+          className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border-b-4 ${activeCategory === 'ALL' ? 'bg-orange-600 border-orange-800 text-white shadow-xl scale-105' : 'bg-white/10 text-[var(--text-muted)] border-transparent'}`}
+        >
+          ALL
+        </button>
+        {CATEGORIES.map(cat => (
+          <button 
+            key={cat}
+            onClick={() => setActiveCategory(cat)}
+            className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border-b-4 ${activeCategory === cat ? 'bg-orange-600 border-orange-800 text-white shadow-xl scale-105' : 'bg-white/10 text-[var(--text-muted)] border-transparent'}`}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
       {cart.length > 0 && !showCart && (
         <motion.div 
           initial={{ y: 100 }}
-          animate={{ y: 0 }}
-          className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 w-[95%] max-w-md"
+          animate={{ y: -80 }} // Move it up to avoid overlapping with category bar
+          className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[110] w-[95%] max-w-md"
         >
           <button 
             onClick={() => setShowCart(true)}

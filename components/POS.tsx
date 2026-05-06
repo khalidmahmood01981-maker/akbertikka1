@@ -676,7 +676,7 @@ const POS: React.FC<POSProps> = ({
         )}
       </AnimatePresence>
 
-      <div className={`space-y-4 animate-in fade-in duration-500 pb-20 px-0.5 transition-all`}>
+      <div className={`space-y-4 animate-in fade-in duration-500 pb-[140px] px-0.5 transition-all`}>
       {/* Top Action Bar */}
       <div className="flex items-center justify-between gap-2 mb-4">
         <div className="flex items-center gap-2">
@@ -764,6 +764,27 @@ const POS: React.FC<POSProps> = ({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Sticky Bottom Category Bar */}
+      {activeStaff?.role !== 'taker' && (
+        <div className="fixed bottom-[74px] left-0 right-0 bg-[var(--bg-main)]/90 backdrop-blur-2xl border-t border-white/5 p-3 flex gap-2 overflow-x-auto no-scrollbar z-[90] shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+          <button
+            onClick={() => setCategory('All')}
+            className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border-b-4 ${category === 'All' ? 'bg-orange-600 border-orange-800 text-white shadow-xl scale-105' : 'bg-white/5 border-white/10 text-gray-500'}`}
+          >
+            All Items
+          </button>
+          {CATEGORIES.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setCategory(cat)}
+              className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border-b-4 ${category === cat ? 'bg-orange-600 border-orange-800 text-white shadow-xl scale-105' : 'bg-white/5 border-white/10 text-gray-500'}`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Large Action Buttons */}
       {/* Large Action Buttons - Hidden for Customers */}
@@ -882,7 +903,7 @@ const POS: React.FC<POSProps> = ({
 
               {/* Item Name Overlay at Bottom */}
               <div className="absolute bottom-0 left-0 right-0 p-2 text-center z-30">
-                <h3 className="text-[14px] sm:text-2xl md:text-3xl font-black uppercase text-white leading-tight truncate drop-shadow-md px-1">
+                <h3 className="text-[14px] sm:text-2xl md:text-3xl font-black uppercase text-white leading-tight drop-shadow-md px-1 whitespace-normal">
                   {item.name}
                 </h3>
               </div>

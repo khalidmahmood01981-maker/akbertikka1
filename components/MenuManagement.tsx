@@ -67,16 +67,22 @@ const MenuManagement: React.FC<MenuProps> = ({ items, setItems, isAdmin, isMaste
     };
 
     if (editingId) {
-        // Write to Firestore — listener in App.tsx updates all devices
+        // Update local state immediately for instant feedback
+        const updatedList = items.map(i => i.id === editingId ? itemData : i);
+        setItems(updatedList);
+        
+        // Write to Firestore — listener in App.tsx updates all other devices
         await setDoc(doc(db, "items", editingId), itemData);
         // Also update local server immediately for LAN-only operation
-        const updatedList = items.map(i => i.id === editingId ? itemData : i);
         api.saveItems(updatedList).catch(() => {});
         alert("Dish Updated!");
     } else {
+        const updatedList = [...items, itemData];
+        setItems(updatedList);
+        
         await setDoc(doc(db, "items", itemId), itemData);
         // Also update local server immediately for LAN-only operation
-        api.saveItems([...items, itemData]).catch(() => {});
+        api.saveItems(updatedList).catch(() => {});
         alert("Dish Added!");
     }
     

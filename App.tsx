@@ -305,7 +305,12 @@ const App: React.FC = () => {
       
       if (Array.isArray(ordersArr)) setOrders(ordersArr.sort((a, b) => b.timestamp - a.timestamp));
       if (Array.isArray(customersArr)) setCustomers(customersArr);
-      if (Array.isArray(itemsArr) && itemsArr.length > 0) setItems(itemsArr);
+      if (Array.isArray(itemsArr) && itemsArr.length > 0) {
+        // Authoritative: Always use server data if available
+        setItems(itemsArr);
+        offlineDB.cacheItems(itemsArr).catch(() => {});
+        console.log("Authoritative items synced from Server:", itemsArr.length);
+      }
       
       notify("LAN Sync Complete!", "success");
     } catch (e) {
@@ -695,10 +700,8 @@ const App: React.FC = () => {
               }
             }
 
-            // Prime the local server with our items if it's empty or we have data
-            if (items.length > 0) {
-              api.saveItems(items).catch(() => {});
-            }
+            // Removed: Overwriting local server on startup is unsafe as it might use stale/default items
+            // api.saveItems(items).catch(() => {});
 
             // If we are online, sync this Master IP to cloud so other devices find us
             if (navigator.onLine) {
@@ -723,16 +726,11 @@ const App: React.FC = () => {
         const res = await fetch(fetchURL);
         if (res.ok) {
           const data = await res.json();
-          // Use local items if state is empty
+          // If server has items, always use them as they are the ground truth for LAN
           if (data && data.length > 0) {
-            setItems(prev => {
-              if (prev.length === 0) {
-                 console.log("Loaded Items from Local Server:", data.length);
-                 offlineDB.cacheItems(data).catch(() => {});
-                 return data;
-              }
-              return prev;
-            });
+            setItems(data);
+            console.log("Loaded authoritative items from Local Server:", data.length);
+            offlineDB.cacheItems(data).catch(() => {});
           }
         }
       } catch (err) {
@@ -895,16 +893,22 @@ const App: React.FC = () => {
     const unsubItems = onSnapshot(collections.items, (snapshot) => {
       const cloudItems = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MenuItem));
       if (cloudItems.length > 0) {
-        // Firebase always wins — update state with the authoritative cloud list
-        setItems(cloudItems);
-        offlineDB.cacheItems(cloudItems).catch(() => {});
-
-        // Backup to local server if we are connected (Master PC)
-        if (isLocalConnected) {
-          api.saveItems(cloudItems).catch(() => {});
-        }
+        setItems(prev => {
+          // Only update if cloud data is actually different from current state
+          if (JSON.stringify(prev) === JSON.stringify(cloudItems)) return prev;
+          
+          console.log("Cloud Items Updated:", cloudItems.length);
+          offlineDB.cacheItems(cloudItems).catch(() => {});
+          
+          // Backup to local server if we are connected (Master PC)
+          const isMasterPC = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === settingsRef.current.masterIP;
+          if (isLocalConnected && isMasterPC) {
+            api.saveItems(cloudItems).catch(() => {});
+          }
+          
+          return cloudItems;
+        });
       }
-      // If cloud is empty, keep whatever is already in state (local fallback)
     });
 
     // App Settings Sync
@@ -935,11 +939,24 @@ const App: React.FC = () => {
   }, [isDataLoaded]);
   
   // Prime Local Server with Items whenever they change and we are connected
+  // Authoritative Sync: Only Master PC pushes to Server, everyone else pulls
   useEffect(() => {
+    const currentHost = window.location.hostname;
+    const isMasterPC = currentHost === 'localhost' || currentHost === '127.0.0.1' || currentHost === settings.masterIP;
+    
+    // Only Master PC or an active Admin/Shop session can update the server
+    const canPushToServer = isMasterPC || isAdmin || !!activeShop;
+
     if (isLocalConnected && items.length > 0) {
-      api.saveItems(items).catch(() => {});
+      if (canPushToServer) {
+        // Push UI changes to Server (Master PC behavior)
+        const timer = setTimeout(() => {
+          api.saveItems(items).catch(() => {});
+        }, 1000);
+        return () => clearTimeout(timer);
+      }
     }
-  }, [items, isLocalConnected]);
+  }, [items, isLocalConnected, isAdmin, activeShop, settings.masterIP]);
 
   // Local Socket Listener for Offline Sync (Order Travelling)
   useEffect(() => {
@@ -1007,9 +1024,9 @@ const App: React.FC = () => {
     });
 
     api.onSync('items_sync', (newItems: MenuItem[]) => {
-      console.log("Local Items Received (Sync):", newItems.length);
       setItems(prev => {
         if (JSON.stringify(prev) === JSON.stringify(newItems)) return prev;
+        console.log("Local Socket Items Received:", newItems.length);
         offlineDB.cacheItems(newItems).catch(() => {});
         return newItems;
       });
@@ -1079,6 +1096,19 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!isDataLoaded) return;
+    
+    // Safety: Don't overwrite localStorage with empty items if they were previously there
+    const existingRaw = localStorage.getItem('business_crm_local_db');
+    if (items.length === 0 && existingRaw) {
+      try {
+        const existing = JSON.parse(existingRaw);
+        if (existing.items && existing.items.length > 0) {
+          // Items are temporarily empty during load, skip saving to prevent data loss
+          return;
+        }
+      } catch (e) {}
+    }
+
     // Only save to localStorage for offline resilience.
     // All Firebase writes happen directly at the mutation callsite.
     const stateToSave = safeSanitize({
