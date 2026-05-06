@@ -50,7 +50,7 @@ const App: React.FC = () => {
     {
       id: 'TT',
       password: '11111111',
-      shopName: 'BBQ & FAST FOOD',
+      shopName: 'Akbar Tikka',
       subscriptionStatus: 'active',
       expiryDate: Date.now() + (365 * 24 * 60 * 60 * 1000),
       createdAt: Date.now()
@@ -74,12 +74,13 @@ const App: React.FC = () => {
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [settings, setSettings] = useState<AppSettings>({
     id: 'app_settings',
-    businessName: 'BBQ & FAST FOOD',
+    businessName: 'Akbar Tikka',
+    businessLogo: '/logo.png',
     taxRate: 0,
     isTaxEnabled: false,
     isDiscountEnabled: true,
     defaultDiscount: 0,
-    theme: 'midnight',
+    theme: 'amber',
     fontSize: 'medium',
     fontSizeNumber: 16,
     fontFamily: 'inter',
@@ -1116,10 +1117,10 @@ const App: React.FC = () => {
         console.log("Local server sync pending (will retry)");
       });
 
-      // 2. CLOUD SYNC (Removed as per user request to keep history local)
-      // setDoc(doc(db, "orders", enrichedOrder.id), safeSanitize(enrichedOrder)).catch(() => {
-      //   console.log("Cloud sync pending (Offline mode)");
-      // });
+      // 2. CLOUD SYNC
+      setDoc(doc(db, "orders", enrichedOrder.id), safeSanitize(enrichedOrder)).catch(() => {
+        console.log("Cloud sync pending (Offline mode)");
+      });
 
       // 3. Update Local State Immediately (for speed & offline)
       setOrders(prev => {
@@ -1172,10 +1173,10 @@ const App: React.FC = () => {
       offlineDB.deletePendingSyncItem(uo.id);
     }).catch(() => {});
 
-    // 2. CLOUD SYNC (Removed to keep history local)
-    // setDoc(doc(db, "orders", uo.id), safeSanitize(uo)).catch(() => {
-    //   console.log("Cloud sync pending (Update)");
-    // });
+    // 2. CLOUD SYNC
+    setDoc(doc(db, "orders", uo.id), safeSanitize(uo)).catch(() => {
+      console.log("Cloud sync pending (Update)");
+    });
 
     // 3. Update Local State Immediately
     setOrders(prev => prev.map(o => o.id === uo.id ? uo : o));
@@ -1586,8 +1587,8 @@ const WELCOME_MESSAGES = [
       {(!activeStaff && !activeShop && !isAdmin && !isCustomerMode) ? (
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="text-center space-y-6 animate-in fade-in zoom-in duration-700">
-            <div className="w-24 h-24 bg-orange-600/10 text-orange-600 rounded-[32px] mx-auto flex items-center justify-center text-5xl mb-4 border border-orange-600/20 shadow-2xl">
-              {ICONS.Shield}
+            <div className="w-[200px] h-[200px] bg-white/5 rounded-[40px] mx-auto flex items-center justify-center mb-4 border border-white/10 shadow-2xl overflow-hidden p-3 bg-gradient-to-br from-orange-600/10 to-transparent">
+              <img src="/logo.png" className="w-full h-full object-contain" alt="Akbar Tikka" />
             </div>
             <h2 className="text-3xl font-black uppercase italic tracking-tighter text-white underline decoration-orange-600 underline-offset-8">Welcome</h2>
             <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-[0.3em]">Please login to access the system</p>
@@ -1614,18 +1615,19 @@ const WELCOME_MESSAGES = [
                   <button onClick={handleLogout} className="p-2 text-red-500 bg-red-500/10 rounded-lg hover:bg-red-500/20 active:scale-90 transition-all ml-2">{ICONS.LogOut}</button>
                 )}
               </div>
-              {settings.businessLogo && (
-                <div className="w-10 h-10 rounded-xl overflow-hidden border border-white/10 shadow-md">
-                  <img src={settings.businessLogo} className="w-full h-full object-cover" alt="Logo" />
+
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/5 rounded-xl p-1 border border-white/10 shadow-inner overflow-hidden">
+                  <img src="/logo.png" className="w-full h-full object-contain" alt="Logo" />
                 </div>
-              )}
-              <h1
-                className="text-xl font-black cursor-pointer select-none tracking-tighter uppercase"
-                onClick={handleHeadingClick}
-              >
-                {currentDisplayName}
-                {!isTotalsUnlocked && <span className="ml-1 text-[10px] text-yellow-500 align-middle">🔒</span>}
-              </h1>
+                <h1
+                  className="text-xl font-black cursor-pointer select-none tracking-tighter uppercase italic"
+                  onClick={handleHeadingClick}
+                >
+                  Akbar <span className="text-orange-600">Tikka</span>
+                  {!isTotalsUnlocked && <span className="ml-1 text-[10px] text-yellow-500 align-middle">🔒</span>}
+                </h1>
+              </div>
               {isSyncing && (
                 <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/20 animate-pulse">
                   <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
@@ -1666,11 +1668,11 @@ const WELCOME_MESSAGES = [
                   }
                 }}
               >
-                <div className={`transition-all duration-700 ${isOnline ? 'text-emerald-500' : 'text-red-500 animate-pulse'}`}>
-                  {ICONS.QrCode}
+                <div className={`transition-all duration-700 ${isOnline ? 'text-emerald-500' : 'text-orange-500 animate-pulse'}`}>
+                  {isOnline ? ICONS.Zap : ICONS.Monitor}
                 </div>
-                <span className="text-[7px] font-black text-[var(--text-muted)] uppercase tracking-widest">
-                  {isAdmin ? 'ADMIN PORTAL' : activeShop ? settings.businessName : activeStaff ? `${activeStaff.role.toUpperCase()}: ${activeStaff.name}` : !isOnline ? 'OFFLINE' : ''}
+                <span className={`text-[7px] font-black uppercase tracking-widest ${isOnline ? 'text-emerald-500' : 'text-orange-500'}`}>
+                  {isOnline ? 'Online' : 'Local Mode'}
                 </span>
               </div>
             </div>

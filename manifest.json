@@ -1,25 +1,24 @@
 {
-  "id": "flavor-dash-pos-v1",
-  "short_name": "Flavor Dash",
-  "name": "Flavor Dash Restaurant Management",
-  "description": "Professional Restaurant Order Management & POS System with Offline Support",
+  "id": "akbar-tikka-pos-v1",
+  "short_name": "Akbar Tikka",
+  "name": "Akbar Tikka Restaurant Management",
+  "description": "Professional Restaurant Order Management & POS System for Akbar Tikka",
   "icons": [
     {
-      "src": "icons/icon-512.png",
+      "src": "logo.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "icons/icon-512.png",
+      "src": "logo.png",
       "sizes": "192x192",
       "type": "image/png"
     }
   ],
   "start_url": "/",
   "display": "standalone",
-  "theme_color": "#ea580c",
+  "theme_color": "#B45F06",
   "background_color": "#000000",
   "orientation": "portrait"
 }
-

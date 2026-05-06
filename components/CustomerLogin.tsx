@@ -27,10 +27,10 @@ const CustomerLogin: React.FC<CustomerLoginProps> = ({ onLogin, onExit, onStaffL
         className="w-full max-w-md bg-[var(--bg-card)] rounded-[40px] border border-[var(--border)] p-8 shadow-2xl space-y-8"
       >
         <div className="text-center space-y-2">
-          <div className="w-20 h-20 bg-orange-600/10 text-orange-600 rounded-3xl flex items-center justify-center mx-auto text-3xl">
-            {ICONS.User}
+          <div className="w-[200px] h-[200px] bg-white/5 rounded-3xl flex items-center justify-center mx-auto border border-white/10 shadow-lg overflow-hidden p-2">
+            <img src="/logo.png" className="w-full h-full object-contain" alt="Logo" />
           </div>
-          <h2 className="text-2xl font-black uppercase italic tracking-tighter text-white">Welcome to Our Menu</h2>
+          <h2 className="text-2xl font-black uppercase italic tracking-tighter text-white">Akbar <span className="text-orange-600">Tikka</span></h2>
           <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Please enter your details to continue</p>
         </div>
 
