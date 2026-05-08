@@ -1,5 +1,5 @@
 import React from 'react';
-import { Utensils, ShoppingBag, PieChart, Settings, Package, X, Plus, Minus, Search, Trash2, Send, History, LayoutDashboard, ClipboardList, Download, Upload, ShieldCheck, Lock, Mic, QrCode, User, Users, CheckCircle, ChevronDown, ChevronRight, Play, Pause, Check, CreditCard, Image, Loader2, LogOut, Truck, ChefHat, Edit, Menu, Info, PlusCircle, Inbox, Printer, FileText, Smartphone, Monitor, Zap, Percent, Bell, RefreshCw, Eye } from 'lucide-react';
+import { Utensils, ShoppingBag, PieChart, Settings, Package, X, Plus, Minus, Search, Trash2, Send, History, LayoutDashboard, ClipboardList, Download, Upload, ShieldCheck, Lock, Mic, QrCode, User, Users, CheckCircle, ChevronDown, ChevronRight, Play, Pause, Check, CreditCard, Image, Loader2, LogOut, Truck, ChefHat, Edit, Menu, Info, PlusCircle, Inbox, Printer, FileText, Smartphone, Monitor, Zap, Percent, Bell, RefreshCw, Eye, Save } from 'lucide-react';
 
 export const HEADING_CLICKS_REQUIRED = 7;
 
@@ -52,6 +52,7 @@ export const ICONS = {
   Bell: <Bell size={20} />,
   Refresh: <RefreshCw size={20} />,
   Eye: <Eye size={20} />,
+  Save: <Save size={20} />,
 };
 
 export const CATEGORIES = ["BBQ", "Karahi", "Raita", "Drinks"];

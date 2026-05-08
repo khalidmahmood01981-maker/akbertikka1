@@ -723,15 +723,23 @@ const POS: React.FC<POSProps> = ({
           </button>
 
           <button
-            onClick={() => setShowActiveOrders(true)}
-            className="px-4 py-4 bg-blue-600/10 border border-blue-600/20 text-blue-600 rounded-[20px] shadow-lg active:scale-90 transition-all flex items-center justify-center gap-2 group"
+            onClick={() => {
+              if (cart.length > 0) {
+                setIsCheckoutOpen(true);
+              } else {
+                setShowActiveOrders(true);
+              }
+            }}
+            className={`px-4 py-4 ${currentOrderId ? 'bg-orange-600 animate-pulse' : 'bg-blue-600/10'} border ${currentOrderId ? 'border-orange-400' : 'border-blue-600/20'} ${currentOrderId ? 'text-white' : 'text-blue-600'} rounded-[20px] shadow-lg active:scale-90 transition-all flex items-center justify-center gap-2 group`}
           >
-            <div className="bg-blue-600 text-white p-1 rounded-lg">
-              {ICONS.Eye}
+            <div className={`${currentOrderId ? 'bg-white text-orange-600' : 'bg-blue-600 text-white'} p-1 rounded-lg`}>
+              {currentOrderId ? ICONS.Edit : ICONS.Eye}
             </div>
-            <span className="text-[10px] font-black uppercase tracking-widest hidden xs:block">Review Orders</span>
-            {activeOrders.length > 0 && (
-              <span className="bg-blue-600 text-white text-[8px] px-1.5 py-0.5 rounded-full">{activeOrders.length}</span>
+            <span className="text-[10px] font-black uppercase tracking-widest hidden xs:block">
+              {currentOrderId ? `Editing #${allOrders.find(o => o.id === currentOrderId)?.orderNumber}` : (cart.length > 0 ? 'View Cart' : 'Review Orders')}
+            </span>
+            {cart.length > 0 && !currentOrderId && (
+              <span className="bg-orange-600 text-white text-[8px] px-1.5 py-0.5 rounded-full">{cart.length}</span>
             )}
           </button>
         </div>
@@ -1109,8 +1117,17 @@ const POS: React.FC<POSProps> = ({
         <div className="fixed inset-0 bg-black/98 backdrop-blur-3xl z-[2500] flex flex-col justify-end">
           <div className="bg-[var(--bg-nav)] rounded-t-[50px] h-[85vh] w-full max-w-md mx-auto flex flex-col shadow-2xl border-t border-white/5 animate-in slide-in-from-bottom duration-400 overflow-hidden">
             <div className="p-6 border-b border-white/5 flex justify-between items-center bg-[var(--bg-nav)] z-10 rounded-t-[50px]">
-              <h3 className="font-black text-xl uppercase tracking-tighter text-orange-600 italic">Checkout</h3>
-              <button onClick={() => setIsCheckoutOpen(false)} className="p-3 rounded-2xl bg-white/5 text-white">{ICONS.X}</button>
+              <div>
+                <h3 className="font-black text-xl uppercase tracking-tighter text-orange-600 italic">Checkout</h3>
+                <p className="text-[10px] font-black text-white/40 uppercase tracking-widest leading-none mt-1">{cart.length} Items Selected</p>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <p className="text-[8px] font-black text-white/40 uppercase tracking-widest leading-none mb-1">Total Bill</p>
+                  <p className="text-xl font-black text-emerald-500 italic tracking-tighter leading-none">Rs.{finalTotal.toFixed(0)}</p>
+                </div>
+                <button onClick={() => setIsCheckoutOpen(false)} className="p-3 rounded-2xl bg-white/5 text-white">{ICONS.X}</button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-20">
@@ -1223,22 +1240,56 @@ const POS: React.FC<POSProps> = ({
               <div className="space-y-2">
                 {cart.map(item => (
                   <div key={item.id} className="flex items-center gap-2 bg-[var(--bg-card)] p-3 rounded-[20px] border border-white/5">
-                    <div className="flex-1 min-w-0"><p className="font-black text-sm uppercase truncate text-white italic">{item.name}</p><p className="text-orange-600 font-black text-[10px]">Rs.{(item.price * item.quantity).toFixed(0)}</p></div>
-                    <button 
-                      onClick={() => {
-                        if (currentOrderId && activeStaff?.role === 'taker') {
-                          const isOriginal = originalItemsRef.current.some(i => i.id === item.id);
-                          if (isOriginal) {
-                            notify("Fraud Prevention: Purana item delete nahi ho sakta", "error");
-                            return;
+                    <div className="flex-1 min-w-0">
+                      <p className="font-black text-sm uppercase truncate text-white italic leading-none mb-1">{item.name}</p>
+                      <div className="flex items-center gap-3">
+                        <span className="text-orange-600 font-black text-[10px]">Rs.{item.price}</span>
+                        <div className="flex items-center gap-2 bg-black/20 rounded-lg px-2 py-0.5 border border-white/5">
+                          <button 
+                            onClick={() => {
+                              if (currentOrderId && activeStaff?.role === 'taker') {
+                                const original = originalItemsRef.current.find(it => it.id === item.id);
+                                if (original && item.quantity <= original.quantity) {
+                                  notify("Fraud Prevention: Quantity kam nahi ker sakte", "error");
+                                  return;
+                                }
+                              }
+                              setCart(prev => prev.map(it => it.id === item.id ? { ...it, quantity: Math.max(1, it.quantity - 1) } : it));
+                            }}
+                            className="text-white/40 hover:text-white"
+                          >
+                            {ICONS.Minus}
+                          </button>
+                          <span className="text-[12px] font-black text-white min-w-[20px] text-center">{item.quantity}</span>
+                          <button 
+                            onClick={() => {
+                              setCart(prev => prev.map(it => it.id === item.id ? { ...it, quantity: it.quantity + 1 } : it));
+                            }}
+                            className="text-white/40 hover:text-white"
+                          >
+                            {ICONS.Plus}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right flex flex-col items-end gap-2">
+                      <p className="text-white font-black text-xs">Rs.{(item.price * item.quantity).toFixed(0)}</p>
+                      <button 
+                        onClick={() => {
+                          if (currentOrderId && activeStaff?.role === 'taker') {
+                            const isOriginal = originalItemsRef.current.some(i => i.id === item.id);
+                            if (isOriginal) {
+                              notify("Fraud Prevention: Purana item delete nahi ho sakta", "error");
+                              return;
+                            }
                           }
-                        }
-                        setItemToRemove(item);
-                      }} 
-                      className="p-3 text-red-500 bg-red-500/10 rounded-xl active:scale-90 transition-all"
-                    >
-                      {ICONS.Trash2}
-                    </button>
+                          setItemToRemove(item);
+                        }} 
+                        className="p-2 text-red-500 bg-red-500/10 rounded-xl active:scale-90 transition-all"
+                      >
+                        {ICONS.Trash2}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1259,39 +1310,44 @@ const POS: React.FC<POSProps> = ({
             </div>
 
             {/* Combined Final Actions */}
-            <div className="p-4 pb-20 bg-[var(--bg-nav)] border-t border-white/5 shadow-[0_-20px_50px_rgba(0,0,0,0.5)] space-y-2">
-              <div className="grid grid-cols-1 gap-2">
+            <div className="p-4 pb-20 bg-[var(--bg-nav)] border-t border-white/5 shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
+              {/* Kitchen and Draft Row - Prominent */}
+              {!isCustomerMode && (
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => handleCheckout('kitchen')}
+                    className={`flex-1 ${currentOrderId ? 'bg-indigo-600 border-indigo-800' : 'bg-orange-600 border-orange-800'} text-white py-6 rounded-[24px] font-black uppercase text-[14px] tracking-widest shadow-xl active:scale-95 transition-all border-b-8 flex items-center justify-center gap-3`}
+                  >
+                    {ICONS.Utensils} {currentOrderId ? 'Send New Items' : 'Send to Kitchen'}
+                  </button>
+                  {!currentOrderId && (
+                    <button
+                      onClick={() => handleCheckout('draft')}
+                      className="w-24 bg-white/5 text-blue-500 py-6 rounded-[24px] font-black uppercase text-[10px] tracking-tight border border-blue-600/20 active:scale-95 transition-all flex flex-col items-center justify-center leading-none"
+                    >
+                      <span className="opacity-60 mb-1">{ICONS.Save}</span>
+                      DRAFT
+                    </button>
+                  )}
+                  {currentOrderId && (
+                    <button
+                      onClick={() => handleCheckout('update')}
+                      className="w-24 bg-emerald-600/10 text-emerald-500 py-6 rounded-[24px] font-black uppercase text-[10px] tracking-tight border border-emerald-600/20 active:scale-95 transition-all flex flex-col items-center justify-center leading-none"
+                    >
+                      <span className="opacity-60 mb-1">{ICONS.Refresh}</span>
+                      UPDATE
+                    </button>
+                  )}
+                </div>
+              )}
+              {isCustomerMode && (
                 <button
                   onClick={() => handleCheckout('kitchen')}
-                  className={`w-full ${isCustomerMode ? 'bg-indigo-600 border-indigo-800 animate-pulse ring-4 ring-indigo-500/50' : 'bg-orange-600 border-orange-800'} text-white py-6 rounded-[24px] font-black uppercase text-[14px] tracking-widest shadow-2xl active:scale-95 transition-all border-b-8 flex items-center justify-center gap-3`}
+                  className="w-full bg-indigo-600 text-white py-6 rounded-[24px] font-black uppercase text-[14px] tracking-widest shadow-2xl active:scale-95 transition-all border-b-8 border-indigo-800 flex items-center justify-center gap-3"
                 >
-                  {isCustomerMode ? ICONS.CheckCircle : ICONS.Utensils}
-                  {isCustomerMode ? 'SEND ORDER' : (currentOrderId ? 'Update & Kitchen' : 'Kitchen')}
+                  {ICONS.CheckCircle} SEND ORDER
                 </button>
-                {currentOrderId && (
-                   <button
-                     onClick={() => {
-                        handleCheckout('update');
-                     }}
-                     className="w-full bg-emerald-600 text-white py-4 rounded-[18px] font-black uppercase text-[12px] tracking-widest shadow-xl active:scale-95 transition-all border-b-4 border-emerald-800 flex items-center justify-center gap-2"
-                   >
-                     {ICONS.CheckCircle} 
-                     Update Bill (No Kitchen)
-                   </button>
-                )}
-                {!currentOrderId && !isCustomerMode && (
-                  <button
-                    onClick={() => handleCheckout('draft')}
-                    className="bg-blue-600/10 text-blue-500 py-2 rounded-[18px] font-black uppercase text-[10px] tracking-widest border border-blue-600/20 active:scale-95 transition-all"
-                  >
-                    Save as Draft
-                  </button>
-                )}
-              </div>
-              <div className="bg-black/20 p-4 rounded-2xl text-center">
-                <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest mb-1">Total Amount</p>
-                <p className="text-2xl font-black text-white italic">Rs.{finalTotal.toFixed(0)}</p>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -1358,45 +1414,12 @@ const POS: React.FC<POSProps> = ({
                                 <p className="text-[16px] font-black text-white uppercase italic leading-none">{item.name}</p>
                                 <div className="flex items-center gap-2 mt-1.5">
                                   <span className="text-[8px] font-black bg-orange-600/20 text-orange-600 px-1.5 py-0.5 rounded uppercase">Rate: Rs.{item.price}</span>
-                                  <div className="flex items-center gap-2 bg-white/5 rounded-lg px-2 py-1">
-                                    <button 
-                                      onClick={() => {
-                                        setCart(prev => prev.map(it => it.id === item.id ? { ...it, quantity: Math.max(1, it.quantity - 1) } : it));
-                                      }}
-                                      className="text-white/40 hover:text-white transition-colors"
-                                    >
-                                      {ICONS.Minus}
-                                    </button>
-                                    <span className="text-[10px] font-black text-white min-w-[20px] text-center">{item.quantity}</span>
-                                    <button 
-                                      onClick={() => {
-                                        setCart(prev => prev.map(it => it.id === item.id ? { ...it, quantity: it.quantity + 1 } : it));
-                                      }}
-                                      className="text-white/40 hover:text-white transition-colors"
-                                    >
-                                      {ICONS.Plus}
-                                    </button>
-                                  </div>
+                                  <span className="text-[8px] font-black bg-white/5 text-white/40 px-1.5 py-0.5 rounded uppercase">Qty: {item.quantity}</span>
                                 </div>
                              </div>
-                             <div className="flex items-center gap-4">
-                               <div className="text-right">
-                                 <p className="text-xl font-black text-white italic tracking-tighter leading-none">Rs.{(item.price * item.quantity).toFixed(0)}</p>
-                                 <p className="text-[8px] font-black text-orange-600/40 uppercase mt-1">Total Item</p>
-                               </div>
-                               <button 
-                                 onClick={() => {
-                                   triggerConfirm({
-                                     title: "Remove Item?",
-                                     message: `Kya aap ${item.name} ko nikalna chahte hain?`,
-                                     onConfirm: () => setCart(prev => prev.filter(it => it.id !== item.id)),
-                                     type: 'danger'
-                                   });
-                                 }}
-                                 className="p-2 bg-red-600/10 text-red-500 rounded-xl hover:bg-red-600/20 transition-all"
-                               >
-                                 {ICONS.Trash2}
-                               </button>
+                             <div className="text-right">
+                               <p className="text-xl font-black text-white italic tracking-tighter leading-none">Rs.{(item.price * item.quantity).toFixed(0)}</p>
+                               <p className="text-[8px] font-black text-orange-600/40 uppercase mt-1">Total Item</p>
                              </div>
                           </div>
                         ))}
@@ -2073,24 +2096,29 @@ const POS: React.FC<POSProps> = ({
                           </button>
                         )}
                         <div className="flex flex-1 gap-2">
-                          {isAdmin && (
-                            <button
-                              onClick={() => {
-                                setCart(order.items);
-                                setCustomerName(order.customerName);
-                                setCustomerPhone(order.customerPhone);
-                                setTableNumber(order.tableNumber || '');
-                                setCurrentOrderId(order.id);
-                                setShowPendingOrders(false);
-                                setIsCheckoutOpen(false); // Make sure it doesn't open checkout
-                                notify("Order loaded to cart for editing", "info");
-                              }}
-                              className="flex-1 py-4 bg-white/5 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-all border border-white/10 flex items-center justify-center gap-2"
-                            >
-                              {ICONS.Edit}
-                              Edit
-                            </button>
-                          )}
+                          <button
+                            onClick={() => {
+                              setCart(order.items);
+                              setCustomerName(order.customerName);
+                              setCustomerPhone(order.customerPhone);
+                              setTableNumber(order.tableNumber || '');
+                              setCurrentOrderId(order.id);
+                              // Track original items for fraud prevention
+                              originalItemsRef.current = JSON.parse(JSON.stringify(order.items));
+                              
+                              setShowPendingOrders(false);
+                              setShowActiveOrders(false);
+                              setIsCheckoutOpen(false);
+                              notify(`Order #${order.orderNumber} loaded for adding items`, "info");
+                              
+                              // Scroll to menu
+                              window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }}
+                            className={`flex-1 py-4 ${activeStaff?.role === 'taker' ? 'bg-orange-600 text-white' : 'bg-white/5 text-white'} rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-all border border-white/10 flex items-center justify-center gap-2 shadow-lg`}
+                          >
+                            {activeStaff?.role === 'taker' ? ICONS.PlusCircle : ICONS.Edit}
+                            {activeStaff?.role === 'taker' ? 'Add Items' : 'Edit Order'}
+                          </button>
                           <button
                             onClick={() => setSelectedOrderToReview(order)}
                             className="flex-1 py-4 bg-indigo-600/10 text-indigo-400 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-all border border-indigo-600/20 flex items-center justify-center gap-2"

@@ -372,9 +372,9 @@ const CustomerMenu: React.FC<CustomerMenuProps> = ({ items, businessName, custom
                   {cart.map((item, idx) => (
                     <div key={idx} className="flex justify-between items-center bg-white/5 p-4 rounded-3xl border border-white/5">
                       <div className="flex flex-col">
-                        <p className="text-sm font-black text-white uppercase italic">{item.name}</p>
+                        <p className="text-sm font-black text-white uppercase italic leading-none">{item.name}</p>
                         <div className="flex items-center gap-2 mt-2">
-                           <span className="text-[10px] font-black text-orange-600/60 uppercase">Rate: Rs.{item.price}</span>
+                           <span className="text-[10px] font-black text-orange-600/60 uppercase">Rs.{item.price}</span>
                            <div className="flex items-center gap-2 bg-black/20 rounded-lg px-2 py-1">
                               <button onClick={() => updateQuantity(item.id, -1)} className="text-white/40 hover:text-white transition-colors">{ICONS.Minus}</button>
                               <span className="text-[10px] font-black text-white min-w-[20px] text-center">{item.quantity}</span>
@@ -433,9 +433,9 @@ const CustomerMenu: React.FC<CustomerMenuProps> = ({ items, businessName, custom
         <div className="flex items-center gap-2">
           {cart.length > 0 && (
             <button 
-              onClick={() => setShowOrderReview(true)}
+              onClick={() => setShowCart(true)}
               className="p-3 bg-blue-600/10 text-blue-500 rounded-2xl border border-blue-600/20 active:scale-90 transition-all"
-              title="Review Current Order"
+              title="View Cart"
             >
               {ICONS.Eye}
             </button>
