@@ -445,29 +445,33 @@ const App: React.FC = () => {
         
         let itemsHtml = '';
         if (order.kitchenTickets && order.kitchenTickets.length > 0) {
-          // Display items grouped by rounds (Initial vs Updates)
-          itemsHtml = order.kitchenTickets.map((ticket, idx) => `
+          // Only show the LATEST ticket to avoid confusion in the kitchen
+          const latestTicket = order.kitchenTickets[order.kitchenTickets.length - 1];
+          const isUpdate = order.kitchenTickets.length > 1;
+
+          itemsHtml = `
             <div style="margin-top: 15px; border-top: 2px solid #000; padding-top: 5px;">
-              <div style="background: #000; color: #fff; text-align: center; font-size: 14px; font-weight: 900; padding: 2px; margin-bottom: 5px;">
-                ${idx === 0 ? 'INITIAL ORDER' : `UPDATE ROUND #${ticket.round}`}
+              <div style="background: #000; color: #fff; text-align: center; font-size: 16px; font-weight: 900; padding: 4px; margin-bottom: 8px; border-radius: 4px;">
+                ${isUpdate ? '⚠️ ORDER UPDATED ⚠️' : 'INITIAL ORDER'}
               </div>
-              ${ticket.items.map(item => `
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #000; padding: 8px 0; font-size: 20px; font-weight: 900;">
+              ${isUpdate ? `<div style="text-align: center; font-size: 12px; font-weight: 900; margin-bottom: 10px; border: 1px solid #000; padding: 2px;">UPDATE ROUND #${latestTicket.round}</div>` : ''}
+              ${latestTicket.items.map(item => `
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #000; padding: 8px 0; font-size: 22px; font-weight: 900;">
                   <div style="flex: 1;">${item.name.toUpperCase()}</div>
-                  <div style="width: 50px; text-align: right;">x${item.quantity}</div>
+                  <div style="width: 60px; text-align: right;">x${item.quantity}</div>
                 </div>
               `).join('')}
-              <div style="text-align: right; font-size: 10px; margin-top: 2px;">
-                Sent by: ${ticket.senderName || 'Staff'} • ${new Date(ticket.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              <div style="text-align: right; font-size: 10px; margin-top: 8px; opacity: 0.8;">
+                Sent by: ${latestTicket.senderName || 'Staff'} • ${new Date(latestTicket.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </div>
             </div>
-          `).join('');
+          `;
         } else {
           // Fallback if no tickets exist
           itemsHtml = order.items.map(item => `
-            <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #000; padding: 10px 0; font-size: 20px; font-weight: 900;">
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #000; padding: 10px 0; font-size: 22px; font-weight: 900;">
               <div style="flex: 1;">${item.name.toUpperCase()}</div>
-              <div style="width: 50px; text-align: right;">x${item.quantity}</div>
+              <div style="width: 60px; text-align: right;">x${item.quantity}</div>
             </div>
           `).join('');
         }

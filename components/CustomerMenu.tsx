@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MenuItem, Order, OrderItem } from '../types';
 import { ICONS, CATEGORIES } from '../constants';
@@ -24,12 +24,15 @@ const CustomerMenu: React.FC<CustomerMenuProps> = ({ items, businessName, custom
     return saved ? JSON.parse(saved) : [];
   });
   const [showCart, setShowCart] = useState(false);
+  const [showOrderHistory, setShowOrderHistory] = useState(false);
+  const [showOrderReview, setShowOrderReview] = useState(false);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [selectedQty, setSelectedQty] = useState(1);
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackComment, setFeedbackComment] = useState('');
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [localTableNumber, setLocalTableNumber] = useState(() => localStorage.getItem('cust_table_number') || tableNumber || '');
+  const qtyInputRef = useRef<HTMLInputElement>(null);
 
   // Persistence Effects
   React.useEffect(() => {
@@ -39,6 +42,16 @@ const CustomerMenu: React.FC<CustomerMenuProps> = ({ items, businessName, custom
   React.useEffect(() => {
     localStorage.setItem('cust_table_number', localTableNumber);
   }, [localTableNumber]);
+
+  // Auto-focus quantity input when modal opens
+  useEffect(() => {
+    if (selectedItem) {
+      setTimeout(() => {
+        qtyInputRef.current?.focus();
+        qtyInputRef.current?.select();
+      }, 100);
+    }
+  }, [selectedItem]);
 
   const activeOrders = customerOrders.filter(o => o.status && ['pending_customer', 'received', 'preparing', 'ready', 'accepted'].includes(o.status));
   const servedOrders = customerOrders.filter(o => 
@@ -266,6 +279,141 @@ const CustomerMenu: React.FC<CustomerMenuProps> = ({ items, businessName, custom
           </motion.div>
         )}
       </AnimatePresence>
+      
+      {/* Order History Modal */}
+      <AnimatePresence>
+        {showOrderHistory && (
+          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowOrderHistory(false)}
+              className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md bg-[var(--bg-card)] rounded-[40px] border border-white/5 p-8 shadow-2xl flex flex-col max-h-[85vh]"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h2 className="text-2xl font-black uppercase italic tracking-tighter text-white">Your Orders</h2>
+                  <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Detail of all orders today</p>
+                </div>
+                <button onClick={() => setShowOrderHistory(false)} className="p-3 bg-white/5 rounded-2xl text-[var(--text-muted)]">{ICONS.X}</button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto space-y-6 pr-2 no-scrollbar">
+                {customerOrders.length === 0 ? (
+                  <div className="py-10 text-center">
+                    <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">No orders found</p>
+                  </div>
+                ) : (
+                  [...customerOrders].sort((a,b) => b.timestamp - a.timestamp).map((order, oIdx) => (
+                    <div key={order.id} className="bg-black/40 rounded-3xl p-6 border border-white/5 space-y-4">
+                      <div className="flex justify-between items-center border-b border-white/5 pb-3">
+                        <div className="flex flex-col">
+                           <p className="text-[8px] font-black text-white/40 uppercase tracking-widest">Order #{getOrderSequenceNumber(order.id)}</p>
+                           <p className={`text-[10px] font-black uppercase italic ${order.status === 'ready' ? 'text-emerald-500' : 'text-orange-600'}`}>{getStatusLabel(order.status!)}</p>
+                        </div>
+                        <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">{new Date(order.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        {order.items.map((item, idx) => (
+                          <div key={idx} className="flex justify-between text-[11px] font-black uppercase italic">
+                            <span className="text-[var(--text-muted)]">{item.quantity}x {item.name}</span>
+                            <span className="text-white">Rs.{item.price * item.quantity}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="pt-3 border-t border-white/5 flex justify-between items-center">
+                        <p className="text-xs font-black text-white uppercase italic">Amount</p>
+                        <p className="text-lg font-black text-emerald-500 tracking-tighter italic">Rs.{order.total}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <button 
+                onClick={() => setShowOrderHistory(false)}
+                className="mt-8 w-full py-5 bg-white/5 text-white rounded-[24px] font-black uppercase tracking-widest text-[12px] active:scale-95 transition-all border border-white/10"
+              >
+                Close List
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      
+      {/* Current Order Review Modal */}
+      <AnimatePresence>
+        {showOrderReview && (
+          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowOrderReview(false)}
+              className="absolute inset-0 bg-black/95 backdrop-blur-2xl"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md bg-[var(--bg-card)] rounded-[40px] border border-white/10 p-8 shadow-2xl flex flex-col max-h-[85vh]"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h2 className="text-2xl font-black uppercase italic tracking-tighter text-white">Review Order</h2>
+                  <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Items you have selected</p>
+                </div>
+                <button onClick={() => setShowOrderReview(false)} className="p-3 bg-white/5 rounded-2xl text-[var(--text-muted)]">{ICONS.X}</button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto space-y-4 pr-2 no-scrollbar">
+                <div className="space-y-3">
+                  {cart.map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-center bg-white/5 p-4 rounded-3xl border border-white/5">
+                      <div className="flex flex-col">
+                        <p className="text-sm font-black text-white uppercase italic">{item.name}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                           <span className="text-[10px] font-black text-orange-600/60 uppercase">Rate: Rs.{item.price}</span>
+                           <div className="flex items-center gap-2 bg-black/20 rounded-lg px-2 py-1">
+                              <button onClick={() => updateQuantity(item.id, -1)} className="text-white/40 hover:text-white transition-colors">{ICONS.Minus}</button>
+                              <span className="text-[10px] font-black text-white min-w-[20px] text-center">{item.quantity}</span>
+                              <button onClick={() => updateQuantity(item.id, 1)} className="text-white/40 hover:text-white transition-colors">{ICONS.Plus}</button>
+                           </div>
+                        </div>
+                      </div>
+                      <p className="text-lg font-black text-white italic tracking-tighter">Rs.{item.price * item.quantity}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="pt-6 border-t border-white/10 flex justify-between items-center">
+                  <p className="text-sm font-black text-white uppercase italic">Total Bill</p>
+                  <p className="text-2xl font-black text-emerald-500 tracking-tighter italic">Rs.{total}</p>
+                </div>
+              </div>
+
+              <div className="pt-8 grid grid-cols-1 gap-3">
+                <button 
+                  onClick={() => {
+                    handleSendOrder();
+                    setShowOrderReview(false);
+                  }}
+                  className="w-full py-5 bg-orange-600 text-white rounded-[24px] font-black uppercase tracking-widest text-[12px] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3 border-b-8 border-orange-800"
+                >
+                  {ICONS.Send} Send Order to Waiter
+                </button>
+                <button 
+                  onClick={() => setShowOrderReview(false)}
+                  className="w-full py-4 bg-white/5 text-white rounded-[20px] font-black uppercase tracking-widest text-[10px] active:scale-95 transition-all"
+                >
+                  Add More Items
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Header */}
       <div className="sticky top-0 z-50 bg-[var(--bg-main)]/80 backdrop-blur-xl border-b border-[var(--border)] p-6 flex items-center justify-between">
@@ -281,18 +429,61 @@ const CustomerMenu: React.FC<CustomerMenuProps> = ({ items, businessName, custom
             <p className="text-[8px] font-black text-orange-600 uppercase tracking-widest">Welcome, {customerName} {localTableNumber ? `• Table ${localTableNumber}` : ''}</p>
           </div>
         </div>
-        <button 
-          onClick={() => setShowCart(true)}
-          className="relative p-3 bg-orange-600/10 text-orange-600 rounded-2xl border border-orange-600/20 active:scale-90 transition-all"
-        >
-          {ICONS.ShoppingBag}
+
+        <div className="flex items-center gap-2">
           {cart.length > 0 && (
-            <span className="absolute -top-1 -right-1 bg-orange-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-[var(--bg-main)]">
-              {cart.length}
-            </span>
+            <button 
+              onClick={() => setShowOrderReview(true)}
+              className="p-3 bg-blue-600/10 text-blue-500 rounded-2xl border border-blue-600/20 active:scale-90 transition-all"
+              title="Review Current Order"
+            >
+              {ICONS.Eye}
+            </button>
           )}
-        </button>
+          {customerOrders.length > 0 && (
+            <button 
+              onClick={() => setShowOrderHistory(true)}
+              className="p-3 bg-white/5 text-[var(--text-muted)] rounded-2xl border border-white/5 active:scale-90 transition-all"
+              title="Order History"
+            >
+              {ICONS.History}
+            </button>
+          )}
+          <button 
+            onClick={() => setShowCart(true)}
+            className="relative p-3 bg-orange-600/10 text-orange-600 rounded-2xl border border-orange-600/20 active:scale-90 transition-all"
+          >
+            {ICONS.ShoppingBag}
+            {cart.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-orange-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-[var(--bg-main)]">
+                {cart.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Categories moved to Header */}
+        <div className="absolute top-full left-0 right-0 bg-[var(--bg-main)]/95 backdrop-blur-2xl border-b border-white/10 p-3 flex gap-2 overflow-x-auto no-scrollbar shadow-[0_10px_30px_rgba(0,0,0,0.3)] z-40">
+          <button 
+            onClick={() => setActiveCategory('ALL')}
+            className={`px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border-b-4 ${activeCategory === 'ALL' ? 'bg-orange-600 border-orange-800 text-white shadow-lg' : 'bg-white/5 text-[var(--text-muted)] border-transparent'}`}
+          >
+            ALL
+          </button>
+          {CATEGORIES.map(cat => (
+            <button 
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              className={`px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border-b-4 ${activeCategory === cat ? 'bg-orange-600 border-orange-800 text-white shadow-lg' : 'bg-white/5 text-[var(--text-muted)] border-transparent'}`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
       </div>
+
+      <div className="pt-24"> {/* Extra spacing for the double-height header (Header + Categories) */}
+      {/* Active Orders Status */}
 
 
       {/* Active Orders Status */}
@@ -403,7 +594,15 @@ const CustomerMenu: React.FC<CustomerMenuProps> = ({ items, businessName, custom
                 >
                   {ICONS.Minus}
                 </button>
-                <span className="text-3xl font-black text-white w-12">{selectedQty}</span>
+                <input
+                  ref={qtyInputRef}
+                  type="number"
+                  inputMode="numeric"
+                  className="w-20 py-3 bg-black/40 border-2 border-orange-600/20 rounded-2xl text-center text-2xl font-black text-white outline-none focus:border-orange-600 transition-all"
+                  value={selectedQty}
+                  onChange={e => setSelectedQty(Math.max(1, parseInt(e.target.value) || 1))}
+                  onKeyDown={e => e.key === 'Enter' && handleAddToCart()}
+                />
                 <button 
                   onClick={() => setSelectedQty(prev => prev + 1)}
                   className="w-12 h-12 rounded-2xl bg-white/5 text-white flex items-center justify-center text-xl active:scale-90 transition-all border border-white/5"
@@ -512,24 +711,7 @@ const CustomerMenu: React.FC<CustomerMenuProps> = ({ items, businessName, custom
         )}
       </AnimatePresence>
 
-      {/* Sticky Bottom Category Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-[var(--bg-nav)]/90 backdrop-blur-2xl border-t border-white/5 p-4 flex gap-3 overflow-x-auto no-scrollbar z-[100] shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
-        <button 
-          onClick={() => setActiveCategory('ALL')}
-          className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border-b-4 ${activeCategory === 'ALL' ? 'bg-orange-600 border-orange-800 text-white shadow-xl scale-105' : 'bg-white/10 text-[var(--text-muted)] border-transparent'}`}
-        >
-          ALL
-        </button>
-        {CATEGORIES.map(cat => (
-          <button 
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
-            className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border-b-4 ${activeCategory === cat ? 'bg-orange-600 border-orange-800 text-white shadow-xl scale-105' : 'bg-white/10 text-[var(--text-muted)] border-transparent'}`}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
+      {/* Sticky Bottom Category Bar removed from here */}
 
       {cart.length > 0 && !showCart && (
         <motion.div 
@@ -549,6 +731,7 @@ const CustomerMenu: React.FC<CustomerMenuProps> = ({ items, businessName, custom
           </button>
         </motion.div>
       )}
+      </div>
     </div>
   );
 };
