@@ -105,8 +105,48 @@ const CashierView: React.FC<CashierViewProps> = ({
     } else {
       notify(`Payment for Order #${selectedOrder.orderNumber} completed!`, "success");
     }
+
+    // Auto-whatsapp if enabled
+    if (settings.isAutoWhatsappEnabled) {
+      handleShareWhatsApp(updatedOrder);
+    }
+
     setSelectedOrder(null);
     setReceivedAmount('');
+  };
+
+  const handleShareWhatsApp = (order: Order) => {
+    try {
+      const rawPhone = order.customerPhone.trim();
+      if (!rawPhone || rawPhone.length < 5) {
+        notify("Mobile number lazmi hai!", "error");
+        return;
+      }
+
+      let cleanPhone = rawPhone.replace(/\D/g, '');
+      if (cleanPhone.startsWith('0')) {
+        cleanPhone = (settings?.whatsappCountryCode || '92') + cleanPhone.substring(1);
+      } else if (!cleanPhone.startsWith(settings?.whatsappCountryCode || '92')) {
+        cleanPhone = (settings?.whatsappCountryCode || '92') + cleanPhone;
+      }
+
+      const headerName = settings.businessName || 'Restaurant';
+      const dateStr = new Date(order.timestamp).toLocaleDateString();
+      const timeStr = new Date(order.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const tableStr = order.tableNumber ? `Table: ${order.tableNumber}\n` : '';
+      const itemsList = order.items.map(item => `• ${item.name} (${item.unit === 'rs' ? 'Rs.' : 'x'}${item.quantity}): Rs.${(item.price * item.quantity).toFixed(0)}`).join('\n');
+
+      const taxStr = order.tax && order.tax > 0 ? `Tax: Rs. ${order.tax.toFixed(0)}\n` : '';
+      const discountStr = order.discount && order.discount > 0 ? `Discount: -Rs. ${order.discount.toFixed(0)}\n` : '';
+      const deliveryStr = order.deliveryFee && order.deliveryFee > 0 ? `Delivery Fee: Rs. ${order.deliveryFee.toFixed(0)}\n` : '';
+      
+      const message = `*${headerName} - INVOICE*\n--------------------------\nOrder ID: #${order.orderNumber}\nDate: ${dateStr} ${timeStr}\n${tableStr}Customer: ${order.customerName}\nPayment: ${order.paymentMethod?.toUpperCase() || 'CASH'}\nStatus: PAID ✅\n--------------------------\n${itemsList}\n--------------------------\nSubtotal: Rs. ${order.subtotal.toFixed(0)}\n${taxStr}${discountStr}${deliveryStr}*Grand Total: Rs. ${order.total.toFixed(0)}*\n--------------------------\nShukriya! Phir zaroor aaiye ga.\nSoftware by: Flavor Dash`;
+
+      window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`, '_blank');
+      notify("WhatsApp bill sent!", "success");
+    } catch (e) {
+      notify("WhatsApp fail ho gaya: " + (e as Error).message, "error");
+    }
   };
 
   return (
@@ -226,8 +266,16 @@ const CashierView: React.FC<CashierViewProps> = ({
                       {ICONS.ChefHat}
                     </button>
                     <button 
+                      onClick={(e) => { e.stopPropagation(); handleShareWhatsApp(order); }}
+                      className="p-3 bg-emerald-600/10 text-emerald-500 rounded-xl shadow-lg border border-emerald-600/20"
+                      title="WhatsApp Bill"
+                    >
+                      {ICONS.MessageSquare}
+                    </button>
+                    <button 
                       onClick={(e) => { e.stopPropagation(); handlePrint(order); }}
                       className="p-3 bg-emerald-600 text-white rounded-xl shadow-lg shadow-emerald-600/20"
+                      title="Print Bill"
                     >
                       {ICONS.Printer}
                     </button>
@@ -329,6 +377,7 @@ const CashierView: React.FC<CashierViewProps> = ({
             </div>
 
             <div className="p-6 pt-0 space-y-2">
+              <div className="flex gap-2">
                 <button
                   onClick={handleCompletePayment}
                   disabled={!receivedAmount}
@@ -337,13 +386,23 @@ const CashierView: React.FC<CashierViewProps> = ({
                   {ICONS.CheckCircle}
                   Finalize & Collect
                 </button>
-                <button
-                  onClick={() => handlePrint(selectedOrder)}
-                  className="flex-1 py-6 bg-white/5 text-white border border-white/10 rounded-[24px] text-[10px] font-black uppercase tracking-widest flex flex-col items-center justify-center gap-1 active:scale-95 transition-all"
-                >
-                  {ICONS.Printer}
-                  <span>Print</span>
-                </button>
+                <div className="flex flex-col gap-2 flex-1">
+                  <button
+                    onClick={() => handlePrint(selectedOrder)}
+                    className="flex-1 py-3 bg-white/5 text-white border border-white/10 rounded-2xl text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all"
+                  >
+                    {ICONS.Printer}
+                    <span>Print</span>
+                  </button>
+                  <button
+                    onClick={() => handleShareWhatsApp(selectedOrder)}
+                    className="flex-1 py-3 bg-emerald-600/10 text-emerald-500 border border-emerald-600/20 rounded-2xl text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all"
+                  >
+                    {ICONS.MessageSquare}
+                    <span>WA</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

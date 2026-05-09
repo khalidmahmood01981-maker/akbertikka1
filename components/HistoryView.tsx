@@ -473,7 +473,7 @@ const HistoryView: React.FC<HistoryProps> = ({
                             </div>
                             {isAdmin && (
                               <button onClick={startEditing} className="mt-3 text-[8px] font-black uppercase text-orange-600/50 hover:text-orange-600 flex items-center gap-1 transition-colors">
-                                {ICONS.Settings} Edit Details
+                                {ICONS.Settings} Update Details
                               </button>
                             )}
                           </div>
@@ -551,7 +551,7 @@ const HistoryView: React.FC<HistoryProps> = ({
             <div className="p-8 bg-white/5 space-y-3">
               {isAdmin && (
                 <button onClick={() => { onEditOrder(selectedInvoice); setSelectedInvoice(null); }} className="w-full py-4 bg-orange-600 text-white rounded-2xl text-[10px] font-black uppercase flex items-center justify-center gap-2 shadow-lg border-b-4 border-orange-800 active:scale-95 transition-all">
-                  {ICONS.Plus} Edit / Add Items
+                  {ICONS.Plus} Update / Add Items
                 </button>
               )}
               <div className="flex gap-3">

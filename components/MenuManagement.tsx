@@ -114,7 +114,7 @@ const MenuManagement: React.FC<MenuProps> = ({ items, setItems, isAdmin, isMaste
       {isAdmin && (
         <div className="bg-[var(--bg-card)] p-4 rounded-[32px] border border-orange-600/10 space-y-3 shadow-lg mx-1">
           <h4 className="text-[11px] font-black uppercase text-orange-600 tracking-[0.2em] px-2 italic">
-            {editingId ? 'Edit' : 'Add New'} <span className="text-white">Dish</span>
+            {editingId ? 'Update' : 'Add New'} <span className="text-white">Dish</span>
           </h4>
           
           <div className="space-y-3 bg-black/20 p-5 rounded-[32px] border border-white/5">

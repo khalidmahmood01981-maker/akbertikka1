@@ -114,9 +114,9 @@ const POS: React.FC<POSProps> = ({
   const originalItemsRef = useRef<OrderItem[]>([]);
 
   useEffect(() => {
-    const isAnyModalOpen = isScannerOpen || showPendingOrders || showReadyOrders || showServedOrders || showActiveOrders || isCheckoutOpen || !!selectedItemForQty || !!successOrder || showMenuPicker || !!itemToRemove || cart.length > 0;
+    const isAnyModalOpen = isScannerOpen || showPendingOrders || showReadyOrders || showServedOrders || showActiveOrders || isCheckoutOpen || !!selectedItemForQty || !!successOrder || showMenuPicker || !!itemToRemove;
     setIsNavHidden?.(isAnyModalOpen);
-  }, [isScannerOpen, showPendingOrders, showReadyOrders, showServedOrders, showActiveOrders, isCheckoutOpen, selectedItemForQty, successOrder, showMenuPicker, itemToRemove, cart.length, setIsNavHidden]);
+  }, [isScannerOpen, showPendingOrders, showReadyOrders, showServedOrders, showActiveOrders, isCheckoutOpen, selectedItemForQty, successOrder, showMenuPicker, itemToRemove, setIsNavHidden]);
 
   const filteredItems = category === 'All' ? items : items.filter(i => i.category === category);
 
@@ -185,7 +185,7 @@ const POS: React.FC<POSProps> = ({
 
   useEffect(() => {
     if (orderToEdit) {
-      setCart(orderToEdit.items);
+      setCart([]); 
       setCustomerName(orderToEdit.customerName);
       setCustomerPhone(orderToEdit.customerPhone);
       setTableNumber(orderToEdit.tableNumber || '');
@@ -355,19 +355,30 @@ const POS: React.FC<POSProps> = ({
       
       let newKitchenTickets = existingOrder?.kitchenTickets || [];
       let newUpdateCount = existingOrder?.updateCount || 0;
+      let didAddTicket = false;
 
-      if (mode === 'kitchen' || status === 'received' || status === 'served') {
+      if (mode === 'kitchen' || status === 'received' || status === 'served' || mode === 'update') {
         const ticketItems: { id: string; name: string; quantity: number }[] = [];
-        cart.forEach(cartItem => {
-          const oldQty = existingOrder?.items.find(i => i.id === cartItem.id)?.quantity || 0;
-          if (cartItem.quantity > oldQty) {
+        
+        if (mode === 'update') {
+          // In update mode, everything in cart is an addition
+          cart.forEach(cartItem => {
             ticketItems.push({
               id: cartItem.id,
               name: cartItem.name,
-              quantity: cartItem.quantity - oldQty
+              quantity: cartItem.quantity
             });
-          }
-        });
+          });
+        } else {
+          // In initial kitchen mode, everything is new
+          cart.forEach(cartItem => {
+            ticketItems.push({
+              id: cartItem.id,
+              name: cartItem.name,
+              quantity: cartItem.quantity
+            });
+          });
+        }
 
         if (ticketItems.length > 0) {
           newUpdateCount += 1;
@@ -382,19 +393,39 @@ const POS: React.FC<POSProps> = ({
               senderName: activeStaff?.name || shopName || 'OWNER'
             }
           ];
+          didAddTicket = true;
+          notify(`Sent ${ticketItems.length} new items to kitchen!`, "success");
         }
       }
 
       let newOrder: Order;
 
       if (existingOrder) {
+        let updatedItems = [...existingOrder.items];
+        cart.forEach(cartItem => {
+          const existingIdx = updatedItems.findIndex(i => i.id === cartItem.id);
+          if (existingIdx >= 0) {
+            updatedItems[existingIdx] = {
+              ...updatedItems[existingIdx],
+              quantity: updatedItems[existingIdx].quantity + cartItem.quantity
+            };
+          } else {
+            updatedItems.push({ ...cartItem });
+          }
+        });
+
+        const newSubtotal = updatedItems.reduce((acc, i) => acc + (i.price * i.quantity), 0);
+        const newTax = settings?.isTaxEnabled ? (newSubtotal * settings.taxRate / 100) : 0;
+        const newDiscount = settings?.isDiscountEnabled ? (newSubtotal * (settings?.defaultDiscount || 0) / 100) : 0;
+        const newTotal = newSubtotal + newTax - newDiscount + (existingOrder.deliveryFee || 0);
+
         newOrder = {
           ...existingOrder,
-          items: cart,
-          subtotal,
-          tax: taxAmount,
-          discount: discountAmount,
-          total: finalTotal,
+          items: updatedItems,
+          subtotal: newSubtotal,
+          tax: newTax,
+          discount: newDiscount,
+          total: newTotal,
           customerName: customerName.trim() || 'WALK-IN',
           customerPhone: customerPhone.trim() || '',
           whatsappNumber: customerWhatsApp.trim() || undefined,
@@ -435,7 +466,7 @@ const POS: React.FC<POSProps> = ({
           statusTimestamps: {
             [status]: Date.now()
           },
-          orderNumber: 0,
+          orderNumber: Math.max(0, ...(allOrders || []).map(o => o.orderNumber || 0)) + 1,
           kitchenNotes: kitchenNotes.trim() || undefined,
           orderTakerId: activeStaff?.id || currentOrderTakerId || undefined,
           orderTakerName: (activeStaff?.name) || (isCustomerMode ? 'CUSTOMER_QR' : shopName) || 'OWNER',
@@ -455,28 +486,27 @@ const POS: React.FC<POSProps> = ({
 
       if (mode === 'final') {
         setSuccessOrder(newOrder);
-      } else if (mode === 'kitchen') {
+      } else if (mode === 'kitchen' || mode === 'update') {
         if (isCustomerMode) {
           notify("Order sent to Order Taker!", "success");
         } else {
           // Conditional Printing based on Order Type
-          if (orderType === 'Dine In') {
+          if (orderType === 'Dine In' && didAddTicket) {
             handlePrintKitchen(newOrder);
-          } else {
+          } else if (didAddTicket) {
             // Only print if payment is fully received for Take Away/Delivery
             const isPaid = (Number(receivedAmount) || 0) >= (finalTotal || 0);
             if (isPaid) {
               handlePrint(newOrder, true);
               notify("Bill Printed!", "success");
             } else {
-              notify("Payment pending: Bill print nahi kiya gaya", "info");
+              handlePrintKitchen(newOrder);
+              notify("Ticket sent to kitchen!", "info");
             }
           }
-          notify("Order processed!", "success");
+          if (mode === 'update') notify("Order updated successfully!", "success");
+          else notify("Order processed!", "success");
         }
-        resetForNextBill();
-      } else if (mode === 'update') {
-        notify("Bill updated successfully!", "success");
         resetForNextBill();
       } else if (mode === 'draft') {
         notify("Order saved as draft!", "info");
@@ -722,26 +752,28 @@ const POS: React.FC<POSProps> = ({
             <span className="text-[10px] font-black uppercase tracking-widest hidden xs:block">New Order</span>
           </button>
 
-          <button
-            onClick={() => {
-              if (cart.length > 0) {
-                setIsCheckoutOpen(true);
-              } else {
-                setShowActiveOrders(true);
-              }
-            }}
-            className={`px-4 py-4 ${currentOrderId ? 'bg-orange-600 animate-pulse' : 'bg-blue-600/10'} border ${currentOrderId ? 'border-orange-400' : 'border-blue-600/20'} ${currentOrderId ? 'text-white' : 'text-blue-600'} rounded-[20px] shadow-lg active:scale-90 transition-all flex items-center justify-center gap-2 group`}
-          >
-            <div className={`${currentOrderId ? 'bg-white text-orange-600' : 'bg-blue-600 text-white'} p-1 rounded-lg`}>
-              {currentOrderId ? ICONS.Edit : ICONS.Eye}
-            </div>
-            <span className="text-[10px] font-black uppercase tracking-widest hidden xs:block">
-              {currentOrderId ? `Editing #${allOrders.find(o => o.id === currentOrderId)?.orderNumber}` : (cart.length > 0 ? 'View Cart' : 'Review Orders')}
-            </span>
-            {cart.length > 0 && !currentOrderId && (
-              <span className="bg-orange-600 text-white text-[8px] px-1.5 py-0.5 rounded-full">{cart.length}</span>
-            )}
-          </button>
+          {(cart.length > 0 || !!currentOrderId) && (
+            <button
+              onClick={() => {
+                if (cart.length > 0) {
+                  setIsCheckoutOpen(true);
+                } else {
+                  setShowActiveOrders(true);
+                }
+              }}
+              className={`px-4 py-4 ${currentOrderId ? 'bg-orange-600 animate-pulse' : 'bg-blue-600/10'} border ${currentOrderId ? 'border-orange-400' : 'border-blue-600/20'} ${currentOrderId ? 'text-white' : 'text-blue-600'} rounded-[20px] shadow-lg active:scale-90 transition-all flex items-center justify-center gap-2 group`}
+            >
+              <div className={`${currentOrderId ? 'bg-white text-orange-600' : 'bg-blue-600 text-white'} p-1 rounded-lg`}>
+                {currentOrderId ? ICONS.Edit : ICONS.Eye}
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-widest hidden xs:block">
+                {currentOrderId ? `Updating #${allOrders.find(o => o.id === currentOrderId)?.orderNumber}` : (cart.length > 0 ? 'View Cart' : 'Review Orders')}
+              </span>
+              {cart.length > 0 && !currentOrderId && (
+                <span className="bg-orange-600 text-white text-[8px] px-1.5 py-0.5 rounded-full">{cart.length}</span>
+              )}
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -1575,7 +1607,8 @@ const POS: React.FC<POSProps> = ({
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setCart(order.items);
+                                  setCart([]); // Start empty for additions
+                                  originalItemsRef.current = [...order.items];
                                   setCustomerName(order.customerName);
                                   setCustomerPhone(order.customerPhone);
                                   setTableNumber(order.tableNumber || '');
@@ -1586,7 +1619,7 @@ const POS: React.FC<POSProps> = ({
                                 className="px-4 py-2 bg-blue-500/10 text-blue-500 rounded-2xl active:scale-75 transition-all hover:bg-blue-500/20 flex items-center gap-2 border border-blue-500/20"
                               >
                                 {ICONS.Edit}
-                                <span className="text-[10px] font-black uppercase tracking-widest">Edit</span>
+                                <span className="text-[10px] font-black uppercase tracking-widest">Update</span>
                               </button>
                             </div>
                           </div>
@@ -1712,7 +1745,7 @@ const POS: React.FC<POSProps> = ({
                             className="flex-1 py-4 bg-blue-600/10 text-blue-500 rounded-2xl border border-blue-600/20 font-black uppercase text-[10px] transition-all active:scale-95 flex items-center justify-center gap-2"
                           >
                             {ICONS.Edit}
-                            <span className="text-[10px] font-black uppercase tracking-widest">Edit</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest">Update</span>
                           </button>
                       </div>
                     </div>
@@ -1951,7 +1984,8 @@ const POS: React.FC<POSProps> = ({
 
                             <button
                               onClick={() => {
-                                setCart(order.items);
+                                setCart([]); // Start empty for additions
+                                originalItemsRef.current = [...order.items];
                                 setCustomerName(order.customerName);
                                 setCustomerPhone(order.customerPhone);
                                 setTableNumber(order.tableNumber || '');
@@ -2117,7 +2151,7 @@ const POS: React.FC<POSProps> = ({
                             className={`flex-1 py-4 ${activeStaff?.role === 'taker' ? 'bg-orange-600 text-white' : 'bg-white/5 text-white'} rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-all border border-white/10 flex items-center justify-center gap-2 shadow-lg`}
                           >
                             {activeStaff?.role === 'taker' ? ICONS.PlusCircle : ICONS.Edit}
-                            {activeStaff?.role === 'taker' ? 'Add Items' : 'Edit Order'}
+                            {activeStaff?.role === 'taker' ? 'Add Items' : 'Update Order'}
                           </button>
                           <button
                             onClick={() => setSelectedOrderToReview(order)}

@@ -263,9 +263,20 @@ const LiveOrdersView: React.FC<LiveOrdersViewProps> = ({
                         </span>
                       )}
                     </div>
-                    <h3 className="text-lg sm:text-2xl font-black text-white uppercase italic tracking-tighter leading-tight mt-1">
-                      {order.customerName}
-                    </h3>
+                    <div className="mt-1 space-y-1">
+                      <div className="flex items-center gap-1.5 opacity-90">
+                        <span className="text-[8px] font-black text-white uppercase tracking-widest bg-white/10 px-1.5 py-0.5 rounded border border-white/20">CUST</span>
+                        <h3 className="text-lg sm:text-2xl font-black text-white uppercase italic tracking-tighter leading-tight">
+                          {order.customerName}
+                        </h3>
+                      </div>
+                      <div className="flex items-center gap-1.5 opacity-80 ml-0.5">
+                        <span className="text-[8px] font-black text-orange-600 uppercase tracking-widest bg-orange-600/10 px-1.5 py-0.5 rounded border border-orange-600/20">TAKER</span>
+                        <p className="text-[10px] font-black text-white/60 uppercase tracking-widest italic">
+                          {order.orderTakerName || 'OWNER'}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-[8px] sm:text-[10px] font-black text-[var(--text-muted)] uppercase">
@@ -284,24 +295,37 @@ const LiveOrdersView: React.FC<LiveOrdersViewProps> = ({
                 <div className="flex-1 space-y-3 bg-black/40 p-3 sm:p-5 rounded-[28px] border border-white/5 shadow-inner overflow-y-auto">
                   {order.kitchenTickets && order.kitchenTickets.length > 0 ? (
                     <div className="space-y-4">
-                      {order.kitchenTickets.slice(-1).map(ticket => (
-                        <div key={ticket.id} className="space-y-2 bg-white/5 p-4 rounded-2xl border border-white/10 relative">
-                          {order.kitchenTickets!.length > 1 && (
-                            <div className="absolute -top-3 left-4 bg-orange-600 font-black text-[9px] uppercase tracking-widest px-3 py-1 rounded-xl text-white shadow-lg border border-orange-500/50">
-                              Ticket {ticket.round}
-                            </div>
-                          )}
-                          <div className={order.kitchenTickets!.length > 1 ? "pt-2 space-y-2" : "space-y-2"}>
+                      {/* Show tickets in reverse order (newest first) */}
+                      {[...order.kitchenTickets].reverse().map((ticket, tIdx) => (
+                        <div key={ticket.id} className={`space-y-2 p-4 rounded-2xl border relative ${tIdx === 0 ? 'bg-orange-600/10 border-orange-600/30 ring-1 ring-orange-600/20 shadow-[0_0_20px_rgba(234,88,12,0.05)]' : 'bg-white/5 border-white/10 opacity-70'}`}>
+                          <div className={`absolute -top-3 left-4 font-black text-[9px] uppercase tracking-widest px-3 py-1 rounded-xl text-white shadow-lg border ${tIdx === 0 ? 'bg-orange-600 border-orange-500/50' : 'bg-zinc-600 border-zinc-500/50'}`}>
+                            Ticket {ticket.round} {tIdx === 0 && ' (NEW UPDATE)'}
+                          </div>
+                          
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onPrint?.('kitchen', { ...order, kitchenTickets: [ticket] });
+                            }}
+                            className="absolute -top-3 right-4 bg-emerald-600 font-black text-[9px] uppercase tracking-widest px-3 py-1 rounded-xl text-white shadow-lg border border-emerald-500/50 flex items-center gap-1 active:scale-95 transition-all"
+                          >
+                            {ICONS.Printer} Print
+                          </button>
+
+                          <div className="pt-2 space-y-2">
                             {ticket.items.map((item, idx) => (
                               <div key={idx} className="flex justify-between items-center border-b border-white/5 last:border-0 pb-2.5 last:pb-0 pt-2.5 first:pt-0">
                                 <div className="flex items-center gap-4">
-                                  <span className="w-9 h-9 bg-orange-600 text-white rounded-2xl flex items-center justify-center text-base font-black shadow-xl ring-4 ring-orange-600/10">
-                                    {item.quantity > 0 && order.kitchenTickets!.length > 1 ? `+${item.quantity}` : item.quantity}
+                                  <span className={`w-9 h-9 rounded-2xl flex items-center justify-center text-base font-black shadow-inner border ${tIdx === 0 ? 'bg-orange-600/20 text-orange-600 border-orange-600/20' : 'bg-white/10 text-white/40 border-white/10'}`}>
+                                    {item.quantity > 0 ? `+${item.quantity}` : item.quantity}
                                   </span>
-                                  <span className="text-sm sm:text-lg font-black text-white/90 uppercase tracking-tight italic leading-tight">{item.name}</span>
+                                  <span className={`text-sm sm:text-lg font-black uppercase tracking-tight italic leading-tight ${tIdx === 0 ? 'text-white/90' : 'text-white/40'}`}>{item.name}</span>
                                 </div>
                               </div>
                             ))}
+                            <div className="text-[8px] font-black text-[var(--text-muted)] uppercase text-right pt-1 opacity-60">
+                              {new Date(ticket.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {ticket.senderName}
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -335,12 +359,13 @@ const LiveOrdersView: React.FC<LiveOrdersViewProps> = ({
 
                 {/* Action Buttons */}
                   <div className="flex gap-2 pt-1">
-                    {(isAdmin || isKitchen) && (
+                    {isAdmin && (
                       <button 
                         onClick={() => triggerConfirm({
                           title: "Cancel Order?",
                           message: "Kya aap waqai is order ko cancel karna chahte hain?",
-                          onConfirm: () => onUpdateStatus(order, 'cancelled')
+                          onConfirm: () => onUpdateStatus(order, 'cancelled'),
+                          type: 'danger'
                         })}
                         className="p-3 sm:p-4 bg-red-600/10 text-red-500 rounded-xl sm:rounded-2xl active:scale-95 transition-all hover:bg-red-600/20"
                         title="Cancel Order"
@@ -352,9 +377,17 @@ const LiveOrdersView: React.FC<LiveOrdersViewProps> = ({
                     <button 
                       onClick={() => handlePrintOrder(order)}
                       className="p-3 sm:p-4 bg-blue-600/10 text-blue-500 rounded-xl sm:rounded-2xl active:scale-95 transition-all hover:bg-blue-600/20"
-                      title="Print KOT"
+                      title="Print Latest Update"
                     >
                       {ICONS.Printer}
+                    </button>
+
+                    <button 
+                      onClick={() => onEditOrder(order)}
+                      className="p-3 sm:p-4 bg-orange-600/10 text-orange-600 rounded-xl sm:rounded-2xl active:scale-95 transition-all hover:bg-orange-600/20 border border-orange-600/20 flex items-center justify-center"
+                      title="Update / Add More"
+                    >
+                      {ICONS.PlusCircle}
                     </button>
 
                     {order.status === 'received' && (

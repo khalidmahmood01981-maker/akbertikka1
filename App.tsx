@@ -445,59 +445,55 @@ const App: React.FC = () => {
         
         let itemsHtml = '';
         if (order.kitchenTickets && order.kitchenTickets.length > 0) {
-          // Only show the LATEST ticket to avoid confusion in the kitchen
           const latestTicket = order.kitchenTickets[order.kitchenTickets.length - 1];
           const isUpdate = order.kitchenTickets.length > 1;
 
           itemsHtml = `
-            <div style="margin-top: 15px; border-top: 2px solid #000; padding-top: 5px;">
-              <div style="background: #000; color: #fff; text-align: center; font-size: 16px; font-weight: 900; padding: 4px; margin-bottom: 8px; border-radius: 4px;">
-                ${isUpdate ? '⚠️ ORDER UPDATED ⚠️' : 'INITIAL ORDER'}
-              </div>
-              ${isUpdate ? `<div style="text-align: center; font-size: 12px; font-weight: 900; margin-bottom: 10px; border: 1px solid #000; padding: 2px;">UPDATE ROUND #${latestTicket.round}</div>` : ''}
+            <div style="margin-top: 10px;">
+              ${isUpdate ? `
+                <div style="text-align: center; font-size: 20px; font-weight: 900; margin-bottom: 15px; border-bottom: 2px dashed #000; padding-bottom: 5px;">
+                  TICKET #${latestTicket.round} - UPDATE
+                </div>
+              ` : ''}
               ${latestTicket.items.map(item => `
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #000; padding: 8px 0; font-size: 22px; font-weight: 900;">
+                <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding: 10px 0; font-size: 24px; font-weight: 900;">
                   <div style="flex: 1;">${item.name.toUpperCase()}</div>
-                  <div style="width: 60px; text-align: right;">x${item.quantity}</div>
+                  <div style="width: 70px; text-align: right; background: #eee; padding: 0 4px;">${(isUpdate && item.quantity > 0) ? '+' : ''}${item.quantity}</div>
                 </div>
               `).join('')}
-              <div style="text-align: right; font-size: 10px; margin-top: 8px; opacity: 0.8;">
-                Sent by: ${latestTicket.senderName || 'Staff'} • ${new Date(latestTicket.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              <div style="text-align: right; font-size: 10px; margin-top: 10px; font-weight: bold;">
+                By: ${latestTicket.senderName || 'Staff'} • ${new Date(latestTicket.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </div>
             </div>
           `;
         } else {
-          // Fallback if no tickets exist
           itemsHtml = order.items.map(item => `
-            <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #000; padding: 10px 0; font-size: 22px; font-weight: 900;">
+            <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding: 10px 0; font-size: 24px; font-weight: 900;">
               <div style="flex: 1;">${item.name.toUpperCase()}</div>
-              <div style="width: 60px; text-align: right;">x${item.quantity}</div>
+              <div style="width: 70px; text-align: right; background: #eee; padding: 0 4px;">x${item.quantity}</div>
             </div>
           `).join('');
         }
 
         html = `
           <html>
-            <body>
-              <div style="width: 58mm; font-family: 'Courier New', Courier, monospace; padding: 5px;">
-                <div style="text-align: center; border-bottom: 3px solid #000; padding-bottom: 8px; margin-bottom: 12px;">
-                  <h1 style="margin: 0; font-size: 18px;">KITCHEN TICKET</h1>
-                  <p style="margin: 4px 0; font-size: 16px;">Order #${order.orderNumber}</p>
+            <body style="margin: 0; padding: 0;">
+              <div style="width: 58mm; font-family: 'Courier New', Courier, monospace; padding: 4px;">
+                <div style="text-align: center; border-bottom: 5px solid #000; padding-bottom: 8px; margin-bottom: 10px; background: #000; color: #fff;">
+                  <h1 style="margin: 0; font-size: 24px; letter-spacing: 2px;">KITCHEN</h1>
+                  <p style="margin: 2px 0; font-size: 32px; font-weight: 900; background: #fff; color: #000; display: inline-block; padding: 0 15px; border-radius: 8px; margin-top: 5px;">#${order.orderNumber}</p>
                 </div>
-                <div style="text-align: center; font-size: 24px; font-weight: 900; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 10px;">
-                  ${order.tableNumber ? `TABLE: ${order.tableNumber}` : 'WALK-IN'}
+                <div style="text-align: center; font-size: 28px; font-weight: 900; border-bottom: 3px solid #000; padding-bottom: 5px; margin-bottom: 8px; background: #f0f0f0;">
+                  ${order.tableNumber ? `TABLE: ${order.tableNumber}` : 'TAKEAWAY'}
                 </div>
-                <div style="font-size: 14px; margin-bottom: 10px;">
-                  <b>CUST:</b> ${order.customerName.toUpperCase()}<br/>
-                  <b>TIME:</b> ${new Date(order.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                <div style="font-size: 14px; margin-bottom: 5px; font-weight: bold;">
+                  CUST: ${order.customerName.toUpperCase()}<br/>
+                  TIME: ${new Date(order.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>
-                ${order.kitchenNotes ? `<div style="border: 2px solid #000; padding: 10px; margin-bottom: 15px; font-weight: 900; text-align: center;">${order.kitchenNotes.toUpperCase()}</div>` : ''}
+                ${order.kitchenNotes ? `<div style="border: 3px solid #000; padding: 8px; margin: 10px 0; font-weight: 900; text-align: center; font-size: 16px;">NOTES: ${order.kitchenNotes.toUpperCase()}</div>` : ''}
                 <div>${itemsHtml}</div>
-                <div style="margin-top: 20px; border-top: 2px solid #000; padding-top: 10px; text-align: center; font-size: 12px;">
-                  Total Items: ${order.items.reduce((acc, i) => acc + i.quantity, 0)}
-                </div>
-                <div style="margin-top: 10px; border-top: 1px dashed #000; padding-top: 8px; text-align: center; font-size: 14px; font-weight: 900;">
-                  ORDER BY: ${(order.orderTakerName || 'OWNER').toUpperCase()}
+                <div style="margin-top: 15px; border-top: 3px solid #000; padding-top: 8px; text-align: center; font-size: 14px; font-weight: 900;">
+                  TAKER: ${(order.orderTakerName || 'OWNER').toUpperCase()}
                 </div>
               </div>
             </body>
@@ -505,26 +501,66 @@ const App: React.FC = () => {
       } else if (type === 'bill') {
         const order = data as Order;
         const itemsHtml = order.items.map(item => `
-          <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #ccc; padding: 5px 0; font-size: 12px;">
-            <div style="flex: 1;">${item.name.toUpperCase()}</div>
-            <div style="width: 70px; text-align: right;">Rs.${(item.price * item.quantity).toFixed(0)}</div>
+          <div style="display: flex; border-bottom: 1px dashed #000; padding: 6px 0; font-size: 13px; font-weight: bold;">
+            <div style="flex: 2;">${item.name.toUpperCase()}</div>
+            <div style="flex: 1; text-align: center;">${item.quantity}${item.unit === 'rs' ? ' Rs' : ''}</div>
+            <div style="flex: 1; text-align: right;">${(item.price * item.quantity).toFixed(0)}</div>
           </div>
         `).join('');
+
+        const taxStr = order.tax > 0 ? `
+          <div style="display: flex; justify-content: space-between; font-size: 12px; margin-top: 2px;">
+            <span>Tax:</span><span>Rs. ${order.tax.toFixed(0)}</span>
+          </div>` : '';
+        const discountStr = order.discount > 0 ? `
+          <div style="display: flex; justify-content: space-between; font-size: 12px; margin-top: 2px; color: #000;">
+            <span>Discount:</span><span>-Rs. ${order.discount.toFixed(0)}</span>
+          </div>` : '';
+        const deliveryStr = order.deliveryFee && order.deliveryFee > 0 ? `
+          <div style="display: flex; justify-content: space-between; font-size: 12px; margin-top: 2px;">
+            <span>Delivery:</span><span>Rs. ${order.deliveryFee.toFixed(0)}</span>
+          </div>` : '';
+
         html = `
           <html>
-            <body>
-              <div style="width: 58mm; font-family: 'Courier New', Courier, monospace;">
-                <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 10px;">
-                  <h2 style="margin: 0;">${settings.businessName || 'RECEIPT'}</h2>
-                  <p style="margin: 2px 0;">Order #${order.orderNumber}</p>
+            <body style="margin: 0; padding: 0;">
+              <div style="width: 58mm; font-family: 'Courier New', Courier, monospace; padding: 5px;">
+                <div style="text-align: center; margin-bottom: 10px;">
+                  <h1 style="margin: 0; font-size: 20px; font-weight: 900;">${settings.businessName || 'RESTAURANT'}</h1>
+                  <p style="margin: 2px 0; font-size: 12px;">Order ID: #${order.orderNumber}</p>
+                  <p style="margin: 2px 0; font-size: 11px;">${new Date(order.timestamp).toLocaleString()}</p>
                 </div>
-                <div>${itemsHtml}</div>
-                <div style="border-top: 1px solid #000; margin-top: 10px; padding-top: 5px; font-weight: 900; font-size: 16px;">
+                
+                <div style="border-bottom: 2px solid #000; border-top: 2px solid #000; padding: 4px 0; margin-bottom: 5px; font-size: 12px; font-weight: 900;">
                   <div style="display: flex; justify-content: space-between;">
-                    <span>TOTAL:</span><span>Rs.${order.total.toFixed(0)}</span>
+                    <span>${order.tableNumber ? `TABLE: ${order.tableNumber}` : 'TAKEAWAY'}</span>
+                    <span>${order.customerName.toUpperCase()}</span>
                   </div>
                 </div>
-                <div style="text-align: center; margin-top: 20px; font-size: 10px;">THANK YOU!</div>
+
+                <div style="display: flex; font-size: 11px; font-weight: 900; border-bottom: 1px solid #000; padding-bottom: 2px; margin-bottom: 5px;">
+                  <div style="flex: 2;">ITEM</div>
+                  <div style="flex: 1; text-align: center;">QTY</div>
+                  <div style="flex: 1; text-align: right;">TOTAL</div>
+                </div>
+
+                <div>${itemsHtml}</div>
+
+                <div style="margin-top: 10px; border-top: 2px solid #000; padding-top: 5px;">
+                  <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                    <span>Subtotal:</span><span>Rs. ${order.subtotal.toFixed(0)}</span>
+                  </div>
+                  ${taxStr}${discountStr}${deliveryStr}
+                  <div style="display: flex; justify-content: space-between; font-size: 18px; font-weight: 900; margin-top: 5px; border-top: 1px solid #000; padding-top: 5px;">
+                    <span>GRAND TOTAL:</span><span>Rs.${order.total.toFixed(0)}</span>
+                  </div>
+                </div>
+
+                <div style="text-align: center; margin-top: 20px; border-top: 1px dashed #000; padding-top: 10px;">
+                  <p style="margin: 0; font-size: 12px; font-weight: 900;">THANK YOU!</p>
+                  <p style="margin: 4px 0 0; font-size: 10px;">${settings.receiptFooterText || 'Please come again.'}</p>
+                  <p style="margin: 10px 0 0; font-size: 8px; opacity: 0.7;">Powered by Flavor Dash</p>
+                </div>
               </div>
             </body>
           </html>`;
