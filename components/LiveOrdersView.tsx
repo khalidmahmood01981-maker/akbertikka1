@@ -24,7 +24,7 @@ const LiveOrdersView: React.FC<LiveOrdersViewProps> = ({
   const [showSummary, setShowSummary] = useState(false);
 
   const handlePrintOrder = (order: Order) => {
-    handlePrintKitchen(order);
+    // handlePrintKitchen(order); // Removed kitchen print command
     
     // Update status if it was 'received'
     if (order.status === 'received') {
@@ -302,15 +302,7 @@ const LiveOrdersView: React.FC<LiveOrdersViewProps> = ({
                             Ticket {ticket.round} {tIdx === 0 && ' (NEW UPDATE)'}
                           </div>
                           
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onPrint?.('kitchen', { ...order, kitchenTickets: [ticket] });
-                            }}
-                            className="absolute -top-3 right-4 bg-emerald-600 font-black text-[9px] uppercase tracking-widest px-3 py-1 rounded-xl text-white shadow-lg border border-emerald-500/50 flex items-center gap-1 active:scale-95 transition-all"
-                          >
-                            {ICONS.Printer} Print
-                          </button>
+                          {/* Removed ticket print button */}
 
                           <div className="pt-2 space-y-2">
                             {ticket.items.map((item, idx) => (
@@ -374,13 +366,7 @@ const LiveOrdersView: React.FC<LiveOrdersViewProps> = ({
                       </button>
                     )}
 
-                    <button 
-                      onClick={() => handlePrintOrder(order)}
-                      className="p-3 sm:p-4 bg-blue-600/10 text-blue-500 rounded-xl sm:rounded-2xl active:scale-95 transition-all hover:bg-blue-600/20"
-                      title="Print Latest Update"
-                    >
-                      {ICONS.Printer}
-                    </button>
+                    {/* Removed main print button */}
 
                     <button 
                       onClick={() => onEditOrder(order)}

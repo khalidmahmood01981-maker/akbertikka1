@@ -492,16 +492,21 @@ const POS: React.FC<POSProps> = ({
         } else {
           // Conditional Printing based on Order Type
           if (orderType === 'Dine In' && didAddTicket) {
+            // handlePrintKitchen(newOrder); // Keep disabled for Dine-in as per previous instructions
+          } else if (orderType === 'Take Away' && didAddTicket) {
+            // TAKE AWAY: Print both Kitchen and Bill
             handlePrintKitchen(newOrder);
+            handlePrint(newOrder, true);
+            notify("Take Away: Bill & Kitchen Printed!", "success");
           } else if (didAddTicket) {
-            // Only print if payment is fully received for Take Away/Delivery
+            // Only print if payment is fully received for Delivery etc.
             const isPaid = (Number(receivedAmount) || 0) >= (finalTotal || 0);
             if (isPaid) {
               handlePrint(newOrder, true);
               notify("Bill Printed!", "success");
             } else {
-              handlePrintKitchen(newOrder);
-              notify("Ticket sent to kitchen!", "info");
+              // handlePrintKitchen(newOrder);
+              notify("Order sent to kitchen record!", "info");
             }
           }
           if (mode === 'update') notify("Order updated successfully!", "success");
@@ -1571,18 +1576,7 @@ const POS: React.FC<POSProps> = ({
                                 </div>
                               )}
                             </div>
-
                             <div className="flex gap-2">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handlePrintKitchen(order);
-                                }}
-                                className="p-3 bg-blue-600/10 text-blue-500 rounded-2xl active:scale-95 transition-all border border-blue-600/20"
-                                title="Print KOT"
-                              >
-                                {ICONS.Printer}
-                              </button>
                               {order.status === 'ready' && (
                                 <button
                                   onClick={(e) => {
@@ -1704,12 +1698,6 @@ const POS: React.FC<POSProps> = ({
                       </div>
 
                       <div className="flex gap-2">
-                        <button 
-                          onClick={() => handlePrintKitchen(order)}
-                          className="p-4 bg-blue-600/10 text-blue-500 rounded-2xl border border-blue-600/20 active:scale-95 transition-all"
-                        >
-                          {ICONS.Printer}
-                        </button>
                         {isAdmin && (
                           <button
                             onClick={() => {
@@ -1972,7 +1960,6 @@ const POS: React.FC<POSProps> = ({
                           BROWSE FULL MENU
                         </button>
                       </div>
-
                         <div className="flex gap-2 pt-2">
                           <button
                             onClick={() => handlePrint(order)}
@@ -2314,18 +2301,14 @@ const POS: React.FC<POSProps> = ({
               <h3 className="text-3xl font-black uppercase tracking-tighter italic text-white leading-none">Bill <span className="text-orange-600">Saved!</span></h3>
               <p className="text-[12px] font-black text-[var(--text-muted)] uppercase tracking-widest leading-relaxed">Bill Total: Rs.{successOrder.total.toFixed(0)}</p>
             </div>
+            
             <div className="grid grid-cols-1 gap-4">
-            <div className="grid grid-cols-2 gap-4">
               <button onClick={() => handlePrint(successOrder, true)} className="w-full py-6 bg-white/5 rounded-[32px] font-black uppercase text-[10px] text-white flex flex-col items-center gap-3 border border-white/10 hover:bg-white/15 transition-all active:scale-95">
                 <div className="scale-150 text-orange-600">{ICONS.Printer}</div>
                 Print Receipt
               </button>
-              <button onClick={() => handlePrintKitchen(successOrder)} className="w-full py-6 bg-white/5 rounded-[32px] font-black uppercase text-[10px] text-white flex flex-col items-center gap-3 border border-white/10 hover:bg-white/15 transition-all active:scale-95">
-                <div className="scale-150 text-blue-500">{ICONS.ChefHat}</div>
-                Print KOT
-              </button>
             </div>
-            </div>
+
             <button onClick={resetForNextBill} className="w-full py-6 bg-orange-600 text-white rounded-[32px] font-black uppercase text-[14px] shadow-2xl active:scale-95 transition-all tracking-tighter hover:bg-orange-700">DONE / NEXT BILL</button>
           </div>
         </div>

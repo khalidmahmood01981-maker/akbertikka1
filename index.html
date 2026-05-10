@@ -7,7 +7,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="icons/icon-512.png">
+    <link rel="apple-touch-icon" href="/logo.png">
     <meta name="theme-color" content="#B45F06">
     <meta name="description" content="Akbar Tikka - Professional Restaurant Management & POS">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Oswald:wght@400;700&family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
@@ -129,6 +129,13 @@
     <div id="root"></div>
     <!-- Hidden print container -->
     <div id="print-section" style="display: none;"></div>
-  <script type="module" src="/index.tsx"></script>
-</body>
+    <script type="module" src="/index.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js');
+        });
+      }
+    </script>
+  </body>
 </html>

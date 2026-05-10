@@ -119,10 +119,10 @@ const App: React.FC = () => {
     ],
     isAutoWhatsappEnabled: true,
     enableVoiceAnnouncement: true,
-    isAutoPrintKitchenEnabled: true,
+    isAutoPrintKitchenEnabled: false,
     isAutoPrintBillEnabled: false,
     isQueueModeEnabled: true,
-    enableKitchenPrinting: true,
+    enableKitchenPrinting: false,
     enableBillPrinting: true,
   });
 
@@ -198,6 +198,7 @@ const App: React.FC = () => {
 
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstallable, setIsInstallable] = useState(false);
+  const [showInstallPopup, setShowInstallPopup] = useState(false);
 
   const triggerConfirm = (config: {
     title: string;
@@ -218,6 +219,12 @@ const App: React.FC = () => {
       e.preventDefault();
       setDeferredPrompt(e);
       setIsInstallable(true);
+      
+      // Auto-show popup if not dismissed
+      const isDismissed = localStorage.getItem('install_popup_dismissed');
+      if (!isDismissed) {
+        setShowInstallPopup(true);
+      }
     };
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -2376,6 +2383,44 @@ const WELCOME_MESSAGES = [
             >
               CLOSE
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* PWA Install Modal */}
+      {showInstallPopup && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-3xl z-[70000] flex items-center justify-center p-6 animate-in fade-in">
+          <div className="bg-[var(--bg-card)] rounded-[48px] border border-orange-600/20 w-full max-w-sm p-10 space-y-8 shadow-2xl text-center relative border-b-[12px] border-b-orange-600 animate-in zoom-in">
+            <div className="w-24 h-24 bg-orange-600/10 text-orange-600 rounded-full mx-auto flex items-center justify-center mb-4 ring-8 ring-orange-600/5">
+              <div className="scale-150">{ICONS.Download}</div>
+            </div>
+            <div className="space-y-3">
+              <h3 className="text-3xl font-black uppercase tracking-tighter italic text-white leading-none">Install <span className="text-orange-600">App</span></h3>
+              <p className="text-[11px] font-black text-[var(--text-muted)] uppercase tracking-widest leading-relaxed">
+                Behtar experience aur fast speed ke liye app install karein.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <button 
+                onClick={() => {
+                  handleInstallClick();
+                  setShowInstallPopup(false);
+                }}
+                className="w-full py-6 bg-orange-600 text-white rounded-[32px] font-black uppercase text-[14px] shadow-2xl active:scale-95 transition-all tracking-widest flex items-center justify-center gap-3"
+              >
+                {ICONS.CheckCircle} INSTALL NOW
+              </button>
+              <button 
+                onClick={() => {
+                  setShowInstallPopup(false);
+                  localStorage.setItem('install_popup_dismissed', 'true');
+                }}
+                className="w-full py-4 text-[var(--text-muted)] font-black uppercase text-[10px] tracking-[0.2em] active:scale-95 transition-all"
+              >
+                Later / Dismiss
+              </button>
+            </div>
           </div>
         </div>
       )}
